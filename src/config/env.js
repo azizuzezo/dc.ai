@@ -21,6 +21,13 @@ export const env = {
   adminPassword: process.env.ADMIN_PASSWORD,
   adminPort: Number(process.env.ADMIN_PORT) || 3001,
   sessionSecret: process.env.SESSION_SECRET || "dev-insecure-secret-change-me",
+
+  ownerDiscordId: process.env.OWNER_DISCORD_ID,
+  strixLlmModel: process.env.STRIX_LLM_MODEL,
+  strixGeminiApiKey: process.env.STRIX_GEMINI_API_KEY,
+  strixMaxBudgetUsd: Number(process.env.STRIX_MAX_BUDGET_USD) || 5,
+  strixMaxTurns: Number(process.env.STRIX_MAX_TURNS) || 20,
+  strixScanTimeoutMs: Number(process.env.STRIX_SCAN_TIMEOUT_MS) || 1200000,
 };
 
 export function assertRequiredEnv() {

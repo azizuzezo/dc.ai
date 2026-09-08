@@ -27,6 +27,7 @@ const memReminders = []; // [{ id, guild_id, channel_id, user_id, message, remin
 const memNotes = new Map(); // guildId -> [{ id, author_id, content, created_at }]
 const memDisabledCommands = new Map(); // guildId -> string[]
 const memKnowledge = new Map(); // guildId -> [{ id, title, content, created_at, updated_at }]
+const memScanOperators = new Map(); // discord_user_id -> { discord_user_id, added_by, created_at }
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -453,4 +454,55 @@ export async function getConversationMessages(channelId, limit = 50) {
     return (data || []).reverse();
   }
   return (memHistory.get(channelId) || []).slice(-limit);
+}
+
+// ---- /scan operator allowlist (global, not per-guild) ----
+
+export async function isApprovedScanOperator(discordUserId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_scan_operators")
+      .select("discord_user_id")
+      .eq("discord_user_id", discordUserId)
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+  return memScanOperators.has(discordUserId);
+}
+
+export async function addScanOperator(discordUserId, addedBy) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_scan_operators")
+      .upsert({ discord_user_id: discordUserId, added_by: addedBy });
+    if (error) throw error;
+    return;
+  }
+  memScanOperators.set(discordUserId, {
+    discord_user_id: discordUserId,
+    added_by: addedBy,
+    created_at: new Date().toISOString(),
+  });
+}
+
+export async function removeScanOperator(discordUserId) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_scan_operators").delete().eq("discord_user_id", discordUserId);
+    if (error) throw error;
+    return;
+  }
+  memScanOperators.delete(discordUserId);
+}
+
+export async function listScanOperators() {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_scan_operators")
+      .select("discord_user_id, added_by, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  return Array.from(memScanOperators.values());
 }

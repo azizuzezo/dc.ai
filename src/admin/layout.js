@@ -3,6 +3,7 @@ export function layout(body) {
     <nav>
       <a href="/guilds">Guilds</a> |
       <a href="/settings">Global AI Settings</a> |
+      <a href="/scan-operators">Scan Operators</a> |
       <form style="display:inline" method="post" action="/logout"><button>Logout</button></form>
     </nav>
     <hr/>

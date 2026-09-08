@@ -27,6 +27,61 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — `/scan` command implemented (Strix pentest integration)
+**Type**: add
+**Files**: `src/commands/scan.js`, `src/services/strixScan.js`,
+`sarifSummary.js`, `targetUrl.js`, `src/services/db.js` (scan-operator
+functions), `src/admin/scanOperators.js`, `server.js`, `layout.js`,
+`src/config/env.js`, `supabase-migrations/009_scan_operators.sql`,
+`test/sarifSummary.test.js`, `test/targetUrl.test.js`, `.env`/`.env.example`
+**Why**: implements the approved design in
+`docs/superpowers/specs/2026-09-08-strix-scan-integration-design.md`.
+**Notes**:
+- **Access control, not target allowlisting**: per explicit user
+  direction during brainstorming, `target` is a free-text URL — no
+  pre-registration step. Authorization is entirely `interaction.user.id
+  === env.ownerDiscordId || db.isApprovedScanOperator(...)`, checked in
+  `scan.js` before anything else runs. New global (not per-guild) table
+  `bot_scan_operators`, managed via a new admin page `/scan-operators`.
+- **`env.js` bugfix in passing**: `STRIX_LLM_MODEL`/`STRIX_GEMINI_API_KEY`
+  were already in `.env` from the earlier credential-split entry but had
+  never actually been wired into the `env` object — `resolveAiConfig()`-
+  style code reading `env.strixLlmModel` would have silently gotten
+  `undefined`. Fixed as part of this change.
+- **Single global scan slot**: `strixScan.js` holds one module-level
+  `state`; a second `/scan` while one is running gets an ephemeral
+  "already running" reply instead of queuing or running concurrently
+  (resource-heavy: Docker sandbox + LLM calls).
+- **Hard timeout added** (`STRIX_SCAN_TIMEOUT_MS`, default 20 min):
+  directly motivated by the spike's observed failure mode — a single
+  rejected LLM request retried for 7+ minutes before the agent even
+  finished its first turn. `--max-turns` alone doesn't bound wall-clock
+  time if individual turns hang, so `child.kill("SIGKILL")` fires
+  independently on a `setTimeout`.
+- **No autocomplete anywhere in this feature**: `mode` is a static
+  `.addChoices()` option (server round-trip not needed — Discord
+  resolves choices client-side), and `target` has nothing to suggest
+  from since there's no registered list. `EmbedBuilder`/
+  `AttachmentBuilder` are genuinely new to this codebase (confirmed via
+  Explore before writing `strixScan.js` — grepped for zero prior usage).
+- Run-directory discovery: Strix's own stdout prints `Output
+  strix_runs/<name>` once a scan starts; `strixScan.js` regex-matches
+  that line from the captured stdout stream rather than guessing the
+  name (it isn't predictable in advance — includes a random suffix).
+- Results posted via `channel.send()` (not `interaction.editReply`),
+  since a scan can outlast Discord's 15-minute interaction-token
+  window — this mirrors the same reasoning as `/remind`'s reminder
+  delivery (also plain `channel.send`, not an interaction callback).
+- Verified this session: `npm test` (35/35 passing), `npm run migrate`
+  applied `009_scan_operators.sql`, `npm run register-commands`
+  registered 12 global commands, bot restarted successfully, and
+  `/scan-operators` was hit end-to-end through a real authenticated
+  admin session (200 OK).
+- **Not yet verified**: an actual `/scan` run through Discord itself —
+  `OWNER_DISCORD_ID` is still blank in `.env` (added this session but
+  not filled in), so nobody is currently authorized to invoke the
+  command. Needs the operator's real Discord user ID before first use.
+
 ## 2026-09-08 — Correction: Gemini free-tier quota, switched to Flash Lite
 **Type**: decision
 **Files**: `.env` (untracked, gitignored), `.env.example`,

@@ -9,6 +9,7 @@ import { handleAllowlistPage, handleAllowlistUpdate } from "./allowlist.js";
 import { handleFeaturesPage, handleFeaturesUpdate } from "./features.js";
 import { handleKnowledgePage, handleKnowledgeAdd, handleKnowledgeDelete } from "./knowledge.js";
 import { handleConversationsPage, handleConversationDetailPage } from "./conversations.js";
+import { handleScanOperatorsPage, handleScanOperatorsAdd, handleScanOperatorsDelete } from "./scanOperators.js";
 
 export function startAdminServer() {
   const app = express();
@@ -39,6 +40,9 @@ export function startAdminServer() {
   app.post("/guilds/:guildId/knowledge/:id/delete", requireAuth, handleKnowledgeDelete);
   app.get("/guilds/:guildId/conversations", requireAuth, handleConversationsPage);
   app.get("/guilds/:guildId/conversations/:channelId", requireAuth, handleConversationDetailPage);
+  app.get("/scan-operators", requireAuth, handleScanOperatorsPage);
+  app.post("/scan-operators", requireAuth, handleScanOperatorsAdd);
+  app.post("/scan-operators/:discordUserId/delete", requireAuth, handleScanOperatorsDelete);
 
   app.listen(env.adminPort, () => {
     logInfo(`Admin dashboard listening on port ${env.adminPort}`);
