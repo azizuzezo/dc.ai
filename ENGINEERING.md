@@ -27,6 +27,36 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Strix temporarily disabled in /scan; AI identity masked
+**Type**: refactor, decision
+**Files**: `src/commands/scan.js`, `src/config/constants.js`
+**Why**: two user requests. (1) Strix only works locally (needs Docker,
+unavailable on Railway — see prior entries); user wants it off until a
+VPS with Docker exists, at which point it comes back. (2) The AI chat
+was answering "what model are you" honestly (Gemini, via
+gemini-web2api) — user wants it to identify as "DuaCincin Assistant"
+instead, not name the underlying provider.
+**Notes**:
+- `/scan` no longer has `engine`/`mode` options — just `target`, and it
+  always runs Nuclei. **`src/services/strixScan.js` was NOT deleted** —
+  it's simply unimported from `scan.js` now, left intact and working so
+  it can be wired back in with one line once a VPS is available. Any
+  future "bring Strix back" task should reference this entry rather
+  than rebuilding it from scratch.
+- `SYSTEM_PROMPT` (`src/config/constants.js`) now explicitly instructs
+  the model to identify as "DuaCincin Assistant" and decline to name
+  its underlying provider/model if asked. This is a prompt-level
+  instruction, not a hard guarantee — a sufficiently adversarial prompt
+  could still get the model to reveal it's Gemini underneath (no
+  system-prompt instruction is airtight against jailbreaking); this
+  was not asked to be hardened further, so left as a straightforward
+  system-prompt directive matching the rest of this bot's design
+  (no output filtering/sanitization layer added).
+- Verified: `npm test` (40/40 passing — no service files removed, only
+  the command wiring), `npm run register-commands` updated the
+  Discord-side `/scan` definition (target-only now, no engine/mode
+  choices).
+
 ## 2026-09-08 — Correction: nixpacks.toml was a no-op; switched to Dockerfile
 **Type**: refactor
 **Files**: `Dockerfile` (new), `railway.json` (new), `.dockerignore`
