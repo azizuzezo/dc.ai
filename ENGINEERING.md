@@ -27,6 +27,21 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Fix: `spawn strix ENOENT` (PATH not inherited by the service)
+**Type**: refactor
+**Files**: `src/services/strixScan.js`
+**Why**: first live `/scan` attempt failed immediately with "Scan failed
+to start: spawn strix ENOENT". Root cause: the Strix installer only adds
+`~/.strix/bin` to `PATH` via a line appended to `~/.bashrc` — sourced by
+interactive login shells, not by the bot process (started as a plain
+background service). `child_process.spawn("strix", ...)` inherited
+`process.env.PATH` as-is, which never included that directory.
+**Notes**: prepended `~/.strix/bin` (via `os.homedir()`, not a hardcoded
+path) to the spawned child's `PATH` explicitly, rather than requiring
+the operator to fix their shell startup files or hardcode an env var —
+this makes `/scan` work regardless of how the bot process itself gets
+started (systemd, pm2, a bare `npm start` in a background shell, etc.).
+
 ## 2026-09-08 — `/scan` command implemented (Strix pentest integration)
 **Type**: add
 **Files**: `src/commands/scan.js`, `src/services/strixScan.js`,

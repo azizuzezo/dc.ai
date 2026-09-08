@@ -2,12 +2,19 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { EmbedBuilder, AttachmentBuilder } from "discord.js";
 import { env } from "../config/env.js";
 import { logInfo, logError } from "./logger.js";
 import { parseSarifSummary } from "./sarifSummary.js";
 
 const RUN_DIR_PATTERN = /Output\s+(strix_runs\/\S+)/;
+
+// The Strix installer only adds ~/.strix/bin to PATH via ~/.bashrc, which a
+// process started as a service (not an interactive login shell) never
+// sources — spawn would otherwise fail with ENOENT even though `strix`
+// works fine from a terminal.
+const STRIX_BIN_DIR = join(homedir(), ".strix", "bin");
 
 let state = null; // { target, mode, startedAt, channelId, requestedBy }
 
@@ -29,6 +36,7 @@ export function startScan({ target, mode, channel, requestedBy }) {
     {
       env: {
         ...process.env,
+        PATH: `${STRIX_BIN_DIR}:${process.env.PATH || ""}`,
         STRIX_LLM: env.strixLlmModel,
         LLM_API_KEY: env.strixGeminiApiKey,
       },
