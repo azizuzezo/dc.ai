@@ -27,6 +27,42 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Fix: recurring IPv6-hang connection failures (chat broken in prod)
+**Type**: dependency, refactor
+**Files**: `package.json`, `package-lock.json`, `src/config/network.js`
+(new), `src/index.js`
+**Why**: `/chat` and mention-trigger started failing in the live bot with
+`GeminiRequestError: Network error calling gemini-web2api` →
+`ConnectTimeoutError` to `api.support.duacincin.id:443`, reported by the
+user. This is the same IPv6 connectivity issue diagnosed during the
+Strix spike (this machine's IPv6 route hangs ~10s instead of failing
+fast, so `fetch()` never gets to try IPv4) — except that was worked
+around ad hoc with `curl -4` during manual testing; the actual running
+bot had no such workaround and was silently eating this on every call.
+**Notes**: fixing this took two attempts.
+- First attempt: `setGlobalDispatcher(new Agent({connect:{family:4}}))`
+  from the `undici` npm package — didn't work. Verified why: Node's
+  global `fetch()` is backed by its own **separately bundled** internal
+  copy of undici (`node:internal/deps/undici/undici`), not the npm
+  package; `setGlobalDispatcher` from the npm package only affects code
+  that imports `fetch` from that same package, not `globalThis.fetch`.
+  Confirmed side-by-side: npm-package `fetch` after `setGlobalDispatcher`
+  connected in ~150ms, `globalThis.fetch` after the identical call still
+  hung 10s+.
+- Fix: added `undici` as an explicit dependency (was already present
+  transitively, now pinned directly) and `src/config/network.js`'s
+  `forceIpv4Fetch()` both sets the dispatcher *and* monkey-patches
+  `globalThis.fetch = undiciFetch` (the npm package's own export) —
+  called once at the top of `src/index.js`, before anything else runs.
+  Every existing `fetch(...)` call site in the codebase (notably
+  `geminiClient.js`'s default `fetchImpl = fetch` parameter) picks this
+  up automatically, no call-site changes needed.
+- Verified directly: same request that previously hung 10s+ and failed
+  now completes in under 1 second.
+- This is a machine-level network quirk, not a gemini-web2api or code
+  bug — worth re-checking whether it's still needed if/when this bot
+  moves to different hosting (Railway discussion in progress).
+
 ## 2026-09-08 — First real `/scan` run: SARIF-counting bug + branding
 **Type**: refactor
 **Files**: `src/services/sarifSummary.js`, `test/sarifSummary.test.js`,

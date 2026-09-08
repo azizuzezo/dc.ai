@@ -4,10 +4,12 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { env, assertRequiredEnv } from "./config/env.js";
+import { forceIpv4Fetch } from "./config/network.js";
 import { logError } from "./services/logger.js";
 import { startAdminServer } from "./admin/server.js";
 
 assertRequiredEnv();
+forceIpv4Fetch();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
