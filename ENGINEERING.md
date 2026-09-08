@@ -27,6 +27,30 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Correction: Gemini free-tier quota, switched to Flash Lite
+**Type**: decision
+**Files**: `.env` (untracked, gitignored), `.env.example`,
+`docs/superpowers/specs/2026-09-08-strix-scan-integration-design.md`
+**Why**: the previous entry's "free tier: 15 RPM / 1,500 req/day" figure
+was from general documentation, not the user's actual account. The
+user's real Google AI Studio quota dashboard (checked while setting up
+`STRIX_GEMINI_API_KEY`) shows plain Flash models — including
+`gemini-3.6-flash`, the default this project had picked — capped at
+**5 RPM / 20 requests per day**. A single multi-turn Strix scan can
+exhaust that on its own (the earlier spike needed 5 retries just to get
+past one agent turn).
+**Notes**: switched `STRIX_LLM_MODEL` default from
+`gemini/gemini-3.6-flash` to `gemini/gemini-3.5-flash-lite` — same
+account's quota dashboard shows Flash Lite variants (3.1 and 3.5) at
+**15 RPM / 500 requests per day**, 25x the daily headroom, at some cost
+to reasoning quality versus plain Flash. Not yet load-tested against a
+real `/scan` run (the command itself isn't implemented yet — see the
+design doc). If 500/day still proves too tight once `/scan` is actually
+used, the next lever is enabling billing on the Google AI Studio
+project (removes free-tier caps entirely) rather than downgrading
+further to Gemma, which is unlikely to reason well enough for
+pentesting tasks despite its much higher quota.
+
 ## 2026-09-08 — Strix pentest integration: spike findings + credential split
 **Type**: decision
 **Files**: `.env` (untracked, gitignored), `.env.example`; also
