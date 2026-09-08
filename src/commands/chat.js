@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from "discord.js";
 import { isChannelAllowed } from "../services/channelAllowlist.js";
 import { runAiChat } from "../services/aiChatPipeline.js";
 import { replyChunked } from "../services/discordReply.js";
+import { checkRateLimit } from "../services/rateLimit.js";
 import { logError } from "../services/logger.js";
 
 export const data = new SlashCommandBuilder()
@@ -13,6 +14,15 @@ export async function execute(interaction) {
   const allowed = await isChannelAllowed(interaction.guildId, interaction.channelId);
   if (!allowed) {
     await interaction.reply({ content: "AI chat isn't enabled in this channel.", ephemeral: true });
+    return;
+  }
+
+  const rate = checkRateLimit(interaction.user.id);
+  if (!rate.allowed) {
+    await interaction.reply({
+      content: `Please wait a bit before asking again (~${Math.ceil(rate.retryAfterMs / 1000)}s).`,
+      ephemeral: true,
+    });
     return;
   }
 

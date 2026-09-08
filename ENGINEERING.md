@@ -27,6 +27,54 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Phase 2 implemented: moderation commands + AI rate limiting
+**Type**: add
+**Files**: `src/commands/warn.js`, `warnings.js`, `kick.js`, `mute.js`,
+`unmute.js`, `src/services/duration.js`, `src/services/rateLimit.js`,
+`src/services/db.js` (warnings functions), `src/commands/chat.js`,
+`src/events/messageCreate.js`, `supabase-migrations/004_user_warnings.sql`,
+`test/duration.test.js`, `test/rateLimit.test.js`
+**Why**: implements PRD §6 Phase 2 (Moderation & Safety). Went through
+`brainstorming` (bounded path — existing commands/events/services
+pattern from Phase 1 already covered this shape of change) with the
+user; key decisions confirmed: permission checks use Discord's native
+`setDefaultMemberPermissions()` (no custom role table), `/mute` uses
+Discord's native member timeout (not a custom Muted role), reaching
+`WARNING_LIMIT` takes **no automatic action** (moderator decides
+manually), and flood/cooldown control applies **only** to AI-trigger
+messages (`/chat` + mention), not general chat moderation.
+**Notes**:
+- `/warn`, `/warnings`, `/kick`, `/mute`, `/unmute` added, each gated by
+  `PermissionFlagsBits.ModerateMembers` or `KickMembers` at the Discord
+  API level — Discord itself hides ungranted commands from members, so
+  there's no manual permission-check branch in `execute()`.
+- New table `bot_user_warnings` (guild_id, user_id, moderator_id,
+  reason, created_at) follows the same `db.js` in-memory-fallback
+  pattern as the Phase 1 tables (`addWarning`/`listWarnings`).
+- `src/services/duration.js` — pure `parseDuration("10m"|"1h"|"1d")` →
+  ms, capped at Discord's 28-day timeout limit (`MAX_TIMEOUT_MS`).
+- `src/services/rateLimit.js` — `checkRateLimit(userId)` combines a
+  per-user cooldown (`AI_COOLDOWN_MS`) and a sliding-window flood check
+  (`FLOOD_LIMIT`/`FLOOD_WINDOW_MS`), in-memory only (resets on restart,
+  acceptable for abuse-prevention state). Wired into both `chat.js` and
+  `messageCreate.js` before the AI call — same shared-pipeline principle
+  as Phase 1's `runAiChat`. Pure helpers (`isWithinCooldown`,
+  `pruneWindow`) are exported separately so the logic is testable
+  without touching Discord or timers.
+- **Operational note**: the bot's existing Discord invite/permissions
+  grant predates Kick Members/Moderate Members — confirm the bot's role
+  has those permissions in each guild (Server Settings → Roles, or
+  re-invite with an updated permission integer) or `/kick`/`/mute` will
+  fail with a "Missing Permissions" error.
+- Verified this session: `npm test` (17/17 passing), `npm run migrate`
+  applied `004_user_warnings.sql`, `npm run register-commands`
+  registered 6 global commands (`chat`, `warn`, `warnings`, `kick`,
+  `mute`, `unmute`), bot restarted and logged in successfully with the
+  new code.
+- Out of scope (per PRD §12, later phases): image moderation (still
+  blocked by gemini-web2api's lack of image input), polls/trivia/
+  reminders/notes/summary, knowledge base/RAG, full dashboard parity.
+
 ## 2026-09-08 — Fix: duplicated /v1 in gemini-web2api request URL
 **Type**: refactor
 **Files**: `src/services/geminiClient.js`, `test/geminiClient.test.js`, `PRD.md` (§9, §8)

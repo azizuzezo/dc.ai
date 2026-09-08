@@ -1,6 +1,7 @@
 import { isChannelAllowed } from "../services/channelAllowlist.js";
 import { runAiChat } from "../services/aiChatPipeline.js";
 import { sendChunkedReply } from "../services/discordReply.js";
+import { checkRateLimit } from "../services/rateLimit.js";
 import { logError } from "../services/logger.js";
 
 export async function execute(message) {
@@ -15,6 +16,14 @@ export async function execute(message) {
     .replace(new RegExp(`<@!?${message.client.user.id}>`, "g"), "")
     .trim();
   if (!userMessage) return;
+
+  const rate = checkRateLimit(message.author.id);
+  if (!rate.allowed) {
+    await message
+      .reply(`Please wait a bit before asking again (~${Math.ceil(rate.retryAfterMs / 1000)}s).`)
+      .catch(() => {});
+    return;
+  }
 
   try {
     await message.channel.sendTyping();

@@ -22,6 +22,7 @@ if (!isPersistent) {
 const memHistory = new Map(); // channelId -> [{ role, content, created_at }]
 const memAllowlist = new Map(); // guildId -> string[]
 const memGuilds = new Map(); // guildId -> { guild_id, guild_name, updated_at }
+const memWarnings = new Map(); // `${guildId}:${userId}` -> [{ moderator_id, reason, created_at }]
 let memGlobalAiSettings = { model: null, baseUrl: null, apiKey: null };
 
 // ---- conversation history ----
@@ -169,4 +170,34 @@ export async function setGlobalAiSettings(patch) {
     return;
   }
   memGlobalAiSettings = { ...memGlobalAiSettings, ...patch };
+}
+
+// ---- moderation warnings ----
+
+export async function addWarning(guildId, userId, moderatorId, reason) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_user_warnings")
+      .insert({ guild_id: guildId, user_id: userId, moderator_id: moderatorId, reason });
+    if (error) throw error;
+    return;
+  }
+  const key = `${guildId}:${userId}`;
+  const rows = memWarnings.get(key) || [];
+  rows.push({ moderator_id: moderatorId, reason, created_at: new Date().toISOString() });
+  memWarnings.set(key, rows);
+}
+
+export async function listWarnings(guildId, userId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_user_warnings")
+      .select("reason, moderator_id, created_at")
+      .eq("guild_id", guildId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  return (memWarnings.get(`${guildId}:${userId}`) || []).slice().reverse();
 }
