@@ -5,8 +5,12 @@ export async function handleGuildsPage(req, res) {
   const guilds = await db.listGuilds();
   const rows = guilds
     .map(
-      (g) =>
-        `<tr><td>${g.guild_name || "(unknown)"}</td><td>${g.guild_id}</td><td><a href="/guilds/${g.guild_id}/allowlist">Allowlist</a></td></tr>`
+      (g) => `<tr><td>${g.guild_name || "(unknown)"}</td><td>${g.guild_id}</td><td>
+        <a href="/guilds/${g.guild_id}/allowlist">Allowlist</a> |
+        <a href="/guilds/${g.guild_id}/features">Features</a> |
+        <a href="/guilds/${g.guild_id}/knowledge">Knowledge</a> |
+        <a href="/guilds/${g.guild_id}/conversations">Conversations</a>
+      </td></tr>`
     )
     .join("");
   res.send(

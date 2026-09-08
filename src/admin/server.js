@@ -6,6 +6,9 @@ import { requireAuth, handleLoginPage, handleLogin, handleLogout } from "./auth.
 import { handleGuildsPage } from "./guilds.js";
 import { handleSettingsPage, handleSettingsUpdate } from "./settings.js";
 import { handleAllowlistPage, handleAllowlistUpdate } from "./allowlist.js";
+import { handleFeaturesPage, handleFeaturesUpdate } from "./features.js";
+import { handleKnowledgePage, handleKnowledgeAdd, handleKnowledgeDelete } from "./knowledge.js";
+import { handleConversationsPage, handleConversationDetailPage } from "./conversations.js";
 
 export function startAdminServer() {
   const app = express();
@@ -29,6 +32,13 @@ export function startAdminServer() {
   app.post("/settings", requireAuth, handleSettingsUpdate);
   app.get("/guilds/:guildId/allowlist", requireAuth, handleAllowlistPage);
   app.post("/guilds/:guildId/allowlist", requireAuth, handleAllowlistUpdate);
+  app.get("/guilds/:guildId/features", requireAuth, handleFeaturesPage);
+  app.post("/guilds/:guildId/features", requireAuth, handleFeaturesUpdate);
+  app.get("/guilds/:guildId/knowledge", requireAuth, handleKnowledgePage);
+  app.post("/guilds/:guildId/knowledge", requireAuth, handleKnowledgeAdd);
+  app.post("/guilds/:guildId/knowledge/:id/delete", requireAuth, handleKnowledgeDelete);
+  app.get("/guilds/:guildId/conversations", requireAuth, handleConversationsPage);
+  app.get("/guilds/:guildId/conversations/:channelId", requireAuth, handleConversationDetailPage);
 
   app.listen(env.adminPort, () => {
     logInfo(`Admin dashboard listening on port ${env.adminPort}`);

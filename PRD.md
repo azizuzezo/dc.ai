@@ -113,10 +113,12 @@ Google's Gemini API directly.
 
 ### Phase 4 — Admin Dashboard Parity
 - Conversation viewer (read channel AI history from the dashboard).
-- Knowledge base / RAG support for AI answers (mirrors WA bot's
-  `admin/knowledge.js` + embeddings via direct Google API, since
-  gemini-web2api's proxy is not used for embeddings either, same as WA
-  bot's design).
+- Knowledge base for AI answers: **not RAG** — no embeddings, no
+  retrieval. Mirrors `../CSPORTAL`'s pattern instead of WA bot's:
+  every curated knowledge entry for a guild is concatenated verbatim
+  into the system prompt on each AI call. No Google embedding API key
+  needed. Only suitable for a small, curated KB (FAQ/rules), not large
+  document corpora.
 - Live-reloadable global settings (no redeploy needed to change model/
   key/base URL).
 - Multi-guild management UI (per-guild feature toggles, allowlist

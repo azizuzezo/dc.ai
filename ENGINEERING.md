@@ -27,6 +27,68 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Phase 4 implemented: knowledge base, conversation viewer, feature toggles
+**Type**: add
+**Files**: `src/services/knowledge.js`, `src/admin/knowledge.js`,
+`conversations.js`, `features.js`, `src/admin/server.js`, `guilds.js`,
+`src/services/db.js` (knowledge/conversation-viewer/disabled-commands
+functions + a bugfix), `src/services/aiChatPipeline.js`,
+`src/events/interactionCreate.js`,
+`supabase-migrations/007_guild_feature_flags.sql`, `008_knowledge.sql`,
+`test/knowledge.test.js`
+**Why**: implements PRD §6 Phase 4 (Admin Dashboard Parity), completing
+the roadmap in PRD §12. Went through `brainstorming` (bounded path)
+with the user. Before designing the knowledge base, investigated a
+sibling project the user pointed to (`../CSPORTAL`) that already has a
+working "knowledge base" on gemini-web2api — turned out it uses **no
+embeddings or retrieval at all**: it loads every curated KB row and
+concatenates it verbatim into the system prompt on every request. This
+directly overturned this project's own PRD §11 assumption that a
+knowledge base would require a real Google embedding API key (bypassing
+gemini-web2api, mirroring whatsapp-group-bot) — that path is **not**
+needed; ported CSPORTAL's simpler pattern instead. User separately
+approved building full per-guild command toggles (not deferred as
+originally suggested).
+**Notes**:
+- **Knowledge base**: new `bot_knowledge` table (guild_id, title,
+  content). `src/services/knowledge.js`'s `loadKnowledge()` fetches all
+  of a guild's entries with a 30s in-memory cache (mirrors CSPORTAL's
+  `aiknowledge.Loader`), `formatForPrompt()` joins them as `## Title\n
+  content` blocks. Wired into `aiChatPipeline.js`: the block is
+  appended to `SYSTEM_PROMPT` before every AI call, only when non-empty.
+  **Explicitly not a RAG system** — no chunking, ranking, or relevance
+  filtering, same limitation CSPORTAL accepted; only suitable for a
+  small, curated KB (FAQ/rules), not large document corpora. CRUD via
+  a new admin page per guild (`/guilds/:guildId/knowledge`).
+- **Conversation viewer**: `/guilds/:guildId/conversations` lists
+  channels with history (grouped from `bot_conversation_history` by
+  `channel_id`, filtered by `guild_id`) and a detail page shows the last
+  100 messages read-only. **Bugfix in passing**: `db.js`'s in-memory
+  `saveHistoryTurn` fallback wasn't storing `guild_id` on each row (only
+  `role`/`content`/`created_at`), which would have made the in-memory
+  path for this feature silently return nothing — fixed to store
+  `guild_id` too, matching the Supabase-backed schema.
+- **Feature toggles**: `bot_guild_settings` gets a new
+  `disabled_commands text[]` column (reusing the existing per-guild
+  settings row rather than a new table, same as the allowlist column).
+  The admin `/guilds/:guildId/features` page lists every command by
+  **scanning `src/commands/*.js` live** (same technique as
+  `scripts/register-commands.mjs`) rather than a hardcoded list, so it
+  can't drift as commands are added/removed. Enforcement added to
+  `interactionCreate.js`, right after command lookup and before
+  execution — replies ephemeral "This command is disabled in this
+  server" and returns, only for guild interactions (DMs skip the check).
+- Verified this session: `npm test` (28/28 passing), `npm run migrate`
+  applied `007_guild_feature_flags.sql`/`008_knowledge.sql`, bot
+  restarted successfully, and all three new admin pages
+  (`/features`, `/knowledge`, `/conversations`) were hit end-to-end
+  through a real authenticated session against a real guild ID and
+  returned HTTP 200.
+- This closes out PRD §12's roadmap — all four phases are now
+  implemented. Remaining open items are PRD §13's original open
+  questions (already substantially resolved) and any future work the
+  user identifies from actually using the bot.
+
 ## 2026-09-08 — Phase 3 implemented: poll, trivia, reminders, notes, summary
 **Type**: add
 **Files**: `src/commands/poll.js`, `trivia.js`, `remind.js`, `note.js`,

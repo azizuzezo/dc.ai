@@ -1,3 +1,4 @@
+import * as db from "../services/db.js";
 import { logError } from "../services/logger.js";
 import { handleTriviaAnswer } from "../services/trivia.js";
 
@@ -17,6 +18,18 @@ export async function execute(interaction) {
   if (!command) {
     logError(`Unknown command: ${interaction.commandName}`);
     return;
+  }
+
+  if (interaction.guildId) {
+    try {
+      const disabled = await db.getDisabledCommands(interaction.guildId);
+      if (disabled.includes(interaction.commandName)) {
+        await interaction.reply({ content: "This command is disabled in this server.", ephemeral: true });
+        return;
+      }
+    } catch (err) {
+      logError("Failed to check disabled commands:", err);
+    }
   }
 
   try {
