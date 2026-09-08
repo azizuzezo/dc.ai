@@ -27,6 +27,34 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Fix: slow /scan — nuclei templates weren't baked into the image
+**Type**: refactor
+**Files**: `Dockerfile`, `src/services/nucleiScan.js`
+**Why**: user reported `/scan` taking a long time. Checked Railway logs:
+the scan had started (`Starting DC.Security (nuclei) scan: ...`) but
+had no completion log 3+ minutes later. Root cause: the `Dockerfile`
+only installed the `nuclei` binary, not its community template
+library — every single `/scan` invocation was making nuclei check for
+and download templates from scratch (thousands of files) before it
+could even begin, since `nucleiScan.js` didn't pass `-duc`
+(disable-update-check) either.
+**Notes**: fixed at the build layer, not the request layer — added
+`nuclei -update-templates` as part of the `Dockerfile`'s existing
+install `RUN` step (before purging `curl`/`unzip`, since nuclei's own
+HTTP client does the actual template fetch, not shell `curl`), baking
+~13,949 template files into the image at build time. Added `-duc` to
+`nucleiScan.js`'s spawn args now that templates are guaranteed present
+and fresh as of each deploy, so individual scans skip the redundant
+per-request check entirely. **Verified locally before pushing**: a
+real `docker build` + `docker run ... nuclei -target
+https://scanme.nmap.org ...` (Nmap project's official public scan-test
+host — deliberately not one of this project's own authorized targets,
+to keep local verification scans off real assets) completed in **16.7
+seconds** total, no template-related delay or error. First deploy after
+this fix will take longer to *build* (the one-time template fetch moved
+there), but every `/scan` afterward should be fast from the start,
+including the very first one in a fresh container.
+
 ## 2026-09-08 — Fix: chat replies taking ~60s — wrong `@think` assumption
 **Type**: decision
 **Files**: `.env` (untracked, gitignored), `.env.example`; Railway env

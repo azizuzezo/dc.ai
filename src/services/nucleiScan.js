@@ -24,7 +24,10 @@ export function startScan({ target, channel, requestedBy }) {
   state = { target, startedAt: Date.now(), channelId: channel.id, requestedBy };
   logInfo(`Starting DC.Security (nuclei) scan: target=${target} requestedBy=${requestedBy}`);
 
-  const child = spawn("nuclei", ["-target", target, "-jsonl", "-silent", "-rate-limit", "30"]);
+  // -duc: templates are baked into the Docker image at build time (see
+  // Dockerfile), so skip the per-scan update check — that check alone was
+  // adding noticeable latency to every single /scan invocation.
+  const child = spawn("nuclei", ["-target", target, "-jsonl", "-silent", "-rate-limit", "30", "-duc"]);
 
   let output = "";
   child.stdout.on("data", (chunk) => {

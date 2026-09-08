@@ -9,6 +9,7 @@ RUN apt-get update \
     && unzip -o /tmp/nuclei.zip -d /usr/local/bin \
     && chmod +x /usr/local/bin/nuclei \
     && rm /tmp/nuclei.zip \
+    && nuclei -update-templates \
     && apt-get purge -y unzip curl \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
