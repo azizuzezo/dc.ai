@@ -11,10 +11,14 @@ export function parseSarifSummary(sarifJson) {
     const results = Array.isArray(run?.results) ? run.results : [];
     for (const result of results) {
       const level = result?.level;
+      // Strix also emits level:"none"/kind:"pass" entries as coverage
+      // markers ("this area was checked, nothing found") — those aren't
+      // vulnerabilities, so they're excluded from every count including
+      // total, or a clean scan would misleadingly show "N total findings".
       if (level === "error" || level === "warning" || level === "note") {
         counts[level] += 1;
+        counts.total += 1;
       }
-      counts.total += 1;
     }
   }
   return counts;

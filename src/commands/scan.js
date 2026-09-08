@@ -7,7 +7,7 @@ import { logError } from "../services/logger.js";
 
 export const data = new SlashCommandBuilder()
   .setName("scan")
-  .setDescription("Run a Strix pentest scan against a URL you're authorized to test")
+  .setDescription("Run a DC.Security pentest scan against a URL you're authorized to test")
   .addStringOption((opt) => opt.setName("target").setDescription("URL to scan").setRequired(true))
   .addStringOption((opt) =>
     opt

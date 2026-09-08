@@ -23,7 +23,14 @@ test("handles missing/empty results gracefully", () => {
   assert.deepEqual(parseSarifSummary({ runs: [] }), { error: 0, warning: 0, note: 0, total: 0 });
 });
 
-test("counts unrecognized levels toward total but not a named bucket", () => {
-  const sarif = { runs: [{ results: [{ level: "none" }, { level: "error" }] }] };
-  assert.deepEqual(parseSarifSummary(sarif), { error: 1, warning: 0, note: 0, total: 2 });
+test("excludes level:none coverage/pass markers from every count", () => {
+  // Strix emits these for "this area was checked, nothing found" — not a
+  // vulnerability, so a clean scan shouldn't show a nonzero total.
+  const sarif = { runs: [{ results: [{ level: "none", kind: "pass" }, { level: "error" }] }] };
+  assert.deepEqual(parseSarifSummary(sarif), { error: 1, warning: 0, note: 0, total: 1 });
+});
+
+test("a scan with only coverage markers reports zero total findings", () => {
+  const sarif = { runs: [{ results: [{ level: "none", kind: "pass" }] }] };
+  assert.deepEqual(parseSarifSummary(sarif), { error: 0, warning: 0, note: 0, total: 0 });
 });

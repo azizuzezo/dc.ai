@@ -28,7 +28,7 @@ export function startScan({ target, mode, channel, requestedBy }) {
   }
 
   state = { target, mode, startedAt: Date.now(), channelId: channel.id, requestedBy };
-  logInfo(`Starting Strix scan: target=${target} mode=${mode} requestedBy=${requestedBy}`);
+  logInfo(`Starting DC.Security scan: target=${target} mode=${mode} requestedBy=${requestedBy}`);
 
   const child = spawn(
     "strix",
@@ -78,7 +78,7 @@ export function startScan({ target, mode, channel, requestedBy }) {
     clearTimeout(timeout);
     state = null;
     logError("Failed to spawn strix:", err);
-    channel.send(`Scan failed to start: ${err.message}`).catch(() => {});
+    channel.send("DC.Security scan failed to start. Check the bot's server logs for details.").catch(() => {});
   });
 
   return true;
@@ -112,7 +112,7 @@ async function postResults({ channel, target, mode, startedAt, code, output, run
   }
 
   const embed = new EmbedBuilder()
-    .setTitle("Strix scan complete")
+    .setTitle("DC.Security scan complete")
     .addFields(
       { name: "Target", value: target },
       { name: "Mode", value: mode, inline: true },

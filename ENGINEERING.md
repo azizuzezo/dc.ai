@@ -27,6 +27,42 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — First real `/scan` run: SARIF-counting bug + branding
+**Type**: refactor
+**Files**: `src/services/sarifSummary.js`, `test/sarifSummary.test.js`,
+`src/services/strixScan.js`, `src/commands/scan.js`
+**Why**: the first real end-to-end `/scan` (target `https://sc-cs-portal.skorcard.app`,
+mode quick) completed and posted a result showing "Critical: 0 · Warning: 0
+· Info: 0 (1 total)" — an internally inconsistent summary (the total
+didn't match the sum of its own buckets), flagged immediately by the
+user. Root cause, confirmed by inspecting the actual `findings.sarif`:
+Strix writes coverage/pass markers into the same `results` array as
+real vulnerabilities — `{"level": "none", "kind": "pass", "ruleId":
+"strix-coverage/reconnaissance-and-asset-mapping"}` for "this area was
+checked, nothing found" — and `parseSarifSummary` was counting every
+result toward `total` regardless of level, including these non-findings.
+**Notes**: fixed to only count (and only include in `total`) results
+whose `level` is `error`/`warning`/`note` — `level:"none"` entries are
+now fully excluded, so a genuinely clean scan reports 0 total rather
+than a confusing "0/0/0 but 1 total". This was the first time
+`parseSarifSummary` ran against real Strix output rather than
+hand-written test fixtures, and real output didn't match the shape
+those fixtures assumed — the existing unit tests were revised to cover
+this exact case explicitly rather than just re-asserting the old
+(wrong) behavior.
+- Also, per user request: "Strix" branding replaced with "DC.Security"
+  in every Discord-facing string (`/scan`'s command description, the
+  result embed title, and the spawn-failure channel message — which
+  now also stops leaking the literal `spawn strix ENOENT`-style Node
+  error text to end users, logging the real error server-side instead
+  via `logError` and sending a generic failure message to the channel).
+  The `strix` binary name, `STRIX_LLM`/`STRIX_*` env vars, and the
+  `strix_runs/` directory Strix itself creates are unchanged — those
+  are the third-party CLI's own fixed interface, not something this
+  project's branding choice can or should touch.
+- Command description change requires re-running `npm run register-commands`
+  for Discord to pick it up (same as any other command-metadata edit).
+
 ## 2026-09-08 — Fix: `spawn strix ENOENT` (PATH not inherited by the service)
 **Type**: refactor
 **Files**: `src/services/strixScan.js`
