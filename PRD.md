@@ -176,8 +176,10 @@ directory scan, avoiding a large `if (command === ...)` chain.
    falling back to Supabase), trimmed to the configured turn limit.
 4. `geminiClient.js` builds `{model, messages: [...history, newMessage],
    temperature, max_tokens}` and `POST`s to
-   `${AI_BASE_URL}/v1/chat/completions` with `Authorization: Bearer
-   ${AI_API_KEY}`. Non-streaming (matches WA bot's `callGeminiGenerate`).
+   `${AI_BASE_URL}/chat/completions` (note: `AI_BASE_URL` already
+   includes the `/v1` prefix, e.g. `https://host/v1` — matches WA bot's
+   convention) with `Authorization: Bearer ${AI_API_KEY}`. Non-streaming
+   (matches WA bot's `callGeminiGenerate`).
 5. For slash commands, the interaction is **deferred** immediately
    (`interaction.deferReply()`) before the AI call, since gemini-web2api
    latency can exceed Discord's 3-second initial-response window.
@@ -189,7 +191,9 @@ directory scan, avoiding a large `if (command === ...)` chain.
 
 - Base URL and API key are configurable (`AI_BASE_URL`, `AI_API_KEY`),
   overridable live from the admin dashboard, same as WA bot.
-- Endpoint used: `POST {AI_BASE_URL}/v1/chat/completions`.
+- Endpoint used: `POST {AI_BASE_URL}/chat/completions`, where
+  `AI_BASE_URL` already includes the `/v1` prefix (e.g.
+  `https://host/v1`) — do not append `/v1` again in the client.
 - Request: `{model, messages: [{role, content}, ...], temperature: 0.7,
   max_tokens: 1200}`. `tools`/`tool_choice` may be added later if
   function-calling features are needed (Phase 3+).

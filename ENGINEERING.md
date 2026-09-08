@@ -27,6 +27,28 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Fix: duplicated /v1 in gemini-web2api request URL
+**Type**: refactor
+**Files**: `src/services/geminiClient.js`, `test/geminiClient.test.js`, `PRD.md` (§9, §8)
+**Why**: first live end-to-end test (`/chat` in Discord) failed with the
+bot's graceful error message. Root cause: `chatCompletion()` built the
+request URL as `${baseUrl}/v1/chat/completions`, but the user's
+`AI_BASE_URL` (`https://api.support.duacincin.id/v1`) already includes
+the `/v1` prefix — same convention as whatsapp-group-bot's `AI_BASE_URL`.
+Result was a request to `.../v1/v1/chat/completions` → 404 from
+gemini-web2api. Confirmed via a direct `fetch` test outside the bot
+(bypassing Discord) that showed the 404, then confirmed the fix with the
+same direct call returning `200` with a real Gemini reply.
+**Notes**: PRD §9's "Integration Contract" originally stated the
+endpoint as `{AI_BASE_URL}/v1/chat/completions`, contradicting its own
+§14 example value (`AI_BASE_URL=... e.g. https://.../v1`) — both PRD and
+code are now corrected to the single convention: **`AI_BASE_URL` always
+includes `/v1`; the client appends only `/chat/completions`**. Added a
+regression test asserting the exact request URL so this can't silently
+regress. Verified live after the fix: bot logged in successfully
+("Logged in as DuaCincin AI Assistant#3066") and the direct gemini-web2api
+call returned a real completion.
+
 ## 2026-09-08 — Phase 1 implemented: bot skeleton + AI chat + admin v0
 **Type**: add
 **Files**: `package.json`, `.env.example`, `src/config/*`, `src/services/*`,

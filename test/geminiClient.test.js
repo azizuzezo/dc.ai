@@ -12,6 +12,22 @@ test("buildChatRequestBody produces the expected shape", () => {
   });
 });
 
+test("chatCompletion posts to {baseUrl}/chat/completions without duplicating /v1", async () => {
+  let capturedUrl;
+  const fetchImpl = async (url) => {
+    capturedUrl = url;
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "ok" } }] }) };
+  };
+  await chatCompletion({
+    baseUrl: "https://api.support.duacincin.id/v1",
+    apiKey: "key",
+    model: "m",
+    messages: [],
+    fetchImpl,
+  });
+  assert.equal(capturedUrl, "https://api.support.duacincin.id/v1/chat/completions");
+});
+
 test("chatCompletion extracts content from a successful response", async () => {
   const fetchImpl = async () => ({
     ok: true,

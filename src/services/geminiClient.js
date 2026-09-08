@@ -21,7 +21,10 @@ export function buildChatRequestBody({ model, messages, temperature = DEFAULT_TE
  * backoff + a 429 circuit breaker (see PRD §9).
  */
 export async function chatCompletion({ baseUrl, apiKey, model, messages, fetchImpl = fetch }) {
-  const url = `${baseUrl}/v1/chat/completions`;
+  // AI_BASE_URL is expected to already include the /v1 prefix (matches
+  // whatsapp-group-bot's convention, e.g. https://host/v1) — do not
+  // append /v1 again here.
+  const url = `${baseUrl}/chat/completions`;
 
   let response;
   try {
