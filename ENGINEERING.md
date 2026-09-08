@@ -27,6 +27,29 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Fix: chat replies taking ~60s — wrong `@think` assumption
+**Type**: decision
+**Files**: `.env` (untracked, gitignored), `.env.example`; Railway env
+var `AI_MODEL` updated directly via `railway variable set`
+**Why**: user reported chat replies were very slow. Measured directly
+(bypassing the bot, straight to gemini-web2api) with a trivial "say hi"
+prompt on the deployed `AI_MODEL` (`gemini-3.6-flash`, no `@think`
+suffix): **64 seconds** for a one-word reply. Re-tested the same
+request with `@think=0` appended: **8.3 seconds**, identical reply
+content ("Hi") — no quality loss for this test, ~7-8x faster.
+**Notes**: this directly **contradicts** what an earlier session
+summary of gemini-web2api's README claimed ("`@think=N` suffix...
+0=deepest…4=shallowest"). Checked `../gemini-web2api/gemini_web2api.py`'s
+`MODELS` config directly this time instead of trusting that old
+paraphrase: `gemini-3.6-flash`'s default entry has `"think": 4`, and the
+empirical timing test shows **0 is the fast/shallow end, 4 is the
+slow/deep end** — the reverse of that earlier claim. Set
+`AI_MODEL=gemini-3.6-flash@think=0` both locally (`.env`/`.env.example`)
+and on the live Railway deployment (`railway variable set`, which
+triggers its own redeploy). If replies ever need deeper reasoning at
+the cost of latency again, higher `@think` values (up to 4) are the
+lever — but 0 is now the default for this bot's regular chat path.
+
 ## 2026-09-08 — Strix temporarily disabled in /scan; AI identity masked
 **Type**: refactor, decision
 **Files**: `src/commands/scan.js`, `src/config/constants.js`
