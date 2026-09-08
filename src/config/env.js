@@ -19,7 +19,10 @@ export const env = {
 
   adminUsername: process.env.ADMIN_USERNAME,
   adminPassword: process.env.ADMIN_PASSWORD,
-  adminPort: Number(process.env.ADMIN_PORT) || 3001,
+  // Railway (and most PaaS) inject PORT for the service to bind to for
+  // public routing — prefer it over our own ADMIN_PORT when present, so
+  // the same code works unmodified locally and deployed.
+  adminPort: Number(process.env.PORT || process.env.ADMIN_PORT) || 3001,
   sessionSecret: process.env.SESSION_SECRET || "dev-insecure-secret-change-me",
 
   ownerDiscordId: process.env.OWNER_DISCORD_ID,
