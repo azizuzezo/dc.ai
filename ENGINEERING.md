@@ -27,6 +27,35 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Duplicate Railway project found and consolidated
+**Type**: decision
+**Files**: none in this repo (infra-only)
+**Why**: user reported a "Crashed" status shortly after the first
+deploy went live — turned out to be a **second, separate** Railway
+project (`dc.ai`, region Southeast Asia, custom domain
+`dc.duacincin.id`) that existed independently of the one this session
+created via CLI (`dc-ai-discord-bot`, region `iad`, both linked to the
+same `azizuzezo/dc.ai` GitHub repo). The `dc.ai` project's service had
+no env vars set at all (`Error: Missing required env vars:
+DISCORD_TOKEN, DISCORD_CLIENT_ID`) — likely created directly via the
+Railway web dashboard around the same time, unrelated to anything this
+session did.
+**Notes**: `dc.duacincin.id` (an already-configured custom domain
+matching the `duacincin.id` naming used elsewhere, e.g.
+`api.support.duacincin.id`) was a strong signal of deliberate intent,
+so — per the user's explicit choice — **`dc.ai` is now the canonical
+deployment**, not the `dc-ai-discord-bot` project this session
+originally created. Set the full env var set on `dc.ai`'s service
+(same values as the other project), confirmed it came online and
+logged in successfully, then **deleted the `dc-ai-discord-bot`
+project** via `railway project delete`. Running both would have meant
+two processes logged in as the same Discord bot token simultaneously —
+every message/interaction handled (and replied to) twice.
+**Live deployment reference**: project `dc.ai` (ID
+`4b40e372-0c40-44bb-9920-8828d89003cc`), service `dc.ai` (ID
+`981347d9-e2c5-4fca-8beb-5c6201a37715`), region Southeast Asia, public
+URL `https://dc.duacincin.id`.
+
 ## 2026-09-08 — Railway deploy live; local dev process retired
 **Type**: decision
 **Files**: none in this repo (infra-only)
