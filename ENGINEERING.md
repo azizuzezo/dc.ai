@@ -27,6 +27,46 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — First Railway deploy: GitHub repo, engines field bugfix
+**Type**: decision, refactor
+**Files**: `package.json` (`engines.node`), plus infra-only changes
+outside this repo (new GitHub repo `azizuzezo/dc.ai`, new Railway
+project `dc-ai-discord-bot` on a separate Railway account from
+gemini-web2api's)
+**Why**: moving the bot from this dev machine to always-on hosting.
+Pushed this repo to a new **private** GitHub repo (the specs/
+ENGINEERING.md reference real authorized scan targets and internal
+architecture — public would leak more than just code) and linked it to
+a new Railway project/service for continuous deploy-on-push, matching
+gemini-web2api's own deployment pattern.
+**Notes**:
+- **`/scan` will not work on Railway** — flagged before deploying and
+  still true: Strix needs Docker to run its sandbox, and Docker-in-
+  Docker isn't available in Railway's (or most PaaS) managed containers.
+  Every other command is unaffected. No workaround implemented yet;
+  `/scan` stays a local-machine-only feature for now.
+- Set `PORT` preference over `ADMIN_PORT` in `env.js` (previous entry)
+  ahead of this, since Railway injects `PORT` for public routing.
+- Set all runtime env vars via `railway variable set` (not the
+  dashboard) — everything from `.env` except `SUPABASE_DB_URL`
+  (migration-only, never read at runtime) and `ADMIN_PORT` (superseded
+  by `PORT`). Generated a fresh random `SESSION_SECRET` for this
+  deployment rather than reusing the blank local one (which falls back
+  to an insecure hardcoded dev default in code — fine on a
+  machine only the operator can reach, not fine on a public Railway URL).
+- **First deploy crashed**: `Error: Node.js detected but native
+  WebSocket not found` from `@supabase/realtime-js`, because Railway's
+  Nixpacks picked **Node 20** — this project's `package.json` claimed
+  `"engines": {"node": ">=20"}`, which was simply wrong and had gone
+  unnoticed since local development always happened to run Node 22.22.1
+  regardless of what the field said. `@supabase/supabase-js`'s realtime
+  client requires Node 22+'s native `WebSocket` global. Fixed by
+  correcting `engines.node` to `>=22`, which Nixpacks respects for
+  version selection.
+- Merged the GitHub repo's auto-generated `LICENSE` (from creating it
+  non-empty) into this project's git history via
+  `--allow-unrelated-histories` before the first push.
+
 ## 2026-09-08 — Fix: recurring IPv6-hang connection failures (chat broken in prod)
 **Type**: dependency, refactor
 **Files**: `package.json`, `package-lock.json`, `src/config/network.js`
