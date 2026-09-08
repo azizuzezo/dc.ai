@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { EmbedBuilder, AttachmentBuilder } from "discord.js";
@@ -69,8 +69,10 @@ async function postResults({ channel, target, startedAt, code, output }) {
   const durationSec = Math.round((Date.now() - startedAt) / 1000);
   const { counts } = parseNucleiOutput(output);
 
-  const logPath = join(process.cwd(), "strix_runs", `nuclei-scan-${Date.now()}.log`);
+  const logDir = join(process.cwd(), "strix_runs");
+  const logPath = join(logDir, `nuclei-scan-${Date.now()}.log`);
   try {
+    await mkdir(logDir, { recursive: true });
     await writeFile(logPath, output, "utf8");
   } catch (err) {
     logError("Failed to write nuclei scan log:", err);
