@@ -65,6 +65,10 @@ export function startScan({ target, mode, channel, requestedBy }) {
 
   child.on("close", async (code) => {
     clearTimeout(timeout);
+    // On a spawn failure (e.g. ENOENT), Node emits BOTH "error" and "close"
+    // for the same child — the "error" handler below already cleared state
+    // and reported the failure, so there's nothing left to post here.
+    if (!state) return;
     const finished = state;
     state = null;
     try {

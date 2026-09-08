@@ -27,6 +27,31 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Fix: crash on /scan spawn failure (`state.startedAt` of null)
+**Type**: refactor
+**Files**: `src/services/strixScan.js`
+**Why**: first `/scan` attempt on the Railway deployment — target
+`https://temankereta.web.id` — surfaced `spawn strix ENOENT` in the
+logs (**expected**: Railway has no Docker, `/scan` was already known
+not to work there, see the two entries above about Railway deploy),
+correctly caught by the `child.on("error", ...)` handler which posted
+"DC.Security scan failed to start" to the channel — so far so good.
+But immediately after, a second error appeared: `TypeError: Cannot
+read properties of null (reading 'startedAt')` at `strixScan.js:71`.
+**Notes**: root cause is a genuine bug, independent of the Docker
+limitation. Per Node's documented child_process behavior, a spawn
+failure (ENOENT) emits **both** `"error"` and `"close"` on the same
+`ChildProcess` — not one or the other. The `"error"` handler ran first,
+set `state = null`, and sent the failure message; then the `"close"`
+handler *also* ran (unconditionally) and tried to read
+`state.startedAt` from the now-null `state`, throwing. Fixed by
+guarding the `"close"` handler with `if (!state) return` — when
+`"error"` has already handled and cleared the scan, `"close"` now
+correctly no-ops instead of trying to post a second, broken result.
+Verified this can't regress silently: a genuine successful/failed-but-
+ran scan (no separate `"error"` event) still has `state` set when
+`"close"` fires, so real results still post normally.
+
 ## 2026-09-08 — Duplicate Railway project found and consolidated
 **Type**: decision
 **Files**: none in this repo (infra-only)
