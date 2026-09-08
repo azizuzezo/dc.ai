@@ -27,6 +27,51 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Added Nuclei as a second /scan engine (works on Railway)
+**Type**: add
+**Files**: `nixpacks.toml` (new), `src/commands/scan.js`,
+`src/services/nucleiScan.js` (new), `nucleiParser.js` (new),
+`test/nucleiParser.test.js` (new)
+**Why**: `/scan` with Strix only ever works on this local dev machine
+(Docker required, unavailable on Railway — see the two Railway-deploy
+entries above). User asked for a genuinely Docker-free alternative that
+still does real vulnerability scanning, not a toy. Researched
+alternatives (PentestGPT, Nuclei, commercial SaaS scanners) — Nuclei
+(projectdiscovery.io) fit best: a single Go binary, zero Docker
+dependency, free forever, backed by a large community-maintained
+template library (real CVE/misconfig/exposed-panel detection, not an
+LLM guessing) — confirmed installable directly via Nix
+(`pkgs.nuclei` exists, verified against nixpkgs' `by-name/nu/nuclei`
+package definition) so it can be added to Railway's Nixpacks build
+with one line, no manual binary-download build step needed.
+**Notes**:
+- `/scan` now takes `engine:<nuclei|strix>` (required) with `mode`
+  demoted to optional (Strix-only; ignored for nuclei, defaults to
+  `"quick"` if omitted for a Strix run).
+- `nucleiScan.js` mirrors `strixScan.js`'s shape (spawn, hard timeout,
+  embed + log-file result posting) but is **not AI/LLM-based at all** —
+  no `STRIX_LLM`/API key involved, so no rate-limit exposure and no
+  cost. Deliberately kept on its **own** concurrency slot, separate
+  from Strix's — a fast nuclei scan (seconds–minutes) shouldn't be
+  blocked by a long Strix run in progress, or vice versa.
+- `nucleiParser.js`'s field mapping (`template-id`, `info.severity`,
+  `matched-at`) is based on nuclei's long-stable, well-documented JSONL
+  schema — **not yet verified against a real local run**: template
+  download (`nuclei -update-templates`) hung on this dev machine,
+  almost certainly the same broken-IPv6 issue documented earlier in
+  this log (nuclei's own HTTP client has no IPv4-forcing equivalent to
+  this project's `forceIpv4Fetch()`). The parser is written
+  defensively (skips blank/non-JSON lines, buckets unrecognized/missing
+  severities as `"unknown"` rather than throwing) specifically because
+  of this — first real confirmation happens once `/scan engine:nuclei`
+  actually runs on Railway, where this machine's network quirk doesn't
+  apply.
+- `nixpacks.toml` adds `nodejs_22` (matching `package.json`'s
+  `engines.node` fix from the earlier crash) and `nuclei` to the Nix
+  packages Railway's build pulls in — explicit rather than relying on
+  Nixpacks' Node.js auto-detection to still apply once a custom
+  `[phases.setup]` is present.
+
 ## 2026-09-08 — Fix: crash on /scan spawn failure (`state.startedAt` of null)
 **Type**: refactor
 **Files**: `src/services/strixScan.js`
