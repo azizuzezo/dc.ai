@@ -27,6 +27,25 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Railway deploy live; local dev process retired
+**Type**: decision
+**Files**: none in this repo (infra-only)
+**Why**: after the `engines.node` fix, the Railway deploy came up
+successfully (`Logged in as DuaCincin AI Assistant#3066`, admin
+dashboard listening on Railway's injected `PORT` 8080). Generated a
+public domain: `https://dc-ai-bot-production.up.railway.app` (admin
+dashboard, `/login` verified reachable and returning 200).
+**Notes**: immediately stopped the bot process that had been running on
+the local dev machine throughout this session — with Railway now also
+logged in as the same Discord bot token, leaving both running would
+have meant every message/interaction got handled twice (double AI
+replies, double reminders, etc.). **Railway is now the only running
+instance.** `/scan` was already known not to work there (Docker
+unavailable) before this deploy — that limitation is unchanged, just
+now confirmed to be the production reality rather than a theoretical
+concern. Local `strix_runs/` history and the ability to run `/scan`
+by hand on this machine remain available for manual/local-only use.
+
 ## 2026-09-08 — First Railway deploy: GitHub repo, engines field bugfix
 **Type**: decision, refactor
 **Files**: `package.json` (`engines.node`), plus infra-only changes
