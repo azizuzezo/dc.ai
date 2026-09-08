@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, MessageFlags } from "discord.js";
 import { isChannelAllowed } from "../services/channelAllowlist.js";
 import { runAiChat } from "../services/aiChatPipeline.js";
 import { replyChunked } from "../services/discordReply.js";
@@ -13,7 +13,7 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction) {
   const allowed = await isChannelAllowed(interaction.guildId, interaction.channelId);
   if (!allowed) {
-    await interaction.reply({ content: "AI chat isn't enabled in this channel.", ephemeral: true });
+    await interaction.reply({ content: "AI chat isn't enabled in this channel.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -21,7 +21,7 @@ export async function execute(interaction) {
   if (!rate.allowed) {
     await interaction.reply({
       content: `Please wait a bit before asking again (~${Math.ceil(rate.retryAfterMs / 1000)}s).`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

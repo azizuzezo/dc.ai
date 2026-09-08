@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { logError } from "../services/logger.js";
 
 export const data = new SlashCommandBuilder()
@@ -16,6 +16,6 @@ export async function execute(interaction) {
     await interaction.reply(`🔊 ${target.tag} has been unmuted.`);
   } catch (err) {
     logError("unmute command failed:", err);
-    await interaction.reply({ content: "I couldn't unmute that member.", ephemeral: true });
+    await interaction.reply({ content: "I couldn't unmute that member.", flags: MessageFlags.Ephemeral });
   }
 }

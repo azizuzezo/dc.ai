@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, MessageFlags } from "discord.js";
 import { logError } from "../services/logger.js";
 
 export const data = new SlashCommandBuilder()
@@ -32,7 +32,7 @@ export async function execute(interaction) {
 
   const answers = parsePollOptions(optionsRaw);
   if (answers.length < 2) {
-    await interaction.reply({ content: "Provide at least 2 comma-separated options.", ephemeral: true });
+    await interaction.reply({ content: "Provide at least 2 comma-separated options.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -49,6 +49,6 @@ export async function execute(interaction) {
     });
   } catch (err) {
     logError("poll command failed:", err);
-    await interaction.reply({ content: "Something went wrong creating that poll.", ephemeral: true });
+    await interaction.reply({ content: "Something went wrong creating that poll.", flags: MessageFlags.Ephemeral });
   }
 }

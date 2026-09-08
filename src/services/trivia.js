@@ -1,3 +1,4 @@
+import { MessageFlags } from "discord.js";
 import { resolveAiConfig, chatCompletion } from "./geminiClient.js";
 import { logError } from "./logger.js";
 
@@ -71,7 +72,7 @@ export async function generateTriviaQuestion() {
 export async function handleTriviaAnswer(interaction) {
   const state = getActiveTrivia(interaction.channelId);
   if (!state) {
-    await interaction.reply({ content: "This trivia round has ended.", ephemeral: true });
+    await interaction.reply({ content: "This trivia round has ended.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -90,5 +91,5 @@ export async function handleTriviaAnswer(interaction) {
     return;
   }
 
-  await interaction.reply({ content: "❌ Wrong answer, try again!", ephemeral: true });
+  await interaction.reply({ content: "❌ Wrong answer, try again!", flags: MessageFlags.Ephemeral });
 }

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from "discord.js";
 import {
   generateTriviaQuestion,
   getActiveTrivia,
@@ -13,7 +13,7 @@ export const data = new SlashCommandBuilder().setName("trivia").setDescription("
 
 export async function execute(interaction) {
   if (getActiveTrivia(interaction.channelId)) {
-    await interaction.reply({ content: "A trivia round is already running in this channel.", ephemeral: true });
+    await interaction.reply({ content: "A trivia round is already running in this channel.", flags: MessageFlags.Ephemeral });
     return;
   }
 

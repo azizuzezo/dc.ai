@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import * as db from "../services/db.js";
 import { logError } from "../services/logger.js";
 
@@ -26,7 +26,7 @@ async function handleAdd(interaction) {
     await interaction.reply(`📝 Note #${id} added.`);
   } catch (err) {
     logError("note add failed:", err);
-    await interaction.reply({ content: "Something went wrong adding that note.", ephemeral: true });
+    await interaction.reply({ content: "Something went wrong adding that note.", flags: MessageFlags.Ephemeral });
   }
 }
 
@@ -34,17 +34,17 @@ async function handleList(interaction) {
   try {
     const notes = await db.listNotes(interaction.guildId);
     if (notes.length === 0) {
-      await interaction.reply({ content: "No notes yet.", ephemeral: true });
+      await interaction.reply({ content: "No notes yet.", flags: MessageFlags.Ephemeral });
       return;
     }
     const lines = notes
       .slice(0, 15)
       .map((n) => `#${n.id} — ${n.content} (<@${n.author_id}>)`)
       .join("\n");
-    await interaction.reply({ content: lines, ephemeral: true });
+    await interaction.reply({ content: lines, flags: MessageFlags.Ephemeral });
   } catch (err) {
     logError("note list failed:", err);
-    await interaction.reply({ content: "Something went wrong fetching notes.", ephemeral: true });
+    await interaction.reply({ content: "Something went wrong fetching notes.", flags: MessageFlags.Ephemeral });
   }
 }
 
@@ -53,7 +53,7 @@ async function handleDelete(interaction) {
   try {
     const note = await db.getNote(interaction.guildId, id);
     if (!note) {
-      await interaction.reply({ content: `No note #${id} found.`, ephemeral: true });
+      await interaction.reply({ content: `No note #${id} found.`, flags: MessageFlags.Ephemeral });
       return;
     }
     const isAuthor = note.author_id === interaction.user.id;
@@ -61,7 +61,7 @@ async function handleDelete(interaction) {
     if (!isAuthor && !isModerator) {
       await interaction.reply({
         content: "You can only delete your own notes (or be a moderator).",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -69,7 +69,7 @@ async function handleDelete(interaction) {
     await interaction.reply(`🗑️ Note #${id} deleted.`);
   } catch (err) {
     logError("note delete failed:", err);
-    await interaction.reply({ content: "Something went wrong deleting that note.", ephemeral: true });
+    await interaction.reply({ content: "Something went wrong deleting that note.", flags: MessageFlags.Ephemeral });
   }
 }
 

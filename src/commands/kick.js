@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { logError } from "../services/logger.js";
 
 export const data = new SlashCommandBuilder()
@@ -20,7 +20,7 @@ export async function execute(interaction) {
     logError("kick command failed:", err);
     await interaction.reply({
       content: "I couldn't kick that member — check that my role is above theirs and I have Kick Members permission.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }

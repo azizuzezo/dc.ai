@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder, MessageFlags } from "discord.js";
 import { env } from "../config/env.js";
 import * as db from "../services/db.js";
 import { isValidTargetUrl } from "../services/targetUrl.js";
@@ -26,14 +26,14 @@ async function isAuthorized(userId) {
 
 export async function execute(interaction) {
   if (!(await isAuthorized(interaction.user.id))) {
-    await interaction.reply({ content: "You're not authorized to use this command.", ephemeral: true });
+    await interaction.reply({ content: "You're not authorized to use this command.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   const target = interaction.options.getString("target", true);
 
   if (!isValidTargetUrl(target)) {
-    await interaction.reply({ content: "That doesn't look like a valid http(s) URL.", ephemeral: true });
+    await interaction.reply({ content: "That doesn't look like a valid http(s) URL.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -41,7 +41,7 @@ export async function execute(interaction) {
   if (running) {
     await interaction.reply({
       content: `A scan is already running (target: ${running.target}). Try again once it finishes.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -51,6 +51,6 @@ export async function execute(interaction) {
     await interaction.reply(`Scan started: \`${target}\`. I'll post results here when it's done.`);
   } catch (err) {
     logError("Failed to start scan:", err);
-    await interaction.reply({ content: "Something went wrong starting that scan.", ephemeral: true });
+    await interaction.reply({ content: "Something went wrong starting that scan.", flags: MessageFlags.Ephemeral });
   }
 }

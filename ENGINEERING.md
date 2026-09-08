@@ -27,6 +27,34 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Cleanup: replaced deprecated `ephemeral: true` everywhere
+**Type**: refactor
+**Files**: 13 files across `src/commands/`, `src/events/interactionCreate.js`,
+`src/services/trivia.js`
+**Why**: user shared live logs showing `Warning: Supplying "ephemeral"
+for interaction response options is deprecated. Utilize flags
+instead.` from discord.js. Not breaking anything yet, but this pattern
+was used in every command that sends a private reply (~31 call sites),
+so it was worth fixing in one pass rather than piecemeal as each file
+happened to get touched.
+**Notes**: mechanical find/replace — `ephemeral: true` →
+`flags: MessageFlags.Ephemeral` (`MessageFlags.Ephemeral` confirmed
+=64, discord.js's documented replacement), plus adding `MessageFlags`
+to each file's existing `from "discord.js"` import (or a new one, for
+the two files that had none: `interactionCreate.js`,
+`services/trivia.js`). No behavior change — same private-reply effect,
+just via the non-deprecated API. `npm test` still 40/40 after the
+change (none of the test suites touch Discord reply mechanics
+directly, so this was a visual/grep diff review rather than something
+the test suite could catch on its own).
+**Separately, from the same log excerpt**: a `/kick` attempt failed
+with `DiscordAPIError[50013]: Missing Permissions` — **not a bug**,
+this is Discord's own permission system; the bot's role in that guild
+either lacks "Kick Members" or sits below the target's role in the
+hierarchy. Already documented as an operational note back in the
+Phase 2 entry; no code change needed, just a per-guild Discord Server
+Settings fix on the operator's end.
+
 ## 2026-09-08 — Fix: slow /scan — nuclei templates weren't baked into the image
 **Type**: refactor
 **Files**: `Dockerfile`, `src/services/nucleiScan.js`

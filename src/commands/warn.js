@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import * as db from "../services/db.js";
 import { logError } from "../services/logger.js";
 
@@ -21,6 +21,6 @@ export async function execute(interaction) {
     );
   } catch (err) {
     logError("warn command failed:", err);
-    await interaction.reply({ content: "Something went wrong recording that warning.", ephemeral: true });
+    await interaction.reply({ content: "Something went wrong recording that warning.", flags: MessageFlags.Ephemeral });
   }
 }

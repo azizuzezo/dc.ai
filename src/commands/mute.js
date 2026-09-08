@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 import { parseDuration } from "../services/duration.js";
 import { logError } from "../services/logger.js";
 
@@ -17,7 +17,7 @@ export async function execute(interaction) {
 
   const ms = parseDuration(durationInput);
   if (!ms) {
-    await interaction.reply({ content: "Invalid duration. Use formats like 10m, 1h, or 1d.", ephemeral: true });
+    await interaction.reply({ content: "Invalid duration. Use formats like 10m, 1h, or 1d.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -30,7 +30,7 @@ export async function execute(interaction) {
     await interaction.reply({
       content:
         "I couldn't mute that member — check that my role is above theirs and I have Moderate Members permission.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }
