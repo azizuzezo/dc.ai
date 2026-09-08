@@ -27,6 +27,57 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Strix pentest integration: spike findings + credential split
+**Type**: decision
+**Files**: `.env` (untracked, gitignored), `.env.example`; also
+`../gemini-web2api/gemini_web2api.py` (a **separate sibling repo**, not
+this one — noted here because the decision directly affects how this
+bot will eventually call Strix)
+**Why**: exploring a future `/scan` slash command that triggers
+[Strix](https://github.com/usestrix/strix) (an autonomous AI pentest
+agent) against the operator's own authorized targets, with results
+posted back to Discord. Spiked whether gemini-web2api could serve as
+Strix's own LLM backend (to avoid a second LLM cost) before committing
+to any Discord-side design.
+**Notes**:
+- **Spike result: no.** A live scan against `https://cs.skorcard.app`
+  (authorized, operator-owned) with `STRIX_LLM=openai/<model>` pointed
+  at gemini-web2api's OpenAI-compatible endpoint failed 100% of the
+  time with `502 upstream error: Gemini upstream rejected request:
+  BardErrorInfo [1152]`.
+- Root-caused in `../gemini-web2api`: the deployed `/v1/chat/completions`
+  handler injected tool schemas using an injection-style prompt
+  (`"[System instruction]: ... respond with \`\`\`tool_call..."`) that
+  Gemini's web backend was rejecting. Fixed there (natural phrasing +
+  actual retry-on-BardErrorInfo, previously nonexistent) and pushed to
+  both of the user's deploy remotes (`origin` → api.support.duacincin.id
+  and `muter`) — verified fixed for small/normal tool-calling payloads
+  (a 3-tool test request now gets a clean 200).
+- **But this doesn't solve it for Strix specifically**: Strix's actual
+  root-agent system prompt is **~102,000 characters with 41 tools**.
+  Re-tested against the same target with the fix live — still 100%
+  `BardErrorInfo`, retried 5x every time, looped indefinitely. The
+  rejection is evidently tied to raw payload size/complexity, not just
+  prompt phrasing — no proxy-side fix realistically solves this.
+- **Decision**: Strix gets its own, separate LLM credential — the real
+  Google AI Studio API (free tier: 15 RPM / 1,500 req/day on Flash
+  models, no billing needed), **not** gemini-web2api. Added
+  `STRIX_LLM_MODEL` (default `gemini/gemini-3.6-flash`, one of Strix's
+  own recommended models) and `STRIX_GEMINI_API_KEY` to `.env`/
+  `.env.example`, deliberately separate from `AI_API_KEY` — the
+  Discord bot's own `/chat`/mention-trigger AI path is untouched and
+  keeps using gemini-web2api as before. When the `/scan` command is
+  actually implemented, it must set the spawned Strix process's env to
+  `{STRIX_LLM: STRIX_LLM_MODEL, LLM_API_KEY: STRIX_GEMINI_API_KEY}` —
+  explicitly not `LLM_API_BASE` (unlike the failed gemini-web2api
+  experiment, the real Google API needs no base-URL override) and
+  explicitly not reusing `AI_API_KEY`.
+- No Discord-side `/scan` command exists yet — this entry covers only
+  the spike findings and credential decision. The command itself
+  (target allowlist, operator-only restriction, async job handling
+  since scans can run long, result formatting) is unbuilt, pending a
+  proper brainstorming pass whenever the user is ready to build it.
+
 ## 2026-09-08 — Phase 4 implemented: knowledge base, conversation viewer, feature toggles
 **Type**: add
 **Files**: `src/services/knowledge.js`, `src/admin/knowledge.js`,
