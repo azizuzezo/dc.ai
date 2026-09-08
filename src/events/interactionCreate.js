@@ -1,6 +1,16 @@
 import { logError } from "../services/logger.js";
+import { handleTriviaAnswer } from "../services/trivia.js";
 
 export async function execute(interaction) {
+  if (interaction.isButton() && interaction.customId.startsWith("trivia_answer:")) {
+    try {
+      await handleTriviaAnswer(interaction);
+    } catch (err) {
+      logError("trivia button handling failed:", err);
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);

@@ -1,5 +1,6 @@
 import { logInfo, logError } from "../services/logger.js";
 import * as db from "../services/db.js";
+import { startReminderSweep } from "../services/reminders.js";
 
 export const once = true;
 
@@ -12,4 +13,5 @@ export async function execute(client) {
       logError(`Failed to upsert guild ${guild.id} on ready:`, err);
     }
   }
+  startReminderSweep(client);
 }

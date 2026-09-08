@@ -27,6 +27,64 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Phase 3 implemented: poll, trivia, reminders, notes, summary
+**Type**: add
+**Files**: `src/commands/poll.js`, `trivia.js`, `remind.js`, `note.js`,
+`summary.js`, `src/services/trivia.js`, `reminders.js`,
+`src/services/duration.js` (refactor), `src/services/db.js` (reminders +
+notes functions), `src/events/ready.js`, `src/events/interactionCreate.js`,
+`supabase-migrations/005_reminders.sql`, `006_notes.sql`, `test/poll.test.js`,
+`trivia.test.js`, `test/duration.test.js` (extended)
+**Why**: implements PRD §6 Phase 3 (Utility & Engagement). Went through
+`brainstorming` (bounded path) with the user; confirmed decisions: `/poll`
+uses Discord's **native Poll API** (confirmed supported — installed
+discord.js is 14.27.0, well past the version that added it) instead of a
+custom button/vote system; `/trivia` is AI-generated multiple-choice with
+button voting, first correct answer wins, no lockout on wrong guesses;
+`/remind` persists to Supabase with a periodic sweep so reminders survive
+a bot restart; `/note` lets any member add/list, but delete is
+restricted (in code, not via Discord's permission system) to the note's
+author or a Moderate-Members-permission holder.
+**Notes**:
+- **`/poll`**: `interaction.reply({ poll: { question, answers, duration,
+  allowMultiselect } })` — no custom vote-counting code at all; Discord
+  handles voting UI, tallying, and expiry natively.
+- **`/trivia`**: `src/services/trivia.js` generates a question via a
+  one-shot `chatCompletion()` call (bypasses `conversationHistory.js`
+  entirely — this is not a continuing conversation) with a prompt
+  demanding raw JSON, tolerantly parsed (strips markdown code fences)
+  and validated before use. One active round per channel, tracked in an
+  in-memory `Map` (ephemeral by design — losing an in-progress trivia
+  round on restart is an acceptable simplification). Button clicks are
+  dispatched from `interactionCreate.js`'s new `isButton()` branch
+  (checked before the existing `isChatInputCommand()` branch) to
+  `handleTriviaAnswer()`.
+- **`/remind`**: reuses `duration.js`, but reusing the Phase 2
+  `parseDuration()` (capped at Discord's 28-day timeout limit) would
+  have silently capped long reminders — refactored `duration.js` to
+  split the pure parser (`parseDurationMs`, uncapped) from the
+  Discord-timeout-specific cap (`parseDuration`, still used by `/mute`
+  unchanged). New table `bot_reminders`; `src/services/reminders.js`'s
+  `startReminderSweep()` runs a `setInterval` (30s, `unref()`'d so it
+  doesn't block process exit) started from `ready.js`, delivering due
+  reminders and marking them regardless of delivery success (a deleted
+  channel shouldn't cause infinite redelivery attempts).
+- **`/note`**: new table `bot_notes`. Delete permission (author-or-
+  moderator) is checked manually in `note.js` rather than via
+  `setDefaultMemberPermissions`, since Discord's permission gate applies
+  to the whole command, not per-subcommand, and `add`/`list` must stay
+  open to everyone.
+- **`/summary`**: fetches recent channel messages directly and calls
+  `chatCompletion()` one-shot (same reasoning as trivia — not a
+  continuing conversation), reusing `resolveAiConfig()` and
+  `replyChunked()` from Phase 1.
+- Verified this session: `npm test` (26/26 passing), `npm run migrate`
+  applied `005_reminders.sql`/`006_notes.sql`, `npm run register-commands`
+  registered 11 global commands, bot restarted and logged in
+  successfully with the new code.
+- Out of scope (per PRD §12, later phases): knowledge base/RAG, full
+  admin dashboard parity (conversation viewer, live-reload UI polish).
+
 ## 2026-09-08 — Phase 2 implemented: moderation commands + AI rate limiting
 **Type**: add
 **Files**: `src/commands/warn.js`, `warnings.js`, `kick.js`, `mute.js`,

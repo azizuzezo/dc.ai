@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseDuration, MAX_TIMEOUT_MS } from "../src/services/duration.js";
+import { parseDuration, parseDurationMs, MAX_TIMEOUT_MS } from "../src/services/duration.js";
 
 test("parses seconds/minutes/hours/days", () => {
   assert.equal(parseDuration("30s"), 30_000);
@@ -19,4 +19,8 @@ test("returns null for invalid input", () => {
   assert.equal(parseDuration("0m"), null);
   assert.equal(parseDuration("10x"), null);
   assert.equal(parseDuration(null), null);
+});
+
+test("parseDurationMs is not capped (for reminders, unlike /mute)", () => {
+  assert.equal(parseDurationMs("60d"), 60 * 86_400_000);
 });

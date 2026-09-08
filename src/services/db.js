@@ -23,6 +23,10 @@ const memHistory = new Map(); // channelId -> [{ role, content, created_at }]
 const memAllowlist = new Map(); // guildId -> string[]
 const memGuilds = new Map(); // guildId -> { guild_id, guild_name, updated_at }
 const memWarnings = new Map(); // `${guildId}:${userId}` -> [{ moderator_id, reason, created_at }]
+const memReminders = []; // [{ id, guild_id, channel_id, user_id, message, remind_at, delivered }]
+const memNotes = new Map(); // guildId -> [{ id, author_id, content, created_at }]
+let memReminderIdSeq = 1;
+let memNoteIdSeq = 1;
 let memGlobalAiSettings = { model: null, baseUrl: null, apiKey: null };
 
 // ---- conversation history ----
@@ -200,4 +204,112 @@ export async function listWarnings(guildId, userId) {
     return data || [];
   }
   return (memWarnings.get(`${guildId}:${userId}`) || []).slice().reverse();
+}
+
+// ---- reminders ----
+
+export async function createReminder({ guildId, channelId, userId, message, remindAt }) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_reminders").insert({
+      guild_id: guildId,
+      channel_id: channelId,
+      user_id: userId,
+      message,
+      remind_at: remindAt.toISOString(),
+    });
+    if (error) throw error;
+    return;
+  }
+  memReminders.push({
+    id: memReminderIdSeq++,
+    guild_id: guildId,
+    channel_id: channelId,
+    user_id: userId,
+    message,
+    remind_at: remindAt.toISOString(),
+    delivered: false,
+  });
+}
+
+export async function getDueReminders(now = new Date()) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_reminders")
+      .select("id, guild_id, channel_id, user_id, message, remind_at")
+      .eq("delivered", false)
+      .lte("remind_at", now.toISOString())
+      .limit(20);
+    if (error) throw error;
+    return data || [];
+  }
+  return memReminders.filter((r) => !r.delivered && new Date(r.remind_at) <= now).slice(0, 20);
+}
+
+export async function markReminderDelivered(id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_reminders").update({ delivered: true }).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const row = memReminders.find((r) => r.id === id);
+  if (row) row.delivered = true;
+}
+
+// ---- shared guild notes ----
+
+export async function addNote(guildId, authorId, content) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_notes")
+      .insert({ guild_id: guildId, author_id: authorId, content })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  }
+  const rows = memNotes.get(guildId) || [];
+  const id = memNoteIdSeq++;
+  rows.push({ id, author_id: authorId, content, created_at: new Date().toISOString() });
+  memNotes.set(guildId, rows);
+  return id;
+}
+
+export async function listNotes(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_notes")
+      .select("id, author_id, content, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  return (memNotes.get(guildId) || []).slice().reverse();
+}
+
+export async function getNote(guildId, id) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_notes")
+      .select("id, author_id, content")
+      .eq("guild_id", guildId)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return (memNotes.get(guildId) || []).find((n) => n.id === id) || null;
+}
+
+export async function deleteNote(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_notes").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const rows = memNotes.get(guildId) || [];
+  memNotes.set(
+    guildId,
+    rows.filter((n) => n.id !== id)
+  );
 }
