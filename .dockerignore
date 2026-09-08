@@ -1,0 +1,9 @@
+.git
+node_modules
+.env
+.env.*
+!.env.example
+strix_runs
+*.log
+.vscode
+docs

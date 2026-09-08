@@ -27,6 +27,37 @@ see how the codebase got to its current shape without spelunking git log.
 
 ---
 
+## 2026-09-08 — Correction: nixpacks.toml was a no-op; switched to Dockerfile
+**Type**: refactor
+**Files**: `Dockerfile` (new), `railway.json` (new), `.dockerignore`
+(new), removed `nixpacks.toml`
+**Why**: after pushing the previous entry's `nixpacks.toml`, the Railway
+build log showed it had zero effect — this project's build driver is
+**Railpack** (`railpack-v0.39.0`, Railway's newer successor to
+Nixpacks, using `mise` for tool versions), not classic Nixpacks. The
+"Packages" section of the build log listed only `node 22.23.2`; no
+`nuclei` anywhere. A web-researched `railpack.json` schema (`
+buildAptPackages`) looked plausible but "nuclei" isn't a real apt
+package name, and there was no cheap way to verify Railpack's actual
+mise/aqua tool-install syntax without burning real build cycles on
+guesses.
+**Notes**: switched to an explicit **Dockerfile** instead — same
+`"builder": "DOCKERFILE"` approach already proven working for
+`../gemini-web2api`'s own Railway deployment, and something buildable
+and verifiable **locally** before ever pushing. `Dockerfile` installs
+`nuclei` by downloading the same pinned release binary
+(`v3.11.1`, matching the nixpkgs version checked earlier) directly from
+GitHub releases via curl+unzip into `/usr/local/bin`, matching how this
+was verified working on the local dev machine — then purges
+curl/unzip afterward, keeping only `ca-certificates` (needed for the
+app's own outbound HTTPS at runtime). **Verified locally before
+pushing**: `docker build` succeeded, `docker run ... nuclei -version`
+confirmed the binary works inside the built image, `node -v` confirmed
+Node 22. Also added a missing `.dockerignore` (`.env`, `.git`,
+`node_modules`, `strix_runs/` excluded) — without it those would have
+been copied into the build context and potentially baked into image
+layers, `.env` being the actually dangerous one (real secrets).
+
 ## 2026-09-08 — Added Nuclei as a second /scan engine (works on Railway)
 **Type**: add
 **Files**: `nixpacks.toml` (new), `src/commands/scan.js`,
