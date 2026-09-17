@@ -76,6 +76,7 @@ export function initLavalink(client) {
   });
 
   manager.on("trackStart", (player, track) => {
+    player.deleteData("skipVotes");
     const channel = client.channels.cache.get(player.textChannelId);
     if (channel?.isTextBased()) {
       const requesterId = typeof track.requester === "object" ? track.requester?.id : track.requester;
