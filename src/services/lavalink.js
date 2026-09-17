@@ -41,6 +41,14 @@ export function initLavalink(client) {
     }
   });
 
+  manager.on("trackError", (player, track, payload) => {
+    logError(`Track error in guild ${player.guildId}:`, payload?.exception ?? payload);
+    const channel = client.channels.cache.get(player.textChannelId);
+    if (channel?.isTextBased() && track) {
+      channel.send(`⚠️ Couldn't play **${track.info.title}** — skipping.`).catch(() => {});
+    }
+  });
+
   manager.on("queueEnd", (player) => {
     const channel = client.channels.cache.get(player.textChannelId);
     if (channel?.isTextBased()) {
