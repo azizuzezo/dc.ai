@@ -22,7 +22,13 @@ export function initLavalink(client) {
       username: "Music",
     },
     playerOptions: {
-      defaultSearchPlatform: "ytsearch",
+      // YouTube's anti-bot checks currently reject most anonymous/OAuth
+      // extraction attempts ("This video requires login" / "The page
+      // needs to be reloaded") — an active, ecosystem-wide issue, not
+      // specific to this setup. SoundCloud doesn't hit that wall, so it's
+      // the default for plain text queries. A pasted YouTube URL still
+      // works directly; only bare-title search prefers SoundCloud.
+      defaultSearchPlatform: "scsearch",
       onDisconnect: { autoReconnect: true, destroyPlayer: false },
       onEmptyQueue: { destroyAfterMs: 30_000 },
     },
