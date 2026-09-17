@@ -38,19 +38,23 @@ plugins:
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
     clients:
+      # TV is the only client that actually uses the OAuth-signed-in
+      # session below; the rest are anonymous fallbacks for when OAuth
+      # itself is unavailable.
+      - TV
       - MUSIC
       - ANDROID_VR
       - WEB
       - WEBEMBEDDED
     # Anonymous clients increasingly hit "This video requires login" from
     # YouTube's anti-bot checks. OAuth (a real Google account's refresh
-    # token) is the plugin's own documented workaround. Bootstrap: leave
-    # refreshToken unset, watch startup logs for a device-code URL, sign in
-    # with that code, then copy the refresh token Lavalink prints and set
-    # it as the YOUTUBE_OAUTH_REFRESH_TOKEN env var on this service so it
-    # survives redeploys.
+    # token) is the plugin's own documented workaround — completed once via
+    # the device-code flow printed on first boot; the resulting token is
+    # injected via the YOUTUBE_OAUTH_REFRESH_TOKEN env var so it survives
+    # redeploys without repeating that flow.
     oauth:
       enabled: true
+      refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN}"
 
 metrics:
   prometheus:
