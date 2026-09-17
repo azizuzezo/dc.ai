@@ -31,6 +31,11 @@ export const env = {
   strixMaxBudgetUsd: Number(process.env.STRIX_MAX_BUDGET_USD) || 5,
   strixMaxTurns: Number(process.env.STRIX_MAX_TURNS) || 20,
   strixScanTimeoutMs: Number(process.env.STRIX_SCAN_TIMEOUT_MS) || 1200000,
+
+  lavalinkHost: process.env.LAVALINK_HOST,
+  lavalinkPort: Number(process.env.LAVALINK_PORT) || 2333,
+  lavalinkPassword: process.env.LAVALINK_PASSWORD,
+  lavalinkSecure: process.env.LAVALINK_SECURE === "true",
 };
 
 export function assertRequiredEnv() {

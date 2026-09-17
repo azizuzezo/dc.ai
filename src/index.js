@@ -5,8 +5,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { env, assertRequiredEnv } from "./config/env.js";
 import { forceIpv4Fetch } from "./config/network.js";
-import { logError } from "./services/logger.js";
+import { logError, logWarn } from "./services/logger.js";
 import { startAdminServer } from "./admin/server.js";
+import { initLavalink } from "./services/lavalink.js";
 
 assertRequiredEnv();
 forceIpv4Fetch();
@@ -18,6 +19,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
   ],
 });
 
@@ -51,6 +53,11 @@ async function loadEvents() {
 async function main() {
   await loadCommands();
   await loadEvents();
+  if (env.lavalinkHost && env.lavalinkPassword) {
+    initLavalink(client);
+  } else {
+    logWarn("LAVALINK_HOST/LAVALINK_PASSWORD not set — music commands will be unavailable.");
+  }
   startAdminServer();
   await client.login(env.discordToken);
 }
