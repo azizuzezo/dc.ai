@@ -58,6 +58,9 @@ export async function execute(interaction) {
     if (!player.playing && !player.paused) await player.play();
   } catch (err) {
     logError("play command failed:", err);
-    await interaction.editReply("Something went wrong trying to play that.").catch(() => {});
+    const message = err instanceof Error && err.message.includes("not connected to the Lavalink Server")
+      ? "Music service is reconnecting — try again in a few seconds."
+      : "Something went wrong trying to play that.";
+    await interaction.editReply(message).catch(() => {});
   }
 }

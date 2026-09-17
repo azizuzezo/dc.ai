@@ -34,9 +34,46 @@ export function initLavalink(client) {
     },
   });
 
-  manager.nodeManager.on("connect", (node) => logInfo(`Lavalink node "${node.id}" connected.`));
+  manager.nodeManager.on("connect", async (node) => {
+    logInfo(`Lavalink node "${node.id}" connected.`);
+
+    // Keeps the Lavalink-side session alive for a bit after a brief WS drop
+    // (network blip, proxy reset) so it can resume without losing player
+    // state — doesn't help across a full Lavalink process restart, since
+    // that wipes the session entirely, but those are the minority case.
+    node.updateSession(true, 60_000).catch(() => {});
+
+    // A full process restart, on the other hand, does wipe every player's
+    // server-side state while our own queue (kept in this process' memory)
+    // survives untouched — so on reconnect, anything that was mid-playback
+    // just silently stops. Restart those from the current track instead of
+    // leaving the voice channel connected but dead.
+    for (const player of manager.players.values()) {
+      if (player.node.id !== node.id || player.playing || !player.queue.current) continue;
+      try {
+        if (!player.connected) await player.connect();
+        await player.play({ track: player.queue.current });
+        const channel = client.channels.cache.get(player.textChannelId);
+        if (channel?.isTextBased()) {
+          channel
+            .send(`🔁 Music connection recovered — resuming **${player.queue.current.info.title}**.`)
+            .catch(() => {});
+        }
+      } catch (err) {
+        logError(`Failed to resume playback in guild ${player.guildId} after reconnect:`, err);
+      }
+    }
+  });
   manager.nodeManager.on("disconnect", (node, reason) => logWarn(`Lavalink node "${node.id}" disconnected:`, reason));
   manager.nodeManager.on("error", (node, err) => logError(`Lavalink node "${node.id}" error:`, err));
+
+  manager.on("trackStuck", (player, track) => {
+    logWarn(`Track stuck in guild ${player.guildId}:`, track?.info?.title);
+    const channel = client.channels.cache.get(player.textChannelId);
+    if (channel?.isTextBased() && track) {
+      channel.send(`⚠️ **${track.info.title}** got stuck — skipping.`).catch(() => {});
+    }
+  });
 
   manager.on("trackStart", (player, track) => {
     const channel = client.channels.cache.get(player.textChannelId);
