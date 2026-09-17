@@ -1,6 +1,7 @@
 import { logInfo, logError } from "../services/logger.js";
 import * as db from "../services/db.js";
 import { startReminderSweep } from "../services/reminders.js";
+import { startTiktokLiveSweep } from "../services/tiktokLive.js";
 
 export const once = true;
 
@@ -14,4 +15,5 @@ export async function execute(client) {
     }
   }
   startReminderSweep(client);
+  startTiktokLiveSweep(client);
 }

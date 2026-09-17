@@ -28,9 +28,11 @@ const memNotes = new Map(); // guildId -> [{ id, author_id, content, created_at 
 const memDisabledCommands = new Map(); // guildId -> string[]
 const memKnowledge = new Map(); // guildId -> [{ id, title, content, created_at, updated_at }]
 const memScanOperators = new Map(); // discord_user_id -> { discord_user_id, added_by, created_at }
+const memTiktokWatches = new Map(); // `${guildId}:${tiktokUsername}` -> { id, guild_id, channel_id, tiktok_username, is_live }
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
+let memTiktokWatchIdSeq = 1;
 let memGlobalAiSettings = { model: null, baseUrl: null, apiKey: null };
 
 // ---- conversation history ----
@@ -505,4 +507,75 @@ export async function listScanOperators() {
     return data || [];
   }
   return Array.from(memScanOperators.values());
+}
+
+// ---- TikTok live watches ----
+
+export async function addTiktokWatch(guildId, channelId, tiktokUsername) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_tiktok_watches")
+      .upsert(
+        { guild_id: guildId, channel_id: channelId, tiktok_username: tiktokUsername, is_live: false },
+        { onConflict: "guild_id,tiktok_username" }
+      );
+    if (error) throw error;
+    return;
+  }
+  const key = `${guildId}:${tiktokUsername}`;
+  memTiktokWatches.set(key, {
+    id: memTiktokWatches.get(key)?.id ?? memTiktokWatchIdSeq++,
+    guild_id: guildId,
+    channel_id: channelId,
+    tiktok_username: tiktokUsername,
+    is_live: false,
+  });
+}
+
+export async function removeTiktokWatch(guildId, tiktokUsername) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_tiktok_watches")
+      .delete()
+      .eq("guild_id", guildId)
+      .eq("tiktok_username", tiktokUsername)
+      .select("id");
+    if (error) throw error;
+    return (data || []).length > 0;
+  }
+  return memTiktokWatches.delete(`${guildId}:${tiktokUsername}`);
+}
+
+export async function listTiktokWatchesForGuild(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_tiktok_watches")
+      .select("id, guild_id, channel_id, tiktok_username, is_live")
+      .eq("guild_id", guildId)
+      .order("tiktok_username", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  return Array.from(memTiktokWatches.values()).filter((w) => w.guild_id === guildId);
+}
+
+export async function listAllTiktokWatches() {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_tiktok_watches")
+      .select("id, guild_id, channel_id, tiktok_username, is_live");
+    if (error) throw error;
+    return data || [];
+  }
+  return Array.from(memTiktokWatches.values());
+}
+
+export async function setTiktokWatchLiveState(id, isLive) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_tiktok_watches").update({ is_live: isLive }).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const row = Array.from(memTiktokWatches.values()).find((w) => w.id === id);
+  if (row) row.is_live = isLive;
 }
