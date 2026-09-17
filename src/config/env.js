@@ -36,6 +36,8 @@ export const env = {
   lavalinkPort: Number(process.env.LAVALINK_PORT) || 2333,
   lavalinkPassword: process.env.LAVALINK_PASSWORD,
   lavalinkSecure: process.env.LAVALINK_SECURE === "true",
+
+  joobleApiKey: process.env.JOOBLE_API_KEY,
 };
 
 export function assertRequiredEnv() {
