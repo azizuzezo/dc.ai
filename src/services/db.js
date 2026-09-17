@@ -29,6 +29,7 @@ const memDisabledCommands = new Map(); // guildId -> string[]
 const memKnowledge = new Map(); // guildId -> [{ id, title, content, created_at, updated_at }]
 const memScanOperators = new Map(); // discord_user_id -> { discord_user_id, added_by, created_at }
 const memTiktokWatches = new Map(); // `${guildId}:${tiktokUsername}` -> { id, guild_id, channel_id, tiktok_username, is_live }
+const memTriviaScores = new Map(); // `${guildId}:${userId}` -> correct_count
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -210,6 +211,51 @@ export async function listWarnings(guildId, userId) {
     return data || [];
   }
   return (memWarnings.get(`${guildId}:${userId}`) || []).slice().reverse();
+}
+
+// ---- trivia scores ----
+
+export async function incrementTriviaScore(guildId, userId) {
+  if (supabase) {
+    const { data: existing, error: selectError } = await supabase
+      .from("bot_trivia_scores")
+      .select("correct_count")
+      .eq("guild_id", guildId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (selectError) throw selectError;
+    const nextCount = (existing?.correct_count ?? 0) + 1;
+    const { error } = await supabase
+      .from("bot_trivia_scores")
+      .upsert(
+        { guild_id: guildId, user_id: userId, correct_count: nextCount, updated_at: new Date().toISOString() },
+        { onConflict: "guild_id,user_id" }
+      );
+    if (error) throw error;
+    return nextCount;
+  }
+  const key = `${guildId}:${userId}`;
+  const nextCount = (memTriviaScores.get(key) || 0) + 1;
+  memTriviaScores.set(key, nextCount);
+  return nextCount;
+}
+
+export async function getTriviaLeaderboard(guildId, limit = 10) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_trivia_scores")
+      .select("user_id, correct_count")
+      .eq("guild_id", guildId)
+      .order("correct_count", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
+  return [...memTriviaScores.entries()]
+    .filter(([key]) => key.startsWith(`${guildId}:`))
+    .map(([key, correct_count]) => ({ user_id: key.split(":")[1], correct_count }))
+    .sort((a, b) => b.correct_count - a.correct_count)
+    .slice(0, limit);
 }
 
 // ---- reminders ----

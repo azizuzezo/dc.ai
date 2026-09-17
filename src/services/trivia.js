@@ -1,6 +1,7 @@
 import { MessageFlags } from "discord.js";
 import { resolveAiConfig, chatCompletion } from "./geminiClient.js";
 import { logError } from "./logger.js";
+import * as db from "./db.js";
 
 export const OPTION_LABELS = ["A", "B", "C", "D"];
 export const TRIVIA_TIMEOUT_MS = 60_000;
@@ -52,8 +53,17 @@ export function parseTriviaResponse(raw) {
   return { question: data.question, options: data.options, correctIndex: data.correctIndex };
 }
 
-const TRIVIA_PROMPT =
-  'Generate one multiple-choice trivia question. Respond with ONLY raw JSON, no markdown, in the exact shape: {"question": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0}. correctIndex is the 0-based index of the correct option in the options array.';
+const TRIVIA_CATEGORIES = ["sejarah Indonesia", "pengetahuan umum Indonesia", "teknologi Indonesia"];
+
+function buildTriviaPrompt() {
+  const category = TRIVIA_CATEGORIES[Math.floor(Math.random() * TRIVIA_CATEGORIES.length)];
+  return (
+    `Buatkan satu soal trivia pilihan ganda bertema "${category}". Soal, pilihan jawaban, ` +
+    "dan seluruh teks harus dalam Bahasa Indonesia. Jawab HANYA dengan JSON mentah, tanpa markdown, " +
+    'persis dalam format ini: {"question": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0}. ' +
+    "correctIndex adalah indeks 0-based dari jawaban yang benar di dalam array options."
+  );
+}
 
 export async function generateTriviaQuestion() {
   const { model, baseUrl, apiKey } = await resolveAiConfig();
@@ -61,7 +71,7 @@ export async function generateTriviaQuestion() {
     baseUrl,
     apiKey,
     model,
-    messages: [{ role: "user", content: TRIVIA_PROMPT }],
+    messages: [{ role: "user", content: buildTriviaPrompt() }],
   });
   const parsed = parseTriviaResponse(raw);
   if (!parsed) throw new Error("AI returned an unparseable trivia question");
@@ -80,9 +90,16 @@ export async function handleTriviaAnswer(interaction) {
 
   if (chosenIndex === state.correctIndex) {
     clearActiveTrivia(interaction.channelId);
+    let score;
+    try {
+      score = await db.incrementTriviaScore(interaction.guildId, interaction.user.id);
+    } catch (err) {
+      logError("trivia score update failed:", err);
+    }
+    const scoreLine = score ? ` **${interaction.user.username}** now has **${score}** correct answer(s).` : "";
     try {
       await interaction.update({
-        content: `🎉 ${interaction.user} got it right! The answer was **${OPTION_LABELS[state.correctIndex]}. ${state.options[state.correctIndex]}**.`,
+        content: `🎉 ${interaction.user} got it right! The answer was **${OPTION_LABELS[state.correctIndex]}. ${state.options[state.correctIndex]}**.${scoreLine}`,
         components: [],
       });
     } catch (err) {
