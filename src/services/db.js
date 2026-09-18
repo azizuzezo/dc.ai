@@ -557,12 +557,12 @@ export async function listScanOperators() {
 
 // ---- TikTok live watches ----
 
-export async function addTiktokWatch(guildId, channelId, tiktokUsername) {
+export async function addTiktokWatch(guildId, channelId, tiktokUsername, mention = null) {
   if (supabase) {
     const { error } = await supabase
       .from("bot_tiktok_watches")
       .upsert(
-        { guild_id: guildId, channel_id: channelId, tiktok_username: tiktokUsername, is_live: false },
+        { guild_id: guildId, channel_id: channelId, tiktok_username: tiktokUsername, is_live: false, mention },
         { onConflict: "guild_id,tiktok_username" }
       );
     if (error) throw error;
@@ -575,6 +575,7 @@ export async function addTiktokWatch(guildId, channelId, tiktokUsername) {
     channel_id: channelId,
     tiktok_username: tiktokUsername,
     is_live: false,
+    mention,
   });
 }
 
@@ -596,7 +597,7 @@ export async function listTiktokWatchesForGuild(guildId) {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_tiktok_watches")
-      .select("id, guild_id, channel_id, tiktok_username, is_live")
+      .select("id, guild_id, channel_id, tiktok_username, is_live, mention")
       .eq("guild_id", guildId)
       .order("tiktok_username", { ascending: true });
     if (error) throw error;
@@ -609,7 +610,7 @@ export async function listAllTiktokWatches() {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_tiktok_watches")
-      .select("id, guild_id, channel_id, tiktok_username, is_live");
+      .select("id, guild_id, channel_id, tiktok_username, is_live, mention");
     if (error) throw error;
     return data || [];
   }

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType } from "discord.js";
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType, Role } from "discord.js";
 import * as db from "../services/db.js";
 import { normalizeTiktokUsername } from "../services/tiktokLive.js";
 import { logError } from "../services/logger.js";
@@ -19,6 +19,9 @@ export const data = new SlashCommandBuilder()
           .addChannelTypes(ChannelType.GuildText)
           .setRequired(true)
       )
+      .addMentionableOption((opt) =>
+        opt.setName("mention").setDescription("Role or user to tag in the notification").setRequired(false)
+      )
   )
   .addSubcommand((sub) =>
     sub
@@ -34,9 +37,12 @@ export async function execute(interaction) {
   if (sub === "add") {
     const username = normalizeTiktokUsername(interaction.options.getString("username", true));
     const channel = interaction.options.getChannel("channel", true);
+    const mentionable = interaction.options.getMentionable("mention");
+    const mention = mentionable ? (mentionable instanceof Role ? `<@&${mentionable.id}>` : `<@${mentionable.id}>`) : null;
     try {
-      await db.addTiktokWatch(interaction.guildId, channel.id, username);
-      await interaction.reply(`✅ Will post in ${channel} when **@${username}** goes live on TikTok.`);
+      await db.addTiktokWatch(interaction.guildId, channel.id, username, mention);
+      const mentionNote = mention ? ` and tag ${mention}` : "";
+      await interaction.reply(`✅ Will post in ${channel}${mentionNote} when **@${username}** goes live on TikTok.`);
     } catch (err) {
       logError("notifyme add failed:", err);
       await interaction.reply({ content: "Couldn't save that watch.", flags: MessageFlags.Ephemeral });
@@ -68,7 +74,10 @@ export async function execute(interaction) {
       return;
     }
     const lines = watches.map(
-      (w) => `- **@${w.tiktok_username}** → <#${w.channel_id}>${w.is_live ? " 🔴 live" : ""}`
+      (w) =>
+        `- **@${w.tiktok_username}** → <#${w.channel_id}>${w.mention ? ` (tags ${w.mention})` : ""}${
+          w.is_live ? " 🔴 live" : ""
+        }`
     );
     await interaction.reply({ content: lines.join("\n"), flags: MessageFlags.Ephemeral });
   } catch (err) {

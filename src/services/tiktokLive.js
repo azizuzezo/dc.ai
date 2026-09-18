@@ -42,8 +42,9 @@ export async function sweepTiktokLive(client) {
     try {
       const channel = await client.channels.fetch(watch.channel_id);
       if (channel?.isTextBased()) {
+        const tag = watch.mention ? `${watch.mention} ` : "";
         await channel.send(
-          `🔴 **@${watch.tiktok_username}** is live on TikTok! https://www.tiktok.com/@${watch.tiktok_username}/live`
+          `${tag}🔴 **@${watch.tiktok_username}** is live on TikTok! https://www.tiktok.com/@${watch.tiktok_username}/live`
         );
       }
     } catch (err) {
