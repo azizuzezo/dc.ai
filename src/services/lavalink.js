@@ -93,12 +93,14 @@ export function initLavalink(client) {
     }
   });
 
-  manager.on("queueEnd", (player) => {
+  // onEmptyQueue.destroyAfterMs already schedules the actual destroy() after
+  // 30s of silence — don't destroy here too, or the bot leaves instantly
+  // instead of giving time to queue another song.
+  manager.on("playerQueueEmptyEnd", (player) => {
     const channel = client.channels.cache.get(player.textChannelId);
     if (channel?.isTextBased()) {
       channel.send("Queue finished — leaving the voice channel.").catch(() => {});
     }
-    player.destroy().catch(() => {});
   });
 
   client.on("raw", (d) => manager.sendRawData(d));
