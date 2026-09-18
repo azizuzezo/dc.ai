@@ -2,11 +2,24 @@ import { isChannelAllowed } from "../services/channelAllowlist.js";
 import { runAiChat } from "../services/aiChatPipeline.js";
 import { sendChunkedReply } from "../services/discordReply.js";
 import { checkRateLimit } from "../services/rateLimit.js";
+import { awardMessageXp } from "../services/leveling.js";
 import { logError } from "../services/logger.js";
 
 export async function execute(message) {
   if (message.author.bot) return;
   if (!message.guildId) return; // DMs out of scope for Phase 1
+
+  try {
+    const levelUp = await awardMessageXp(message.guildId, message.author.id);
+    if (levelUp) {
+      await message.channel
+        .send(`🎉 GG ${message.author}, kamu naik ke **level ${levelUp.level}**!`)
+        .catch(() => {});
+    }
+  } catch (err) {
+    logError("Failed to award message XP:", err);
+  }
+
   if (!message.mentions.has(message.client.user)) return;
 
   const allowed = await isChannelAllowed(message.guildId, message.channelId);

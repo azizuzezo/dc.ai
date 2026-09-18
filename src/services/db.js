@@ -30,6 +30,8 @@ const memKnowledge = new Map(); // guildId -> [{ id, title, content, created_at,
 const memScanOperators = new Map(); // discord_user_id -> { discord_user_id, added_by, created_at }
 const memTiktokWatches = new Map(); // `${guildId}:${tiktokUsername}` -> { id, guild_id, channel_id, tiktok_username, is_live }
 const memTriviaScores = new Map(); // `${guildId}:${userId}` -> correct_count
+const memWelcomeSettings = new Map(); // guildId -> { welcome_channel_id, welcome_message, leave_channel_id, leave_message }
+const memLevels = new Map(); // `${guildId}:${userId}` -> { guild_id, user_id, xp, level }
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -625,4 +627,127 @@ export async function setTiktokWatchLiveState(id, isLive) {
   }
   const row = Array.from(memTiktokWatches.values()).find((w) => w.id === id);
   if (row) row.is_live = isLive;
+}
+
+// ---- welcome / leave messages ----
+
+export async function getWelcomeSettings(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_guild_settings")
+      .select("welcome_channel_id, welcome_message, leave_channel_id, leave_message")
+      .eq("guild_id", guildId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || {};
+  }
+  return memWelcomeSettings.get(guildId) || {};
+}
+
+export async function setWelcomeMessage(guildId, channelId, message) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_guild_settings").upsert({
+      guild_id: guildId,
+      welcome_channel_id: channelId,
+      welcome_message: message,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    return;
+  }
+  memWelcomeSettings.set(guildId, {
+    ...memWelcomeSettings.get(guildId),
+    welcome_channel_id: channelId,
+    welcome_message: message,
+  });
+}
+
+export async function disableWelcomeMessage(guildId) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_guild_settings")
+      .upsert({ guild_id: guildId, welcome_channel_id: null, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    return;
+  }
+  const existing = memWelcomeSettings.get(guildId);
+  if (existing) existing.welcome_channel_id = null;
+}
+
+export async function setLeaveMessage(guildId, channelId, message) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_guild_settings").upsert({
+      guild_id: guildId,
+      leave_channel_id: channelId,
+      leave_message: message,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    return;
+  }
+  memWelcomeSettings.set(guildId, {
+    ...memWelcomeSettings.get(guildId),
+    leave_channel_id: channelId,
+    leave_message: message,
+  });
+}
+
+export async function disableLeaveMessage(guildId) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_guild_settings")
+      .upsert({ guild_id: guildId, leave_channel_id: null, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    return;
+  }
+  const existing = memWelcomeSettings.get(guildId);
+  if (existing) existing.leave_channel_id = null;
+}
+
+// ---- leveling ----
+
+export async function getLevel(guildId, userId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_levels")
+      .select("xp, level")
+      .eq("guild_id", guildId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || { xp: 0, level: 0 };
+  }
+  const row = memLevels.get(`${guildId}:${userId}`);
+  return row ? { xp: row.xp, level: row.level } : { xp: 0, level: 0 };
+}
+
+export async function setLevel(guildId, userId, xp, level) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_levels")
+      .upsert(
+        { guild_id: guildId, user_id: userId, xp, level, updated_at: new Date().toISOString() },
+        { onConflict: "guild_id,user_id" }
+      );
+    if (error) throw error;
+    return;
+  }
+  memLevels.set(`${guildId}:${userId}`, { guild_id: guildId, user_id: userId, xp, level });
+}
+
+export async function getLeaderboard(guildId, limit = 10) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_levels")
+      .select("user_id, xp, level")
+      .eq("guild_id", guildId)
+      .order("xp", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
+  return Array.from(memLevels.values())
+    .filter((row) => row.guild_id === guildId)
+    .sort((a, b) => b.xp - a.xp)
+    .slice(0, limit);
 }

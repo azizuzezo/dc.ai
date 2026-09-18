@@ -3,6 +3,30 @@ import { env } from "../config/env.js";
 import { logError, logInfo, logWarn } from "./logger.js";
 
 let manager;
+const autoplayGuilds = new Set();
+
+export function isAutoplayEnabled(guildId) {
+  return autoplayGuilds.has(guildId);
+}
+
+export function setAutoplay(guildId, enabled) {
+  if (enabled) autoplayGuilds.add(guildId);
+  else autoplayGuilds.delete(guildId);
+}
+
+async function autoPlayFunction(player, lastTrack) {
+  if (!autoplayGuilds.has(player.guildId) || !lastTrack) return;
+  try {
+    const query = `${lastTrack.info.author} ${lastTrack.info.title}`;
+    const result = await player.search(query, lastTrack.requester);
+    const candidates = (result?.tracks ?? []).filter((t) => t.info.identifier !== lastTrack.info.identifier);
+    if (!candidates.length) return;
+    const next = candidates[Math.floor(Math.random() * Math.min(candidates.length, 5))];
+    player.queue.add(next);
+  } catch (err) {
+    logError(`Autoplay search failed in guild ${player.guildId}:`, err);
+  }
+}
 
 export function initLavalink(client) {
   manager = new LavalinkManager({
@@ -30,7 +54,7 @@ export function initLavalink(client) {
       // works directly; only bare-title search prefers SoundCloud.
       defaultSearchPlatform: "scsearch",
       onDisconnect: { autoReconnect: true, destroyPlayer: false },
-      onEmptyQueue: { destroyAfterMs: 30_000 },
+      onEmptyQueue: { destroyAfterMs: 30_000, autoPlayFunction },
     },
   });
 
