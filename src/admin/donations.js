@@ -122,7 +122,7 @@ export async function handleDonationSettingsPage(req, res, error) {
                <p class="mono" style="word-break:break-all"><a href="${wishlistWidgetUrl}">${wishlistWidgetUrl}</a></p>`
             : ""
         }
-        <label>Video widget <span class="hint">(optional separate Browser Source, full-window; plays a donor's YouTube link for up to 60s)</span></label>
+        <label>Video widget <span class="hint">(optional separate Browser Source, full-window; plays a donor's YouTube link for Rp1.000 = 1s, 10-120s)</span></label>
         <p class="mono" style="word-break:break-all"><a href="${videoWidgetUrl}">${videoWidgetUrl}</a></p>
       </div>
 

@@ -505,7 +505,12 @@ export async function handleWishlistData(req, res) {
   res.json({ items });
 }
 
-const VIDEO_MAX_SECONDS = 60;
+// Duration scales with the donation: Rp1.000 = 1s of video, floored/capped
+// so a tiny donation still gets something watchable and a huge one can't
+// hijack the stream indefinitely.
+const VIDEO_RP_PER_SECOND = 1000;
+const VIDEO_MIN_SECONDS = 10;
+const VIDEO_MAX_SECONDS = 120;
 
 export async function handleVideoPage(req, res) {
   const { token } = req.params;
@@ -561,12 +566,17 @@ export async function handleVideoPage(req, res) {
         playVideo(queue.shift());
       }
 
-      function playVideo(videoId) {
+      function durationMsFor(amount) {
+        const seconds = Math.min(${VIDEO_MAX_SECONDS}, Math.max(${VIDEO_MIN_SECONDS}, Math.floor(amount / ${VIDEO_RP_PER_SECOND})));
+        return seconds * 1000;
+      }
+
+      function playVideo(item) {
         clearTimeout(hideTimer);
-        player.loadVideoById(videoId);
+        player.loadVideoById(item.videoId);
         player.unMute?.();
         wrap.classList.add("show");
-        hideTimer = setTimeout(hideVideo, ${VIDEO_MAX_SECONDS * 1000});
+        hideTimer = setTimeout(hideVideo, durationMsFor(item.amount));
       }
 
       function hideVideo() {
@@ -579,7 +589,7 @@ export async function handleVideoPage(req, res) {
       events.addEventListener("donation", (e) => {
         const d = JSON.parse(e.data);
         if (!d.youtubeVideoId) return;
-        queue.push(d.youtubeVideoId);
+        queue.push({ videoId: d.youtubeVideoId, amount: Number(d.amount) || 0 });
         drain();
       });
     </script>
