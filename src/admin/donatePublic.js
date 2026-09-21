@@ -16,9 +16,12 @@ const CHECKOUT_STYLE = `
     body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:#fff;color:var(--ink)}
     .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:22px}
     label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
-    input[type=text],input[type=number],textarea{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
-      background:#fff;color:var(--ink);font:500 15px 'Inter',sans-serif}
+    .required-mark{color:#dc2626;margin-left:2px}
+    input[type=text],input[type=number],input[type=email],textarea{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
+      background:#fff;color:var(--ink);font:500 15px 'Inter',sans-serif;transition:border-color .15s ease}
+    input[type=text]:hover,input[type=number]:hover,input[type=email]:hover,textarea:hover{border-color:#c3c9d1}
     input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+    input:invalid:not(:placeholder-shown){border-color:#dc2626}
     textarea{resize:vertical}
     button{font:700 15px 'Inter',sans-serif;border:none;border-radius:999px;cursor:pointer}
     .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green-deep);color:#fff}
@@ -64,6 +67,42 @@ const CHECKOUT_STYLE = `
     .message-name{font-weight:700;font-size:14px}
     .message-wishlist{font-size:12px;color:var(--green);margin-top:2px}
     .message-text{font-size:14px;margin-top:4px}
+
+    .yt-toggle{display:flex;align-items:center;gap:8px;width:100%;margin-top:16px;padding:11px 14px;
+      background:#fff;border:1px solid var(--border);border-radius:10px;font:600 14px 'Inter',sans-serif;
+      color:var(--ink);cursor:pointer;text-align:left}
+    .yt-toggle:hover{border-color:var(--green)}
+    .yt-toggle.expanded{border-color:var(--green);background:#f0fdf4}
+    .yt-toggle svg{flex:none}
+
+    #step1.hidden,#step2.hidden{display:none}
+    #step2 .back-btn{display:flex;align-items:center;gap:4px;margin-bottom:14px;
+      background:none;border:none;padding:0;font:600 14px 'Inter',sans-serif;color:var(--muted);cursor:pointer}
+    #step2 .back-btn:hover{color:var(--ink)}
+    @keyframes view-in{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+    .view-enter{animation:view-in .35s cubic-bezier(.22,1,.36,1)}
+
+    /* A little life: the avatar breathes, sections settle in as they load,
+       cards/buttons respond to touch. Kept subtle and one-time, not looping
+       everywhere, so it stays readable instead of busy. */
+    @keyframes avatar-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+    @keyframes avatar-glow{0%,100%{box-shadow:0 0 0 3px var(--green)}50%{box-shadow:0 0 0 7px rgba(21,128,61,.3)}}
+    @keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    #avatarCircle{animation:avatar-float 3.2s ease-in-out infinite, avatar-glow 3.2s ease-in-out infinite}
+    .fade-in{opacity:0;animation:fade-up .6s cubic-bezier(.22,1,.36,1) forwards}
+    .bar-fill{transition:width 1s cubic-bezier(.22,1,.36,1)}
+    button{transition:transform .15s ease, box-shadow .15s ease}
+    .btn-primary:active{transform:scale(.96)}
+    .wish-pick:active{transform:scale(.96)}
+    .wish-card{transition:transform .2s ease, box-shadow .2s ease}
+    .wish-card:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(0,0,0,.08)}
+    .pill{transition:transform .15s ease, border-color .15s ease}
+    .pill:hover{border-color:var(--green)}
+    .pill:active{transform:scale(.94)}
+    @media (prefers-reduced-motion: reduce){
+      #avatarCircle,.fade-in,.bar-fill,button,.wish-card,.view-enter{animation:none !important;transition:none !important}
+      .fade-in{opacity:1 !important;transform:none !important}
+    }
   </style>`;
 
 export async function handleDonatePage(req, res) {
@@ -88,7 +127,7 @@ export async function handleDonatePage(req, res) {
 
   const wishlistSectionHtml = wishlistItems.length
     ? `<hr class="divider" />
-       <div class="section">
+       <div class="section fade-in" style="animation-delay:.1s">
          <h2 class="section-title">Wishlist</h2>
          <div class="wishlist-grid">
            ${wishlistItems
@@ -103,7 +142,7 @@ export async function handleDonatePage(req, res) {
                  <div class="wish-title">${escapeHtml(w.title)}</div>
                  <div class="wish-target">Target Rp${Number(w.target_amount).toLocaleString("id-ID")}</div>
                  <div class="wish-current">Rp${w.total.toLocaleString("id-ID")} (${pct}%)</div>
-                 <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+                 <div class="bar"><div class="bar-fill" data-pct="${pct}" style="width:0"></div></div>
                  ${
                    contributors.length
                      ? `<div class="wish-contrib">Kontributor: <span class="contrib-preview">${preview}</span><span class="contrib-rest hidden">${rest ? ", " + rest : ""}</span></div>`
@@ -121,7 +160,7 @@ export async function handleDonatePage(req, res) {
   const leaderboard = await db.getDonationLeaderboard(settings.guild_id, 25);
   const topSupportersHtml = leaderboard.length
     ? `<hr class="divider" />
-       <div class="section">
+       <div class="section fade-in" style="animation-delay:.2s">
          <h2 class="section-title">Top Supporters</h2>
          <ol class="supporters">
            ${leaderboard
@@ -141,7 +180,7 @@ export async function handleDonatePage(req, res) {
   const messages = recentDonations.filter((d) => d.message);
   const pesanHtml = messages.length
     ? `<hr class="divider" />
-       <div class="section">
+       <div class="section fade-in" style="animation-delay:.3s">
          <h2 class="section-title">Pesan</h2>
          ${messages
            .map((d, i) => {
@@ -161,58 +200,68 @@ export async function handleDonatePage(req, res) {
     <title>${title}</title>
     ${CHECKOUT_STYLE}
     </head><body>
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="width:76px;height:76px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 0 3px var(--green);
-        display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
-      <h1 style="margin:0;font-size:22px">${title}</h1>
-      ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
-      <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
+    <div id="step1" class="${hasPreselected ? "hidden" : ""}">
+      <div class="fade-in" style="text-align:center;margin-bottom:20px">
+        <div id="avatarCircle" style="width:76px;height:76px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 0 3px var(--green);
+          display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
+        <h1 style="margin:0;font-size:22px">${title}</h1>
+        ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
+        <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
+      </div>
+      ${wishlistSectionHtml}
+      ${topSupportersHtml}
+      ${pesanHtml}
     </div>
-    ${wishlistSectionHtml}
-    ${topSupportersHtml}
-    ${pesanHtml}
-    <hr class="divider" />
-    <form class="card${hasPreselected ? "" : " hidden"}" id="donateForm" method="post" action="/donate/${identifier}" style="margin-top:24px">
-      <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
-      <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</label>
-      <div class="pills">
-        ${presets.map((p) => `<button type="button" class="pill" data-amount="${p}">${p.toLocaleString("id-ID")}</button>`).join("")}
-      </div>
-      <input type="number" name="amount" id="amount" min="${min}" step="500" required style="margin-top:10px" placeholder="Atau isi nominal lain" />
-
-      <label>Nama</label>
-      <input type="text" name="donorName" id="donorName" maxlength="40" placeholder="Nama kamu" />
-      <label class="check"><input type="checkbox" id="anon" /> Donasi sebagai Anonim</label>
-
-      <label for="donorEmail">Email</label>
-      <input type="email" name="donorEmail" id="donorEmail" required placeholder="email@kamu.com" />
-      <p class="hint">Buat konfirmasi/struk donasi, gak ditampilkan ke publik.</p>
-
-      <label>Pesan (opsional)</label>
-      <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
-      <div class="counter"><span id="msgCount">0</span>/200</div>
-
-      <label for="youtubeUrl">Link video YouTube (opsional)</label>
-      <input type="text" name="youtubeUrl" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
-      <p class="hint">Diputar di layar live pas donasi kamu muncul.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
-          <label for="youtubeStart" style="margin-top:8px">Mulai dari (mm:ss)</label>
-          <input type="text" name="youtubeStart" id="youtubeStart" placeholder="0:00" />
+    <div id="step2" class="${hasPreselected ? "" : "hidden"}">
+      <button type="button" class="back-btn" id="backBtn">&larr; Kembali</button>
+      <form class="card" id="donateForm" method="post" action="/donate/${identifier}">
+        <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
+        <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})<span class="required-mark">*</span></label>
+        <div class="pills">
+          ${presets.map((p) => `<button type="button" class="pill" data-amount="${p}">${p.toLocaleString("id-ID")}</button>`).join("")}
         </div>
-        <div>
-          <label for="youtubeEnd" style="margin-top:8px">Sampai (mm:ss, opsional)</label>
-          <input type="text" name="youtubeEnd" id="youtubeEnd" placeholder="1:30" />
+        <input type="number" name="amount" id="amount" min="${min}" step="500" required style="margin-top:10px" placeholder="Atau isi nominal lain" />
+
+        <label>Nama</label>
+        <input type="text" name="donorName" id="donorName" maxlength="40" placeholder="Nama kamu" />
+        <label class="check"><input type="checkbox" id="anon" /> Donasi sebagai Anonim</label>
+
+        <label for="donorEmail">Email<span class="required-mark">*</span></label>
+        <input type="email" name="donorEmail" id="donorEmail" required placeholder="email@kamu.com" />
+        <p class="hint">Buat konfirmasi/struk donasi, gak ditampilkan ke publik.</p>
+
+        <label>Pesan (opsional)</label>
+        <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
+        <div class="counter"><span id="msgCount">0</span>/200</div>
+
+        <button type="button" class="yt-toggle" id="youtubeToggle">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="17" y="3.5" rx="5" fill="#FF0000"/><path d="M10 8.7l6 3.3-6 3.3z" fill="#fff"/></svg>
+          <span id="youtubeToggleLabel">Tambahin video YouTube (opsional)</span>
+        </button>
+        <div id="youtubeFields" class="hidden" style="margin-top:6px">
+          <label for="youtubeUrl">Link video YouTube</label>
+          <input type="text" name="youtubeUrl" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
+          <p class="hint">Diputar di layar live pas donasi kamu muncul.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label for="youtubeStart" style="margin-top:8px">Mulai dari (mm:ss)</label>
+              <input type="text" name="youtubeStart" id="youtubeStart" placeholder="0:00" />
+            </div>
+            <div>
+              <label for="youtubeEnd" style="margin-top:8px">Sampai (mm:ss, opsional)</label>
+              <input type="text" name="youtubeEnd" id="youtubeEnd" placeholder="1:30" />
+            </div>
+          </div>
         </div>
-      </div>
 
-      <label class="check">
-        <input type="checkbox" required />
-        Saya menyatakan donasi ini dukungan pribadi, bukan transaksi komersial, dan tidak melanggar hukum yang berlaku.
-      </label>
+        <label class="check">
+          <input type="checkbox" required />
+          Saya menyatakan donasi ini dukungan pribadi, bukan transaksi komersial, dan tidak melanggar hukum yang berlaku.
+        </label>
 
-      <button type="submit" class="btn-primary">Buat QRIS Sekarang</button>
-    </form>
+        <button type="submit" class="btn-primary">Buat QRIS Sekarang</button>
+      </form>
+    </div>
     <script>
       const amountInput = document.getElementById("amount");
       document.querySelectorAll(".pill").forEach((btn) => {
@@ -238,24 +287,44 @@ export async function handleDonatePage(req, res) {
 
       const wishlistItemId = document.getElementById("wishlistItemId");
       const wishCards = document.querySelectorAll(".wish-card");
-      const donateForm = document.getElementById("donateForm");
-      function openForm() {
-        donateForm.classList.remove("hidden");
-        donateForm.scrollIntoView({ behavior: "smooth", block: "start" });
-        amountInput.focus();
+      const step1 = document.getElementById("step1");
+      const step2 = document.getElementById("step2");
+      function showStep(from, to) {
+        from.classList.add("hidden");
+        to.classList.remove("hidden");
+        to.classList.remove("view-enter");
+        void to.offsetWidth; // restart the animation
+        to.classList.add("view-enter");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (to === step2) amountInput.focus();
       }
       document.querySelectorAll(".wish-pick[data-wishlist-id]").forEach((btn) => {
         btn.addEventListener("click", () => {
           wishCards.forEach((c) => c.classList.remove("active"));
           btn.closest(".wish-card")?.classList.add("active");
           wishlistItemId.value = btn.dataset.wishlistId;
-          openForm();
+          showStep(step1, step2);
         });
       });
       document.getElementById("mainDonateBtn")?.addEventListener("click", () => {
         wishCards.forEach((c) => c.classList.remove("active"));
         wishlistItemId.value = "";
-        openForm();
+        showStep(step1, step2);
+      });
+      document.getElementById("backBtn")?.addEventListener("click", () => showStep(step2, step1));
+
+      const youtubeToggle = document.getElementById("youtubeToggle");
+      const youtubeFields = document.getElementById("youtubeFields");
+      const youtubeToggleLabel = document.getElementById("youtubeToggleLabel");
+      youtubeToggle.addEventListener("click", () => {
+        const expanded = youtubeFields.classList.toggle("hidden") === false;
+        youtubeToggle.classList.toggle("expanded", expanded);
+        youtubeToggleLabel.textContent = expanded ? "Batalkan video YouTube" : "Tambahin video YouTube (opsional)";
+        if (!expanded) {
+          document.getElementById("youtubeUrl").value = "";
+          document.getElementById("youtubeStart").value = "";
+          document.getElementById("youtubeEnd").value = "";
+        }
       });
 
       document.querySelectorAll(".detail-toggle").forEach((btn) => {
