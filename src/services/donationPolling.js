@@ -13,7 +13,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
   const ttsPromise = settings.tts_enabled
     ? synthesizeSpeech(
         "Bacakan dengan nada hangat, lembut, dan penuh kasih sayang seperti sedang menyapa penonton live streaming: " +
-          `${donation.donor_name} berdonasi Rp${Number(donation.amount).toLocaleString("id-ID")}` +
+          `Rp${Number(donation.amount).toLocaleString("id-ID")} dari ${donation.donor_name}` +
           (donation.message ? `. ${donation.message}` : "")
       ).catch((err) => {
         logError(`TTS generation failed for guild ${donation.guild_id}:`, err);
