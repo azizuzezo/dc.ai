@@ -79,7 +79,11 @@ export function startAdminServer() {
   app.get("/scan-operators", requireAuth, handleScanOperatorsPage);
   app.post("/scan-operators", requireAuth, handleScanOperatorsAdd);
   app.post("/scan-operators/:discordUserId/delete", requireAuth, handleScanOperatorsDelete);
-  app.get("/guilds/:guildId/donations", requireAuth, handleDonationSettingsPage);
+  // Wrapped (not passed directly) because Express always invokes route handlers
+  // with a 3rd "next" argument, and handleDonationSettingsPage's 3rd param is
+  // an optional error *message* — passing it directly leaked Express's own
+  // next() function into that param, which then got rendered as its source.
+  app.get("/guilds/:guildId/donations", requireAuth, (req, res) => handleDonationSettingsPage(req, res));
   app.post("/guilds/:guildId/donations", requireAuth, handleDonationSettingsUpdate);
   app.post("/guilds/:guildId/donations/regenerate-token", requireAuth, handleRegenerateOverlayToken);
   app.post("/guilds/:guildId/donations/test-alert", requireAuth, handleTestAlert);
