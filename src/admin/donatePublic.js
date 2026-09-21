@@ -2,10 +2,32 @@ import * as db from "../services/db.js";
 import { createQris, qrisImageUrl } from "../services/gopayGateway.js";
 import { subscribe } from "../services/donationOverlay.js";
 import { logError } from "../services/logger.js";
+import { escapeHtml } from "./htmlEscape.js";
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-}
+/** Shared sticker-style palette for every donor-facing page (checkout, QR, overlay). */
+const PAGE_STYLE = `
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--pink:#ff3b7f;--pink-deep:#c2185b;--yellow:#ffd400;--ink:#14121a;--paper:#faf9f6}
+    *{box-sizing:border-box}
+    body{font-family:'Baloo 2',sans-serif;max-width:420px;margin:32px auto;padding:0 16px 40px;background:var(--paper);color:var(--ink)}
+    .card{background:#fff;border:4px solid var(--ink);border-radius:18px;box-shadow:6px 6px 0 var(--ink);padding:22px}
+    label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
+    input[type=text],input[type=number],textarea{width:100%;padding:11px 12px;border-radius:10px;border:3px solid var(--ink);
+      background:#fff;color:var(--ink);font:600 16px 'Baloo 2',sans-serif}
+    textarea{resize:vertical}
+    button{font:800 16px 'Baloo 2',sans-serif;border:3px solid var(--ink);border-radius:10px;cursor:pointer}
+    .btn-primary{width:100%;padding:13px;margin-top:18px;background:var(--pink-deep);color:#fff;box-shadow:4px 4px 0 var(--ink)}
+    .btn-primary:active{box-shadow:none;transform:translate(4px,4px)}
+    .pill{padding:9px 4px;background:#fff;color:var(--ink);font-size:14px}
+    .pill.active{background:var(--yellow)}
+    .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+    .hint{font-size:12px;color:#6b6b6b;margin-top:2px}
+    .counter{font-size:12px;color:#6b6b6b;text-align:right}
+    .check{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:500;margin-top:14px}
+    .check input{width:18px;height:18px;margin-top:2px}
+  </style>`;
 
 export async function handleDonatePage(req, res) {
   const settings = await db.getDonationSettingsByIdentifier(req.params.identifier);
@@ -13,27 +35,68 @@ export async function handleDonatePage(req, res) {
     return res.status(404).send("Halaman donasi belum diaktifkan untuk server ini.");
   }
 
-  const title = escapeHtml(settings.display_name || "Kirim Dukungan");
+  const identifier = req.params.identifier;
+  const title = escapeHtml(settings.display_name || "Dukung Kami");
+  const initial = escapeHtml(title.trim().charAt(0).toUpperCase() || "?");
+  const min = settings.min_amount;
+  const presets = [10000, 25000, 50000, 100000, 200000, 500000].filter((v) => v >= min).slice(0, 6);
+  if (!presets.length) presets.push(min, min * 2, min * 5);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${title}</title>
-    <style>
-      body{font-family:sans-serif;max-width:420px;margin:40px auto;padding:0 16px;background:#0f0f14;color:#fff}
-      input,textarea,button{width:100%;box-sizing:border-box;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #333;background:#1a1a22;color:#fff;font-size:16px}
-      button{background:#00c896;color:#04140f;font-weight:bold;border:none;cursor:pointer}
-      label{font-size:13px;opacity:.8}
-    </style></head><body>
-    <h2>💛 ${title}</h2>
-    ${settings.description ? `<p style="opacity:.8">${escapeHtml(settings.description)}</p>` : ""}
-    <form method="post" action="/donate/${req.params.identifier}">
-      <label>Nama (opsional)</label>
-      <input type="text" name="donorName" maxlength="40" placeholder="Anonim" />
-      <label>Jumlah (Rp, minimal ${settings.min_amount.toLocaleString("id-ID")})</label>
-      <input type="number" name="amount" min="${settings.min_amount}" step="500" required />
+    ${PAGE_STYLE}
+    </head><body>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:76px;height:76px;border-radius:50%;background:var(--pink);border:4px solid var(--ink);
+        display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800">${initial}</div>
+      <h1 style="margin:0;font-size:24px">${title}</h1>
+      ${settings.description ? `<p style="margin:6px 0 0;color:#4a4a4a;font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
+    </div>
+    <form class="card" method="post" action="/donate/${identifier}">
+      <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</label>
+      <div class="pills">
+        ${presets.map((p) => `<button type="button" class="pill" data-amount="${p}">${p.toLocaleString("id-ID")}</button>`).join("")}
+      </div>
+      <input type="number" name="amount" id="amount" min="${min}" step="500" required style="margin-top:10px" placeholder="Atau isi nominal lain" />
+
+      <label>Nama</label>
+      <input type="text" name="donorName" id="donorName" maxlength="40" placeholder="Nama kamu" />
+      <label class="check"><input type="checkbox" id="anon" /> Donasi sebagai Anonim</label>
+
       <label>Pesan (opsional)</label>
-      <textarea name="message" maxlength="200" rows="3"></textarea>
-      <button type="submit">Buat QRIS</button>
+      <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
+      <div class="counter"><span id="msgCount">0</span>/200</div>
+
+      <label class="check">
+        <input type="checkbox" required />
+        Saya menyatakan donasi ini dukungan pribadi, bukan transaksi komersial, dan tidak melanggar hukum yang berlaku.
+      </label>
+
+      <button type="submit" class="btn-primary">Buat QRIS Sekarang</button>
     </form>
+    <script>
+      const amountInput = document.getElementById("amount");
+      document.querySelectorAll(".pill").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".pill").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          amountInput.value = btn.dataset.amount;
+        });
+      });
+      amountInput.addEventListener("input", () => {
+        document.querySelectorAll(".pill").forEach((b) => b.classList.toggle("active", b.dataset.amount === amountInput.value));
+      });
+
+      const donorName = document.getElementById("donorName");
+      document.getElementById("anon").addEventListener("change", (e) => {
+        donorName.disabled = e.target.checked;
+        if (e.target.checked) donorName.value = "";
+      });
+
+      const message = document.getElementById("message");
+      const msgCount = document.getElementById("msgCount");
+      message.addEventListener("input", () => { msgCount.textContent = message.value.length; });
+    </script>
   </body></html>`);
 }
 
@@ -73,29 +136,49 @@ export async function handleDonateCreate(req, res) {
     return res.status(500).send("Gagal menyimpan data donasi.");
   }
 
+  const expiresAt = qris.expires_at ? new Date(qris.expires_at).getTime() : null;
+
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Scan untuk Bayar</title>
-    <style>
-      body{font-family:sans-serif;max-width:420px;margin:40px auto;padding:0 16px;background:#0f0f14;color:#fff;text-align:center}
-      img{width:100%;max-width:320px;border-radius:12px;background:#fff;padding:8px}
-      #status{margin-top:16px;font-weight:bold}
-    </style></head><body>
-    <h2>Scan QRIS ini</h2>
-    <p>Rp${Number(qris.amount).toLocaleString("id-ID")}</p>
-    <img src="${escapeHtml(qrisImageUrl(settings.gateway_url, qris.qris_id))}" alt="QRIS" />
-    <p id="status">⏳ Menunggu pembayaran...</p>
+    ${PAGE_STYLE}
+    </head><body style="text-align:center">
+    <div class="card">
+      <h1 style="margin:0 0 4px;font-size:20px">Scan QRIS ini</h1>
+      <div style="display:inline-block;margin:8px 0;padding:6px 16px;background:var(--yellow);border:3px solid var(--ink);
+        border-radius:8px;font-size:22px;font-weight:800">Rp${Number(qris.amount).toLocaleString("id-ID")}</div>
+      <div style="margin:14px auto 0;padding:10px;background:#fff;border:3px solid var(--ink);border-radius:12px;max-width:260px">
+        <img src="${escapeHtml(qrisImageUrl(settings.gateway_url, qris.qris_id))}" alt="Kode QRIS" style="width:100%;display:block" />
+      </div>
+      <p id="status" style="font-weight:700;margin:16px 0 4px">⏳ Menunggu pembayaran...</p>
+      ${expiresAt ? `<p id="countdown" class="hint"></p>` : ""}
+    </div>
     <script>
       const trxId = ${JSON.stringify(qris.trx_id)};
+      const expiresAt = ${JSON.stringify(expiresAt)};
+      let done = false;
+
+      function tickCountdown() {
+        if (done || !expiresAt) return;
+        const secondsLeft = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+        const el = document.getElementById("countdown");
+        if (el) el.textContent = secondsLeft > 0 ? "Kedaluwarsa dalam " + Math.floor(secondsLeft / 60) + ":" + String(secondsLeft % 60).padStart(2, "0") : "";
+      }
+      setInterval(tickCountdown, 1000);
+      tickCountdown();
+
       async function poll() {
+        if (done) return;
         try {
           const res = await fetch("/donate/status/" + trxId);
           const data = await res.json();
           if (data.status === "paid") {
+            done = true;
             document.getElementById("status").textContent = "✅ Terima kasih atas dukungannya!";
             return;
           }
           if (data.status === "expired") {
-            document.getElementById("status").textContent = "⌛ QRIS sudah expired, silakan buat ulang.";
+            done = true;
+            document.getElementById("status").textContent = "⌛ QRIS sudah kedaluwarsa, silakan buat ulang.";
             return;
           }
         } catch {}
@@ -119,43 +202,50 @@ export async function handleOverlayPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Poppins',sans-serif}
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Baloo 2',sans-serif}
 
-      #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(20,10,35,.85);
-        color:#ffd66b;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4);
-        animation:pulse 1.6s ease-in-out infinite;z-index:10}
+      #unlock{position:fixed;top:16px;right:16px;padding:9px 16px;border-radius:10px;background:#ffd400;
+        color:#14121a;font:700 13px 'Baloo 2',sans-serif;cursor:pointer;border:3px solid #14121a;
+        box-shadow:4px 4px 0 #14121a;z-index:10}
       #unlock.hidden{display:none}
-      @keyframes pulse{0%,100%{opacity:.85}50%{opacity:1}}
 
-      #stage{position:fixed;bottom:48px;left:50%;width:440px;transform:translate(-50%,0)}
-      #card{position:relative;padding:22px 26px;border-radius:22px;text-align:center;
-        background:linear-gradient(160deg,#241238,#160a24);
-        box-shadow:0 0 0 2px rgba(255,214,107,.55),0 12px 40px rgba(0,0,0,.55),0 0 40px rgba(255,110,199,.25);
-        opacity:0;transform:scale(.6) translateY(60px);
-        transition:opacity .5s cubic-bezier(.34,1.56,.64,1),transform .5s cubic-bezier(.34,1.56,.64,1)}
-      #card.show{opacity:1;transform:scale(1) translateY(0)}
-      #card.hide{opacity:0;transform:scale(.85) translateY(30px);transition:opacity .35s ease-in,transform .35s ease-in}
-      #badge{display:inline-block;padding:4px 12px;border-radius:999px;background:linear-gradient(90deg,#ffd66b,#ff9a5a);
-        color:#2a1400;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-      #name{margin:12px 0 2px;font-size:24px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.4)}
-      #amount{font-size:34px;font-weight:800;margin:2px 0 8px;
-        background:linear-gradient(90deg,#ffe9a8,#ffd66b);-webkit-background-clip:text;background-clip:text;color:transparent}
-      #message{margin:0;font-size:15px;font-style:italic;color:rgba(255,255,255,.85);
-        border-left:3px solid #ffd66b;padding-left:10px;text-align:left;display:inline-block;max-width:340px}
+      #stage{position:fixed;bottom:48px;left:50%;width:420px;transform:translate(-50%,0)}
+      #card{position:relative;padding:22px 28px;text-align:center;border-radius:18px;
+        background:#ff3b7f;border:5px solid #14121a;box-shadow:8px 8px 0 #14121a;
+        transform:scale(0) rotate(-8deg);opacity:0}
+      #card.show{animation:pop-in .5s cubic-bezier(.2,.9,.3,1.1) forwards}
+      #card.hide{animation:pop-out .3s ease-in forwards}
+      @keyframes pop-in{
+        0%{transform:scale(0) rotate(-8deg);opacity:0}
+        60%{transform:scale(1.08) rotate(3deg);opacity:1}
+        100%{transform:scale(1) rotate(-2deg);opacity:1}
+      }
+      @keyframes pop-out{
+        0%{transform:scale(1) rotate(-2deg);opacity:1}
+        100%{transform:scale(.8) rotate(-2deg) translateY(20px);opacity:0}
+      }
+      @media (prefers-reduced-motion: reduce){
+        #card.show{animation:none;transform:rotate(-2deg);opacity:1}
+        #card.hide{animation:none;opacity:0}
+      }
 
-      .confetti{position:absolute;top:40%;left:50%;width:8px;height:8px;border-radius:2px;pointer-events:none;
+      #name{font-size:26px;font-weight:800;color:#14121a;line-height:1.15}
+      #amount{display:inline-block;margin:10px 0;padding:5px 16px;border-radius:8px;
+        background:#ffd400;border:3px solid #14121a;color:#14121a;font-size:26px;font-weight:800;transform:rotate(2deg)}
+      #message{margin:0;font-size:15px;font-weight:600;color:#14121a}
+
+      .confetti{position:absolute;top:35%;left:50%;width:9px;height:9px;pointer-events:none;
         animation:confetti-burst var(--dur) ease-out forwards}
       @keyframes confetti-burst{
         0%{transform:translate(-50%,-50%) rotate(0) scale(1);opacity:1}
-        100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) rotate(var(--rot)) scale(.4);opacity:0}
+        100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) rotate(var(--rot)) scale(.5);opacity:0}
       }
     </style></head><body>
-    <div id="unlock">🔈 Klik buat aktifin suara</div>
+    <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
     <div id="stage">
       <div id="card">
-        <span id="badge">🎉 Donasi Baru</span>
         <div id="name"></div>
         <div id="amount"></div>
         <p id="message"></p>
@@ -163,11 +253,12 @@ export async function handleOverlayPage(req, res) {
     </div>
     <script>
       const card = document.getElementById("card");
-      const stage = document.getElementById("stage");
       const unlockBtn = document.getElementById("unlock");
       let audioCtx = window.AudioContext ? new AudioContext() : null;
       let audioUnlocked = false;
 
+      // Browsers block audio/speech until this page gets a real click, a timer
+      // doesn't count, so this only hides once that click genuinely happens.
       function unlockAudio() {
         if (audioUnlocked) return;
         audioUnlocked = true;
@@ -180,8 +271,7 @@ export async function handleOverlayPage(req, res) {
         } catch {}
       }
       unlockBtn.addEventListener("click", unlockAudio);
-      document.addEventListener("click", unlockAudio, { once: true });
-      setTimeout(unlockAudio, 300); // OBS/TikTok Live Studio browser sources aren't a real user session, so this is usually already allowed there.
+      document.addEventListener("click", unlockAudio);
 
       function chime() {
         if (!audioCtx) return;
@@ -200,8 +290,8 @@ export async function handleOverlayPage(req, res) {
       }
 
       function burstConfetti() {
-        const colors = ["#ffd66b", "#ff6ec7", "#7ef2c3", "#7db8ff", "#fff"];
-        for (let i = 0; i < 18; i++) {
+        const colors = ["#ff3b7f", "#ffd400", "#14121a", "#fff"];
+        for (let i = 0; i < 16; i++) {
           const el = document.createElement("span");
           el.className = "confetti";
           const angle = Math.random() * Math.PI * 2;
@@ -217,7 +307,7 @@ export async function handleOverlayPage(req, res) {
       }
 
       function showDonation(d) {
-        document.getElementById("name").textContent = d.donorName;
+        document.getElementById("name").textContent = d.donorName + " ngasih dukungan!";
         document.getElementById("amount").textContent = "Rp" + Number(d.amount).toLocaleString("id-ID");
         document.getElementById("message").textContent = d.message || "";
         card.classList.remove("hide");
@@ -238,7 +328,7 @@ export async function handleOverlayPage(req, res) {
         setTimeout(() => {
           card.classList.add("hide");
           card.classList.remove("show");
-        }, 7000);
+        }, 6000);
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => showDonation(JSON.parse(e.data)));
@@ -259,19 +349,35 @@ export async function handleLeaderboardPage(req, res) {
   if (!settings) return res.status(404).send("Overlay not found.");
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:sans-serif;color:#fff}
-      #board{width:280px;padding:16px;border-radius:16px;background:rgba(15,15,20,.8)}
-      #board h3{margin:0 0 8px;font-size:16px}
-      #board ol{margin:0;padding-left:20px}
-      #board li{margin:4px 0;font-size:14px}
+      html,body{margin:0;background:transparent;font-family:'Baloo 2',sans-serif}
+      #board{width:260px;padding:16px 18px;border-radius:16px;background:#fff;border:5px solid #14121a;box-shadow:6px 6px 0 #14121a}
+      #board h3{margin:0 0 10px;font-size:16px;font-weight:800;color:#14121a}
+      #list{list-style:none;margin:0;padding:0}
+      #list li{display:flex;justify-content:space-between;gap:10px;margin:6px 0;font-size:14px;font-weight:600;color:#14121a}
+      #list .rank{color:#ff3b7f;font-weight:800;width:20px}
+      #list .amount{font-weight:800}
     </style></head><body>
     <div id="board"><h3>🏆 Top Donatur</h3><ol id="list"></ol></div>
     <script>
       function render(leaderboard) {
-        document.getElementById("list").innerHTML = leaderboard
-          .map((d) => "<li>" + d.donorName + " — Rp" + Number(d.total).toLocaleString("id-ID") + "</li>")
-          .join("");
+        const list = document.getElementById("list");
+        list.innerHTML = "";
+        leaderboard.forEach((d, i) => {
+          const li = document.createElement("li");
+          const rank = document.createElement("span");
+          rank.className = "rank";
+          rank.textContent = "#" + (i + 1);
+          const name = document.createElement("span");
+          name.textContent = d.donorName;
+          const amount = document.createElement("span");
+          amount.className = "amount";
+          amount.textContent = "Rp" + Number(d.total).toLocaleString("id-ID");
+          li.append(rank, name, amount);
+          list.appendChild(li);
+        });
       }
       fetch(${JSON.stringify(`/overlay/${token}/leaderboard/data`)}).then((r) => r.json()).then((d) => render(d.leaderboard));
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});

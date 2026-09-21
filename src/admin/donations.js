@@ -1,6 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { layout } from "./layout.js";
+import { escapeHtml } from "./htmlEscape.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]{3,32}$/;
 const RESERVED_SLUGS = new Set(["status"]);
@@ -19,11 +20,11 @@ export async function handleDonationSettingsPage(req, res, error) {
 
   res.send(
     layout(`
-      <h2>Donation Settings — ${guildId}</h2>
+      <h2>Donation Settings: ${guildId}</h2>
       <p>Butuh instance <a href="https://github.com" target="_blank" rel="noreferrer">gopay-api-gateaway</a> yang jalan sendiri (lihat docs/donations.md).</p>
       ${error ? `<p style="color:#f66">⚠️ ${error}</p>` : ""}
       <form method="post" action="/guilds/${guildId}/donations">
-        <label>Custom link (opsional — huruf kecil/angka/strip, 3-32 karakter)<br/>
+        <label>Custom link (opsional, huruf kecil/angka/strip, 3-32 karakter)<br/>
           <input type="text" name="slug" value="${settings.slug || ""}" placeholder="nama-kamu" pattern="[a-z0-9-]{3,32}" style="width:100%" />
         </label><br/><br/>
         <label>Judul halaman donasi (opsional)<br/>
@@ -62,7 +63,7 @@ export async function handleDonationSettingsPage(req, res, error) {
       }
       <hr/>
       <h3>Test alert</h3>
-      <p>Nge-trigger overlay langsung (buat ngecek posisi/tampilan di OBS/TikTok Live Studio) — nggak nge-post ke Discord dan nggak masuk leaderboard.</p>
+      <p>Nge-trigger overlay langsung (buat ngecek posisi/tampilan di OBS/TikTok Live Studio), nggak nge-post ke Discord dan nggak masuk leaderboard.</p>
       <form method="post" action="/guilds/${guildId}/donations/test-alert">
         <input type="text" name="donorName" placeholder="Nama (default: Test Donatur)" style="width:100%" />
         <input type="number" name="amount" placeholder="Jumlah (default: 10000)" min="1" style="width:100%" />
@@ -75,9 +76,9 @@ export async function handleDonationSettingsPage(req, res, error) {
           ? `<table border="1" cellpadding="6"><tr><th>Nama</th><th>Jumlah</th><th>Pesan</th><th>Dibayar</th><th></th></tr>${recent
               .map(
                 (d) => `<tr>
-                <td>${d.donor_name}</td>
+                <td>${escapeHtml(d.donor_name)}</td>
                 <td>Rp${Number(d.amount).toLocaleString("id-ID")}</td>
-                <td>${d.message || ""}</td>
+                <td>${escapeHtml(d.message || "")}</td>
                 <td>${d.paid_at ? new Date(d.paid_at).toLocaleString("id-ID") : ""}</td>
                 <td><form method="post" action="/guilds/${guildId}/donations/replay/${d.trx_id}"><button type="submit">🔁 Replay</button></form></td>
               </tr>`
@@ -98,7 +99,7 @@ export async function handleDonationSettingsUpdate(req, res) {
   let slug = rawSlug || null;
   if (slug) {
     if (!SLUG_PATTERN.test(slug) || RESERVED_SLUGS.has(slug)) {
-      return handleDonationSettingsPage(req, res, "Custom link tidak valid — huruf kecil/angka/strip saja, 3-32 karakter.");
+      return handleDonationSettingsPage(req, res, "Custom link tidak valid, huruf kecil/angka/strip saja, 3-32 karakter.");
     }
     const existing = await db.getDonationSettingsBySlug(slug);
     if (existing && existing.guild_id !== guildId) {
