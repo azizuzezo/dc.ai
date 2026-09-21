@@ -1,19 +1,26 @@
 import * as db from "../services/db.js";
-import { layout } from "./layout.js";
+import { layout, guildTabs, crumbs } from "./layout.js";
+import { escapeHtml } from "./htmlEscape.js";
 
 export async function handleAllowlistPage(req, res) {
   const { guildId } = req.params;
   const allowed = await db.getAllowlist(guildId);
+
   res.send(
-    layout(`
-      <h2>Channel Allowlist — ${guildId}</h2>
-      <p>Comma-separated channel IDs. Leave empty to allow all channels.</p>
-      <form method="post" action="/guilds/${guildId}/allowlist">
-        <textarea name="channelIds" rows="6" cols="50">${allowed.join(", ")}</textarea><br/><br/>
-        <button type="submit">Save</button>
+    layout(
+      `
+      ${crumbs(guildId)}
+      <h1>Channel Allowlist</h1>
+      ${guildTabs(guildId, "allowlist")}
+      <p class="lede">Comma-separated channel IDs. Leave empty to allow all channels.</p>
+      <form class="card" method="post" action="/guilds/${guildId}/allowlist">
+        <label for="channelIds">Channel IDs</label>
+        <textarea id="channelIds" name="channelIds" rows="5">${escapeHtml(allowed.join(", "))}</textarea>
+        <div class="actions"><button type="submit" class="btn-primary">Save</button></div>
       </form>
-      <p><a href="/guilds">Back to guilds</a></p>
-    `)
+    `,
+      { active: "guilds" }
+    )
   );
 }
 

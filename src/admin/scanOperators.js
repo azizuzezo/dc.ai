@@ -1,33 +1,45 @@
 import * as db from "../services/db.js";
 import { env } from "../config/env.js";
 import { layout } from "./layout.js";
+import { escapeHtml } from "./htmlEscape.js";
 
 export async function handleScanOperatorsPage(req, res) {
   const operators = await db.listScanOperators();
+
   const rows = operators
     .map(
       (o) => `<tr>
-        <td>${o.discord_user_id}</td>
-        <td>${o.added_by || ""}</td>
+        <td class="mono">${escapeHtml(o.discord_user_id)}</td>
+        <td>${escapeHtml(o.added_by || "")}</td>
         <td>${new Date(o.created_at).toLocaleString()}</td>
         <td><form method="post" action="/scan-operators/${o.discord_user_id}/delete">
-          <button type="submit">Remove</button></form></td>
+          <button type="submit" class="btn-danger btn-sm">Remove</button></form></td>
       </tr>`
     )
     .join("");
 
   res.send(
-    layout(`
-      <h2>Scan Operators</h2>
-      <p>Discord user IDs allowed to run /scan, in addition to the bot owner (OWNER_DISCORD_ID).
-        Global — applies across every guild the bot is in.</p>
-      <table border="1" cellpadding="6"><tr><th>Discord User ID</th><th>Added by</th><th>Added</th><th></th></tr>${rows}</table>
-      <h3>Add operator</h3>
-      <form method="post" action="/scan-operators">
-        <input name="discordUserId" placeholder="Discord User ID" required /><br/><br/>
-        <button type="submit">Add</button>
+    layout(
+      `
+      <h1>Scan Operators</h1>
+      <p class="lede">Discord user IDs allowed to run <code>/scan</code>, in addition to the bot owner
+        (<code>OWNER_DISCORD_ID</code>). Global, applies across every guild the bot is in.</p>
+
+      ${
+        operators.length
+          ? `<table><tr><th>Discord User ID</th><th>Added by</th><th>Added</th><th></th></tr>${rows}</table>`
+          : `<div class="empty">No extra operators, only the bot owner can run /scan right now.</div>`
+      }
+
+      <h2>Add operator</h2>
+      <form class="card" method="post" action="/scan-operators">
+        <label for="discordUserId">Discord User ID</label>
+        <input id="discordUserId" name="discordUserId" required />
+        <div class="actions"><button type="submit" class="btn-primary">Add</button></div>
       </form>
-    `)
+    `,
+      { active: "scan-operators" }
+    )
   );
 }
 

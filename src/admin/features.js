@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import * as db from "../services/db.js";
-import { layout } from "./layout.js";
+import { layout, guildTabs, crumbs } from "./layout.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const commandsDir = join(__dirname, "..", "commands");
@@ -24,20 +24,28 @@ export async function handleFeaturesPage(req, res) {
   const rows = allNames
     .map((name) => {
       const isDisabled = disabled.includes(name);
-      return `<label style="display:block"><input type="checkbox" name="enabled" value="${name}" ${isDisabled ? "" : "checked"} /> /${name}</label>`;
+      return `<label class="checkbox-row">
+        <input type="checkbox" name="enabled" value="${name}" ${isDisabled ? "" : "checked"} />
+        <code>/${name}</code>
+        <span class="badge ${isDisabled ? "badge-off" : "badge-on"}" style="margin-left:auto">${isDisabled ? "Disabled" : "Enabled"}</span>
+      </label>`;
     })
     .join("");
 
   res.send(
-    layout(`
-      <h2>Features — ${guildId}</h2>
-      <p>Uncheck a command to disable it in this server.</p>
-      <form method="post" action="/guilds/${guildId}/features">
+    layout(
+      `
+      ${crumbs(guildId)}
+      <h1>Features</h1>
+      ${guildTabs(guildId, "features")}
+      <p class="lede">Uncheck a command to disable it in this server.</p>
+      <form class="card" method="post" action="/guilds/${guildId}/features">
         ${rows}
-        <br/><button type="submit">Save</button>
+        <div class="actions"><button type="submit" class="btn-primary">Save</button></div>
       </form>
-      <p><a href="/guilds">Back to guilds</a></p>
-    `)
+    `,
+      { active: "guilds" }
+    )
   );
 }
 
