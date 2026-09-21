@@ -1,6 +1,7 @@
 import * as db from "../services/db.js";
 import { createQris, qrisImageUrl } from "../services/gopayGateway.js";
 import { subscribe } from "../services/donationOverlay.js";
+import { getAudio } from "../services/ttsCache.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -267,11 +268,6 @@ export async function handleOverlayPage(req, res) {
           bellSound.volume = 0;
           bellSound.play().then(() => { bellSound.pause(); bellSound.currentTime = 0; bellSound.volume = 1; }).catch(() => {});
         } catch {}
-        try {
-          const warm = new SpeechSynthesisUtterance(" ");
-          warm.volume = 0;
-          window.speechSynthesis?.speak(warm);
-        } catch {}
       }
       unlockBtn.addEventListener("click", unlockAudio);
       document.addEventListener("click", unlockAudio);
@@ -298,40 +294,6 @@ export async function handleOverlayPage(req, res) {
         }
       }
 
-      // speechSynthesis.getVoices() can return [] right after the page loads,
-      // even in browsers that do have voices, until "voiceschanged" fires
-      // once. Speaking before that can silently no-op, so this waits for a
-      // real voice list (falling back to a timer in case the event never
-      // fires) instead of calling speak() blind.
-      function speakWhenReady(text) {
-        if (!window.speechSynthesis) {
-          console.warn("[overlay] speechSynthesis is not available in this browser.");
-          return;
-        }
-        const go = () => {
-          const voices = window.speechSynthesis.getVoices();
-          if (!voices.length) {
-            console.warn("[overlay] No TTS voices installed in this browser/OS — narration will stay silent. " +
-              "This is a browser/OS limitation, not something the page can fix.");
-          }
-          window.speechSynthesis.cancel();
-          const utter = new SpeechSynthesisUtterance(text);
-          const idVoice = voices.find((v) => v.lang?.startsWith("id"));
-          if (idVoice) utter.voice = idVoice;
-          utter.lang = "id-ID";
-          utter.rate = 1;
-          utter.volume = 1;
-          utter.onerror = (e) => console.error("[overlay] TTS error:", e.error);
-          window.speechSynthesis.speak(utter);
-        };
-        if (window.speechSynthesis.getVoices().length) {
-          go();
-        } else {
-          window.speechSynthesis.addEventListener("voiceschanged", go, { once: true });
-          setTimeout(go, 500);
-        }
-      }
-
       function showDonation(d) {
         document.getElementById("name").textContent = d.donorName + " ngasih dukungan!";
         document.getElementById("amount").textContent = "Rp" + Number(d.amount).toLocaleString("id-ID");
@@ -340,17 +302,21 @@ export async function handleOverlayPage(req, res) {
         card.classList.add("show");
         burstConfetti();
         if (d.sound) chime();
-        if (d.tts) {
-          const text = "Rp" + d.amount + " dari " + d.donorName + (d.message ? ". " + d.message : "");
-          setTimeout(() => speakWhenReady(text), 2000);
-        }
         setTimeout(() => {
           card.classList.add("hide");
           card.classList.remove("show");
-        }, 8000); // gives the 2s-delayed TTS room to finish before the card fades
+        }, 8000); // gives the TTS narration (arrives separately, a few seconds later) room to finish
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => showDonation(JSON.parse(e.data)));
+      // Narration is generated server-side (Gemini TTS, always works the
+      // same regardless of the viewer's browser/OS) and arrives a few
+      // seconds after the "donation" event, so it's played on its own here.
+      events.addEventListener("tts", (e) => {
+        try {
+          new Audio(JSON.parse(e.data).url).play().catch(() => {});
+        } catch {}
+      });
     </script>
   </body></html>`);
 }
@@ -360,6 +326,13 @@ export async function handleOverlayEvents(req, res) {
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).end();
   subscribe(token, res);
+}
+
+export function handleOverlayAudio(req, res) {
+  const buffer = getAudio(req.params.id);
+  if (!buffer) return res.status(404).end();
+  res.set("Content-Type", "audio/wav");
+  res.send(buffer);
 }
 
 export async function handleLeaderboardPage(req, res) {
