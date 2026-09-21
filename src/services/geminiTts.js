@@ -4,7 +4,10 @@ import { logError } from "./logger.js";
 // Flash, not Pro: Pro is noticeably slower and this is read out live on stream.
 const MODEL = "gemini-2.5-flash-preview-tts";
 const VOICE = "Kore";
-const TIMEOUT_MS = 12000; // generation alone measured at 4.8-5.8s; leaves headroom before giving up
+// Generation alone measured 4.8-6.8s from a dev machine, but Railway's own
+// network path to Gemini has been observed exceeding even 12s and aborting
+// (production logs), so this leaves real headroom rather than the minimum.
+const TIMEOUT_MS = 25000;
 
 export function pcmToWav(pcm, sampleRate) {
   const header = Buffer.alloc(44);
