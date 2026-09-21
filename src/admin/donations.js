@@ -83,8 +83,8 @@ export async function handleDonationSettingsPage(req, res, error) {
         <button type="submit" class="btn-sm">Regenerate overlay link</button>
       </form>
 
-      <h2>Overlay avatar</h2>
-      <p class="lede">Shown in the center of the alert overlay instead of the default 🙏 icon. PNG/JPG/WebP/GIF, up to 2MB.</p>
+      <h2>Profile photo / logo</h2>
+      <p class="lede">Shown on the alert overlay and at the top of your public donate page, instead of the default icon/initial. PNG/JPG/WebP/GIF, up to 2MB.</p>
       <div class="card">
         ${
           settings.avatar_data

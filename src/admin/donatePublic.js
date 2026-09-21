@@ -30,14 +30,15 @@ const CHECKOUT_STYLE = `
     .counter{font-size:12px;color:var(--muted);text-align:right}
     .check{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:500;margin-top:14px}
     .check input{width:18px;height:18px;margin-top:2px;accent-color:var(--green)}
-    .wish{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
+    .wish{display:block;width:100%;text-align:left;background:#fff;font:inherit;color:inherit;
+      border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
     .wish.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
-    .wish-row{display:flex;align-items:flex-start;gap:10px}
-    .wish-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--green);flex:none}
     .wish-title{font-weight:700;font-size:14px}
     .wish-amounts{font-size:12px;color:var(--muted);margin-top:2px}
     .bar{height:6px;background:var(--track);border-radius:999px;margin-top:8px;overflow:hidden}
     .bar-fill{height:100%;background:var(--green-light)}
+    .shortcuts{margin-top:4px}
+    .shortcuts-hint{font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0}
   </style>`;
 
 export async function handleDonatePage(req, res) {
@@ -49,6 +50,9 @@ export async function handleDonatePage(req, res) {
   const identifier = req.params.identifier;
   const title = escapeHtml(settings.display_name || "Dukung Kami");
   const initial = escapeHtml(title.trim().charAt(0).toUpperCase() || "?");
+  const avatarHtml = settings.avatar_data
+    ? `<img src="/donate/${identifier}/avatar" alt="" style="width:100%;height:100%;object-fit:cover" />`
+    : initial;
   const min = settings.min_amount;
   const presets = [10000, 25000, 50000, 100000, 200000, 500000].filter((v) => v >= min).slice(0, 6);
   if (!presets.length) presets.push(min, min * 2, min * 5);
@@ -56,30 +60,22 @@ export async function handleDonatePage(req, res) {
   const preselectedWishlistId = req.query.wishlist ? Number(req.query.wishlist) : null;
   const hasPreselected = wishlistItems.some((w) => w.id === preselectedWishlistId);
 
-  const wishlistHtml = wishlistItems.length
-    ? `<label>Kontribusi ke wishlist (opsional)</label>
-       ${wishlistItems
-         .map((w) => {
-           const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
-           const checked = hasPreselected && w.id === preselectedWishlistId;
-           return `<label class="wish${checked ? " active" : ""}" for="wish-${w.id}">
-             <div class="wish-row">
-               <input type="radio" name="wishlistItemId" id="wish-${w.id}" value="${w.id}"${checked ? " checked" : ""} />
-               <div style="flex:1">
-                 <div class="wish-title">${escapeHtml(w.title)}</div>
-                 <div class="wish-amounts">Rp${w.total.toLocaleString("id-ID")} / Rp${Number(w.target_amount).toLocaleString("id-ID")} (${pct}%)</div>
-                 <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-               </div>
-             </div>
-           </label>`;
-         })
-         .join("")}
-       <label class="wish" for="wish-none">
-         <div class="wish-row">
-           <input type="radio" name="wishlistItemId" id="wish-none" value=""${hasPreselected ? "" : " checked"} />
-           <div class="wish-title" style="font-weight:500">Tidak, donasi biasa aja</div>
-         </div>
-       </label>`
+  const shortcutsHtml = wishlistItems.length
+    ? `<div class="shortcuts">
+         <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
+         ${wishlistItems
+           .map((w) => {
+             const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+             const active = hasPreselected && w.id === preselectedWishlistId;
+             return `<button type="button" class="wish${active ? " active" : ""}" data-wishlist-id="${w.id}">
+               <div class="wish-title">${escapeHtml(w.title)}</div>
+               <div class="wish-amounts">Rp${w.total.toLocaleString("id-ID")} / Rp${Number(w.target_amount).toLocaleString("id-ID")} (${pct}%)</div>
+               <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+             </button>`;
+           })
+           .join("")}
+         <p class="shortcuts-hint">Atau isi donasi bebas di bawah tanpa pilih wishlist.</p>
+       </div>`
     : "";
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -88,11 +84,13 @@ export async function handleDonatePage(req, res) {
     </head><body>
     <div style="text-align:center;margin-bottom:20px">
       <div style="width:76px;height:76px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 0 3px var(--green);
-        display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800">${initial}</div>
+        display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
       <h1 style="margin:0;font-size:22px">${title}</h1>
       ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
     </div>
+    ${shortcutsHtml}
     <form class="card" method="post" action="/donate/${identifier}">
+      <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
       <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</label>
       <div class="pills">
         ${presets.map((p) => `<button type="button" class="pill" data-amount="${p}">${p.toLocaleString("id-ID")}</button>`).join("")}
@@ -106,8 +104,6 @@ export async function handleDonatePage(req, res) {
       <label>Pesan (opsional)</label>
       <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
       <div class="counter"><span id="msgCount">0</span>/200</div>
-
-      ${wishlistHtml}
 
       <label for="youtubeUrl">Link video YouTube (opsional)</label>
       <input type="text" name="youtubeUrl" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
@@ -153,11 +149,24 @@ export async function handleDonatePage(req, res) {
       const msgCount = document.getElementById("msgCount");
       message.addEventListener("input", () => { msgCount.textContent = message.value.length; });
 
-      document.querySelectorAll('input[name="wishlistItemId"]').forEach((radio) => {
-        radio.addEventListener("change", () => {
-          document.querySelectorAll(".wish").forEach((w) => w.classList.remove("active"));
-          radio.closest(".wish")?.classList.add("active");
+      const wishlistItemId = document.getElementById("wishlistItemId");
+      const wishCards = document.querySelectorAll(".wish[data-wishlist-id]");
+      function focusAmount() {
+        amountInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        amountInput.focus();
+      }
+      wishCards.forEach((card) => {
+        card.addEventListener("click", () => {
+          wishCards.forEach((c) => c.classList.remove("active"));
+          card.classList.add("active");
+          wishlistItemId.value = card.dataset.wishlistId;
+          focusAmount();
         });
+      });
+      document.getElementById("mainDonateBtn")?.addEventListener("click", () => {
+        wishCards.forEach((c) => c.classList.remove("active"));
+        wishlistItemId.value = "";
+        focusAmount();
       });
     </script>
   </body></html>`);
@@ -267,6 +276,14 @@ export async function handleDonateStatus(req, res) {
   const donation = await db.getDonationByTrxId(req.params.trxId);
   if (!donation) return res.status(404).json({ status: "not_found" });
   res.json({ status: donation.status });
+}
+
+export async function handleDonateAvatar(req, res) {
+  const settings = await db.getDonationSettingsByIdentifier(req.params.identifier);
+  if (!settings?.avatar_data) return res.status(404).end();
+  res.set("Content-Type", settings.avatar_mime || "image/png");
+  res.set("Cache-Control", "no-cache");
+  res.send(Buffer.from(settings.avatar_data, "base64"));
 }
 
 export async function handleOverlayPage(req, res) {
@@ -468,7 +485,7 @@ export async function handleWishlistPage(req, res) {
       html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
       #board{width:300px;padding:18px 20px;border-radius:14px;background:rgba(17,24,39,.82);
         border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px);box-shadow:0 8px 28px rgba(0,0,0,.4)}
-      #board h3{display:flex;align-items:center;gap:6px;margin:0 0 14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
+      #board h3{margin:0 0 14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
         text-transform:uppercase;letter-spacing:.04em}
       #empty{font-size:13px;color:rgba(255,255,255,.45)}
       .item{margin:0 0 16px;opacity:0;transform:translateY(4px);animation:item-in .3s ease forwards}
@@ -484,7 +501,7 @@ export async function handleWishlistPage(req, res) {
       .bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:999px;transition:width .5s ease}
       .bar-fill.done{background:linear-gradient(90deg,#f59e0b,#fbbf24);box-shadow:0 0 8px rgba(251,191,36,.6)}
     </style></head><body>
-    <div id="board"><h3>🎯 Wishlist</h3><div id="list"></div><p id="empty" style="display:none">Belum ada wishlist.</p></div>
+    <div id="board"><h3>Wishlist</h3><div id="list"></div><p id="empty" style="display:none">Belum ada wishlist.</p></div>
     <script>
       function render(items) {
         const list = document.getElementById("list");
@@ -503,7 +520,7 @@ export async function handleWishlistPage(req, res) {
           title.textContent = w.title;
           const pctEl = document.createElement("span");
           pctEl.className = "pct" + (done ? " done" : "");
-          pctEl.textContent = done ? "🎉 Tercapai" : pct + "%";
+          pctEl.textContent = done ? "Tercapai" : pct + "%";
           top.append(title, pctEl);
           const amounts = document.createElement("div");
           amounts.className = "item-amounts";
