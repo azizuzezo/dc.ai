@@ -118,44 +118,127 @@ export async function handleOverlayPage(req, res) {
   if (!settings) return res.status(404).send("Overlay not found.");
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;overflow:hidden;font-family:sans-serif}
-      #card{position:fixed;bottom:40px;left:50%;transform:translate(-50%,140%);width:420px;padding:20px 24px;border-radius:16px;
-        background:linear-gradient(135deg,#00c896,#00997a);color:#04140f;box-shadow:0 8px 30px rgba(0,0,0,.4);
-        transition:transform .5s cubic-bezier(.2,.9,.3,1.3);}
-      #card.show{transform:translate(-50%,0)}
-      #card h3{margin:0 0 4px;font-size:22px}
-      #card p{margin:0;font-size:15px;opacity:.85}
-      #card .amount{font-size:20px;font-weight:bold;margin-top:6px}
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Poppins',sans-serif}
+
+      #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(20,10,35,.85);
+        color:#ffd66b;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4);
+        animation:pulse 1.6s ease-in-out infinite;z-index:10}
+      #unlock.hidden{display:none}
+      @keyframes pulse{0%,100%{opacity:.85}50%{opacity:1}}
+
+      #stage{position:fixed;bottom:48px;left:50%;width:440px;transform:translate(-50%,0)}
+      #card{position:relative;padding:22px 26px;border-radius:22px;text-align:center;
+        background:linear-gradient(160deg,#241238,#160a24);
+        box-shadow:0 0 0 2px rgba(255,214,107,.55),0 12px 40px rgba(0,0,0,.55),0 0 40px rgba(255,110,199,.25);
+        opacity:0;transform:scale(.6) translateY(60px);
+        transition:opacity .5s cubic-bezier(.34,1.56,.64,1),transform .5s cubic-bezier(.34,1.56,.64,1)}
+      #card.show{opacity:1;transform:scale(1) translateY(0)}
+      #card.hide{opacity:0;transform:scale(.85) translateY(30px);transition:opacity .35s ease-in,transform .35s ease-in}
+      #badge{display:inline-block;padding:4px 12px;border-radius:999px;background:linear-gradient(90deg,#ffd66b,#ff9a5a);
+        color:#2a1400;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+      #name{margin:12px 0 2px;font-size:24px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.4)}
+      #amount{font-size:34px;font-weight:800;margin:2px 0 8px;
+        background:linear-gradient(90deg,#ffe9a8,#ffd66b);-webkit-background-clip:text;background-clip:text;color:transparent}
+      #message{margin:0;font-size:15px;font-style:italic;color:rgba(255,255,255,.85);
+        border-left:3px solid #ffd66b;padding-left:10px;text-align:left;display:inline-block;max-width:340px}
+
+      .confetti{position:absolute;top:40%;left:50%;width:8px;height:8px;border-radius:2px;pointer-events:none;
+        animation:confetti-burst var(--dur) ease-out forwards}
+      @keyframes confetti-burst{
+        0%{transform:translate(-50%,-50%) rotate(0) scale(1);opacity:1}
+        100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) rotate(var(--rot)) scale(.4);opacity:0}
+      }
     </style></head><body>
-    <div id="card">
-      <h3 id="name"></h3>
-      <div class="amount" id="amount"></div>
-      <p id="message"></p>
+    <div id="unlock">🔈 Klik buat aktifin suara</div>
+    <div id="stage">
+      <div id="card">
+        <span id="badge">🎉 Donasi Baru</span>
+        <div id="name"></div>
+        <div id="amount"></div>
+        <p id="message"></p>
+      </div>
     </div>
     <script>
       const card = document.getElementById("card");
-      const audioCtx = window.AudioContext ? new AudioContext() : null;
-      function beep() {
-        if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+      const stage = document.getElementById("stage");
+      const unlockBtn = document.getElementById("unlock");
+      let audioCtx = window.AudioContext ? new AudioContext() : null;
+      let audioUnlocked = false;
+
+      function unlockAudio() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+        unlockBtn.classList.add("hidden");
+        try { audioCtx?.resume(); } catch {}
+        try {
+          const warm = new SpeechSynthesisUtterance(" ");
+          warm.volume = 0;
+          window.speechSynthesis?.speak(warm);
+        } catch {}
       }
+      unlockBtn.addEventListener("click", unlockAudio);
+      document.addEventListener("click", unlockAudio, { once: true });
+      setTimeout(unlockAudio, 300); // OBS/TikTok Live Studio browser sources aren't a real user session, so this is usually already allowed there.
+
+      function chime() {
+        if (!audioCtx) return;
+        const notes = [880, 1108, 1318];
+        notes.forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.frequency.value = freq;
+          const start = audioCtx.currentTime + i * 0.09;
+          gain.gain.setValueAtTime(0.001, start);
+          gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+          osc.start(start); osc.stop(start + 0.3);
+        });
+      }
+
+      function burstConfetti() {
+        const colors = ["#ffd66b", "#ff6ec7", "#7ef2c3", "#7db8ff", "#fff"];
+        for (let i = 0; i < 18; i++) {
+          const el = document.createElement("span");
+          el.className = "confetti";
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 60 + Math.random() * 90;
+          el.style.setProperty("--tx", Math.cos(angle) * dist + "px");
+          el.style.setProperty("--ty", Math.sin(angle) * dist - 20 + "px");
+          el.style.setProperty("--rot", Math.random() * 360 + "deg");
+          el.style.setProperty("--dur", 0.7 + Math.random() * 0.5 + "s");
+          el.style.background = colors[i % colors.length];
+          card.appendChild(el);
+          el.addEventListener("animationend", () => el.remove());
+        }
+      }
+
       function showDonation(d) {
         document.getElementById("name").textContent = d.donorName;
         document.getElementById("amount").textContent = "Rp" + Number(d.amount).toLocaleString("id-ID");
         document.getElementById("message").textContent = d.message || "";
+        card.classList.remove("hide");
         card.classList.add("show");
-        if (d.sound) beep();
+        burstConfetti();
+        if (d.sound) chime();
         if (d.tts && window.speechSynthesis) {
-          const text = d.donorName + " berdonasi Rp" + d.amount + (d.message ? ". " + d.message : "");
-          window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+          try {
+            window.speechSynthesis.cancel();
+            const text = d.donorName + " berdonasi Rp" + d.amount + (d.message ? ". " + d.message : "");
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = "id-ID";
+            utter.rate = 1;
+            utter.volume = 1;
+            window.speechSynthesis.speak(utter);
+          } catch {}
         }
-        setTimeout(() => card.classList.remove("show"), 7000);
+        setTimeout(() => {
+          card.classList.add("hide");
+          card.classList.remove("show");
+        }, 7000);
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => showDonation(JSON.parse(e.data)));
