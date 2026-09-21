@@ -17,6 +17,15 @@ const CHECKOUT_STYLE = `
     :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--track:#eef2f0}
     *{box-sizing:border-box}
     body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:#fff;color:var(--ink)}
+    /* On a real desktop viewport (not just a resized phone view), give the
+       wishlist grid room to actually be a grid instead of two squeezed
+       columns, while keeping the header/form/lists at a readable column
+       width like the reference layout does. */
+    @media (min-width:820px){
+      body{max-width:680px}
+      .header-block,.card,.section{max-width:460px;margin-left:auto;margin-right:auto}
+      .section.section-wide{max-width:680px}
+    }
     .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:22px}
     label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
     .required-mark{color:#dc2626;margin-left:2px}
@@ -130,7 +139,7 @@ export async function handleDonatePage(req, res) {
 
   const wishlistSectionHtml = wishlistItems.length
     ? `<hr class="divider" />
-       <div class="section fade-in" style="animation-delay:.1s">
+       <div class="section section-wide fade-in" style="animation-delay:.1s">
          <h2 class="section-title">Wishlist</h2>
          <div class="wishlist-grid">
            ${wishlistItems
@@ -204,7 +213,7 @@ export async function handleDonatePage(req, res) {
     ${CHECKOUT_STYLE}
     </head><body>
     <div id="step1" class="${hasPreselected ? "hidden" : ""}">
-      <div class="fade-in" style="text-align:center;margin-bottom:20px">
+      <div class="header-block fade-in" style="text-align:center;margin-bottom:20px">
         <div id="avatarCircle" style="width:76px;height:76px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 0 3px var(--green);
           display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
         <h1 style="margin:0;font-size:22px">${title}</h1>
@@ -488,10 +497,6 @@ export async function handleOverlayPage(req, res) {
     <style>
       html,body{margin:0;background:transparent;overflow:hidden;font-family:'Inter',sans-serif}
 
-      #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(17,24,39,.85);
-        color:#fff;font:600 12px 'Inter',sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.15);z-index:10}
-      #unlock.hidden{display:none}
-
       #stage{position:fixed;bottom:56px;left:50%;width:340px;transform:translate(-50%,16px);
         display:flex;flex-direction:column;align-items:center;text-align:center;
         opacity:0;transition:opacity .4s ease,transform .4s ease}
@@ -520,7 +525,6 @@ export async function handleOverlayPage(req, res) {
       #line2{margin-top:4px;font-size:14px;font-weight:500;color:rgba(255,255,255,.92);
         text-shadow:0 1px 4px rgba(0,0,0,.55);max-width:300px}
     </style></head><body>
-    <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
     <div id="stage">
       <div id="avatar-wrap">
         <div id="avatar">${settings.avatar_data ? `<img src="/overlay/${token}/avatar" alt="" />` : "🙏"}</div>
@@ -533,22 +537,21 @@ export async function handleOverlayPage(req, res) {
     </div>
     <script>
       const stage = document.getElementById("stage");
-      const unlockBtn = document.getElementById("unlock");
       const bellSound = new Audio("/overlay/assets/bell.wav");
       let audioUnlocked = false;
 
-      // Browsers block audio/speech until this page gets a real click, a timer
-      // doesn't count, so this only hides once that click genuinely happens.
+      // OBS's Browser Source plays audio without a user gesture, but a plain
+      // browser tab still blocks it until a real click happens — this quietly
+      // primes the audio element on the first click if one ever occurs,
+      // without showing any button for it.
       function unlockAudio() {
         if (audioUnlocked) return;
         audioUnlocked = true;
-        unlockBtn.classList.add("hidden");
         try {
           bellSound.volume = 0;
           bellSound.play().then(() => { bellSound.pause(); bellSound.currentTime = 0; bellSound.volume = 1; }).catch(() => {});
         } catch {}
       }
-      unlockBtn.addEventListener("click", unlockAudio);
       document.addEventListener("click", unlockAudio);
 
       function chime() {
@@ -776,9 +779,6 @@ export async function handleVideoPage(req, res) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
       html,body{margin:0;background:transparent;overflow:hidden;font-family:'Inter',sans-serif}
-      #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(17,24,39,.85);
-        color:#fff;font:600 12px 'Inter',sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.15);z-index:10}
-      #unlock.hidden{display:none}
       #wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
         opacity:0;transition:opacity .3s ease}
       #wrap.show{opacity:1}
@@ -788,20 +788,10 @@ export async function handleVideoPage(req, res) {
       #capLine1 .name{color:#86efac}
       #capLine2{margin-top:2px;font-size:13px;font-weight:500;color:rgba(255,255,255,.9);text-shadow:0 1px 4px rgba(0,0,0,.55)}
     </style></head><body>
-    <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
     <div id="wrap"><div id="player"></div><div id="caption"><div id="capLine1"></div><div id="capLine2"></div></div></div>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
       const wrap = document.getElementById("wrap");
-      const unlockBtn = document.getElementById("unlock");
-      let audioUnlocked = false;
-      function unlockAudio() {
-        if (audioUnlocked) return;
-        audioUnlocked = true;
-        unlockBtn.classList.add("hidden");
-      }
-      unlockBtn.addEventListener("click", unlockAudio);
-      document.addEventListener("click", unlockAudio);
 
       function showCaption(item) {
         const line1 = document.getElementById("capLine1");
