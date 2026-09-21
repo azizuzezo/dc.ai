@@ -5,29 +5,38 @@ import { getAudio } from "../services/ttsCache.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
-/** Shared sticker-style palette for every donor-facing page (checkout, QR, overlay). */
-const PAGE_STYLE = `
+/** Clean green checkout style (matches the streamer's SociaBuzz reference) for the donate form + QR pages. */
+const CHECKOUT_STYLE = `
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--pink:#ff3b7f;--pink-deep:#c2185b;--yellow:#ffd400;--ink:#14121a;--paper:#faf9f6}
+    :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--track:#eef2f0}
     *{box-sizing:border-box}
-    body{font-family:'Baloo 2',sans-serif;max-width:420px;margin:32px auto;padding:0 16px 40px;background:var(--paper);color:var(--ink)}
-    .card{background:#fff;border:4px solid var(--ink);border-radius:18px;box-shadow:6px 6px 0 var(--ink);padding:22px}
+    body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:#fff;color:var(--ink)}
+    .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:22px}
     label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
-    input[type=text],input[type=number],textarea{width:100%;padding:11px 12px;border-radius:10px;border:3px solid var(--ink);
-      background:#fff;color:var(--ink);font:600 16px 'Baloo 2',sans-serif}
+    input[type=text],input[type=number],textarea{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
+      background:#fff;color:var(--ink);font:500 15px 'Inter',sans-serif}
+    input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
     textarea{resize:vertical}
-    button{font:800 16px 'Baloo 2',sans-serif;border:3px solid var(--ink);border-radius:10px;cursor:pointer}
-    .btn-primary{width:100%;padding:13px;margin-top:18px;background:var(--pink-deep);color:#fff;box-shadow:4px 4px 0 var(--ink)}
-    .btn-primary:active{box-shadow:none;transform:translate(4px,4px)}
-    .pill{padding:9px 4px;background:#fff;color:var(--ink);font-size:14px}
-    .pill.active{background:var(--yellow)}
+    button{font:700 15px 'Inter',sans-serif;border:none;border-radius:999px;cursor:pointer}
+    .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green-deep);color:#fff}
+    .btn-primary:hover{background:var(--green)}
+    .pill{padding:9px 4px;background:#fff;color:var(--ink);font-size:14px;border:1px solid var(--border);border-radius:999px}
+    .pill.active{background:var(--green);color:#fff;border-color:var(--green)}
     .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-    .hint{font-size:12px;color:#6b6b6b;margin-top:2px}
-    .counter{font-size:12px;color:#6b6b6b;text-align:right}
+    .hint{font-size:12px;color:var(--muted);margin-top:2px}
+    .counter{font-size:12px;color:var(--muted);text-align:right}
     .check{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:500;margin-top:14px}
-    .check input{width:18px;height:18px;margin-top:2px}
+    .check input{width:18px;height:18px;margin-top:2px;accent-color:var(--green)}
+    .wish{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
+    .wish.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+    .wish-row{display:flex;align-items:flex-start;gap:10px}
+    .wish-row input{width:18px;height:18px;margin-top:2px;accent-color:var(--green);flex:none}
+    .wish-title{font-weight:700;font-size:14px}
+    .wish-amounts{font-size:12px;color:var(--muted);margin-top:2px}
+    .bar{height:6px;background:var(--track);border-radius:999px;margin-top:8px;overflow:hidden}
+    .bar-fill{height:100%;background:var(--green-light)}
   </style>`;
 
 export async function handleDonatePage(req, res) {
@@ -42,16 +51,42 @@ export async function handleDonatePage(req, res) {
   const min = settings.min_amount;
   const presets = [10000, 25000, 50000, 100000, 200000, 500000].filter((v) => v >= min).slice(0, 6);
   if (!presets.length) presets.push(min, min * 2, min * 5);
+  const wishlistItems = await db.listWishlistItemsWithProgress(settings.guild_id);
+
+  const wishlistHtml = wishlistItems.length
+    ? `<label>Kontribusi ke wishlist (opsional)</label>
+       ${wishlistItems
+         .map((w) => {
+           const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+           return `<label class="wish" for="wish-${w.id}">
+             <div class="wish-row">
+               <input type="radio" name="wishlistItemId" id="wish-${w.id}" value="${w.id}" />
+               <div style="flex:1">
+                 <div class="wish-title">${escapeHtml(w.title)}</div>
+                 <div class="wish-amounts">Rp${w.total.toLocaleString("id-ID")} / Rp${Number(w.target_amount).toLocaleString("id-ID")} (${pct}%)</div>
+                 <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+               </div>
+             </div>
+           </label>`;
+         })
+         .join("")}
+       <label class="wish" for="wish-none">
+         <div class="wish-row">
+           <input type="radio" name="wishlistItemId" id="wish-none" value="" checked />
+           <div class="wish-title" style="font-weight:500">Tidak, donasi biasa aja</div>
+         </div>
+       </label>`
+    : "";
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${title}</title>
-    ${PAGE_STYLE}
+    ${CHECKOUT_STYLE}
     </head><body>
     <div style="text-align:center;margin-bottom:20px">
-      <div style="width:76px;height:76px;border-radius:50%;background:var(--pink);border:4px solid var(--ink);
+      <div style="width:76px;height:76px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 0 3px var(--green);
         display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800">${initial}</div>
-      <h1 style="margin:0;font-size:24px">${title}</h1>
-      ${settings.description ? `<p style="margin:6px 0 0;color:#4a4a4a;font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
+      <h1 style="margin:0;font-size:22px">${title}</h1>
+      ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
     </div>
     <form class="card" method="post" action="/donate/${identifier}">
       <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</label>
@@ -67,6 +102,8 @@ export async function handleDonatePage(req, res) {
       <label>Pesan (opsional)</label>
       <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
       <div class="counter"><span id="msgCount">0</span>/200</div>
+
+      ${wishlistHtml}
 
       <label class="check">
         <input type="checkbox" required />
@@ -97,6 +134,13 @@ export async function handleDonatePage(req, res) {
       const message = document.getElementById("message");
       const msgCount = document.getElementById("msgCount");
       message.addEventListener("input", () => { msgCount.textContent = message.value.length; });
+
+      document.querySelectorAll('input[name="wishlistItemId"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+          document.querySelectorAll(".wish").forEach((w) => w.classList.remove("active"));
+          radio.closest(".wish")?.classList.add("active");
+        });
+      });
     </script>
   </body></html>`);
 }
@@ -114,6 +158,8 @@ export async function handleDonateCreate(req, res) {
   }
   const donorName = (req.body.donorName || "").trim().slice(0, 40) || "Anonim";
   const message = (req.body.message || "").trim().slice(0, 200) || null;
+  const rawWishlistItemId = req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null;
+  const wishlistItem = rawWishlistItemId ? await db.getWishlistItem(guildId, rawWishlistItemId) : null;
 
   let qris;
   try {
@@ -131,6 +177,7 @@ export async function handleDonateCreate(req, res) {
       message,
       amount: qris.amount,
       expiresAt: qris.expires_at ? new Date(qris.expires_at) : null,
+      wishlistItemId: wishlistItem?.id || null,
     });
   } catch (err) {
     logError(`Failed to store donation for guild ${guildId}:`, err);
@@ -141,13 +188,14 @@ export async function handleDonateCreate(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Scan untuk Bayar</title>
-    ${PAGE_STYLE}
+    ${CHECKOUT_STYLE}
     </head><body style="text-align:center">
     <div class="card">
       <h1 style="margin:0 0 4px;font-size:20px">Scan QRIS ini</h1>
-      <div style="display:inline-block;margin:8px 0;padding:6px 16px;background:var(--yellow);border:3px solid var(--ink);
-        border-radius:8px;font-size:22px;font-weight:800">Rp${Number(qris.amount).toLocaleString("id-ID")}</div>
-      <div style="margin:14px auto 0;padding:10px;background:#fff;border:3px solid var(--ink);border-radius:12px;max-width:260px">
+      ${wishlistItem ? `<p class="hint">Patungan ke wishlist <strong>${escapeHtml(wishlistItem.title)}</strong></p>` : ""}
+      <div style="display:inline-block;margin:8px 0;padding:6px 16px;background:var(--track);
+        border-radius:999px;font-size:22px;font-weight:800;color:var(--green)">Rp${Number(qris.amount).toLocaleString("id-ID")}</div>
+      <div style="margin:14px auto 0;padding:10px;background:#fff;border:1px solid var(--border);border-radius:12px;max-width:260px">
         <img src="${escapeHtml(qrisImageUrl(settings.gateway_url, qris.qris_id))}" alt="Kode QRIS" style="width:100%;display:block" />
       </div>
       <p id="status" style="font-weight:700;margin:16px 0 4px">⏳ Menunggu pembayaran...</p>
@@ -384,4 +432,67 @@ export async function handleLeaderboardData(req, res) {
   if (!settings) return res.status(404).json({ leaderboard: [] });
   const leaderboard = await db.getDonationLeaderboard(settings.guild_id, 10);
   res.json({ leaderboard });
+}
+
+export async function handleWishlistPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Baloo 2',sans-serif}
+      #board{width:300px;padding:16px 18px;border-radius:16px;background:#fff;border:5px solid #14121a;box-shadow:6px 6px 0 #14121a}
+      #board h3{margin:0 0 10px;font-size:16px;font-weight:800;color:#14121a}
+      .item{margin:0 0 12px}
+      .item:last-child{margin-bottom:0}
+      .item-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#14121a;margin-bottom:4px}
+      .item-amounts{font-size:11px;color:#6b6b6b;margin-bottom:4px}
+      .bar{height:8px;background:#f0f0f0;border:2px solid #14121a;border-radius:999px;overflow:hidden}
+      .bar-fill{height:100%;background:#ff3b7f}
+    </style></head><body>
+    <div id="board"><h3>🎯 Wishlist</h3><div id="list"></div></div>
+    <script>
+      function render(items) {
+        const list = document.getElementById("list");
+        list.innerHTML = "";
+        items.forEach((w) => {
+          const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+          const div = document.createElement("div");
+          div.className = "item";
+          const top = document.createElement("div");
+          top.className = "item-top";
+          const title = document.createElement("span");
+          title.textContent = w.title;
+          const pctEl = document.createElement("span");
+          pctEl.textContent = pct + "%";
+          top.append(title, pctEl);
+          const amounts = document.createElement("div");
+          amounts.className = "item-amounts";
+          amounts.textContent = "Rp" + Number(w.total).toLocaleString("id-ID") + " / Rp" + Number(w.target_amount).toLocaleString("id-ID");
+          const bar = document.createElement("div");
+          bar.className = "bar";
+          const fill = document.createElement("div");
+          fill.className = "bar-fill";
+          fill.style.width = pct + "%";
+          bar.appendChild(fill);
+          div.append(top, amounts, bar);
+          list.appendChild(div);
+        });
+      }
+      fetch(${JSON.stringify(`/overlay/${token}/wishlist/data`)}).then((r) => r.json()).then((d) => render(d.items));
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      events.addEventListener("wishlist", (e) => render(JSON.parse(e.data).items));
+    </script>
+  </body></html>`);
+}
+
+export async function handleWishlistData(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).json({ items: [] });
+  const items = await db.listWishlistItemsWithProgress(settings.guild_id);
+  res.json({ items });
 }

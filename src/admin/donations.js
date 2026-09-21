@@ -16,7 +16,9 @@ export async function handleDonationSettingsPage(req, res, error) {
   const donateUrl = `${baseUrl(req)}/donate/${settings.slug || guildId}`;
   const overlayUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}`;
   const leaderboardUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/leaderboard`;
+  const wishlistWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/wishlist`;
   const recent = await db.listRecentPaidDonations(guildId, 10);
+  const wishlistItems = await db.listWishlistItemsWithProgress(guildId);
 
   const recentRows = recent
     .map(
@@ -91,7 +93,38 @@ export async function handleDonationSettingsPage(req, res, error) {
                <p class="mono" style="word-break:break-all"><a href="${leaderboardUrl}">${leaderboardUrl}</a></p>`
             : ""
         }
+        ${
+          wishlistItems.length
+            ? `<label>Wishlist widget <span class="hint">(optional separate Browser Source)</span></label>
+               <p class="mono" style="word-break:break-all"><a href="${wishlistWidgetUrl}">${wishlistWidgetUrl}</a></p>`
+            : ""
+        }
       </div>
+
+      <h2>Wishlist</h2>
+      <p class="lede">Milestone goals donors can pool toward (e.g. "Wisuda", "Penunjang Live"). Shown on the donate page and, once you have at least one, at the widget link above.</p>
+      ${
+        wishlistItems.length
+          ? `<table><tr><th>Title</th><th>Progress</th><th></th></tr>${wishlistItems
+              .map((w) => {
+                const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+                return `<tr>
+                  <td>${escapeHtml(w.title)}</td>
+                  <td>Rp${w.total.toLocaleString("id-ID")} / Rp${Number(w.target_amount).toLocaleString("id-ID")} (${pct}%)</td>
+                  <td><form method="post" action="/guilds/${guildId}/donations/wishlist/${w.id}/delete">
+                    <button type="submit" class="btn-danger btn-sm">Delete</button></form></td>
+                </tr>`;
+              })
+              .join("")}</table>`
+          : `<div class="empty">No wishlist items yet.</div>`
+      }
+      <form class="card" method="post" action="/guilds/${guildId}/donations/wishlist" style="margin-top:12px">
+        <label for="wishlistTitle">Title</label>
+        <input id="wishlistTitle" type="text" name="title" placeholder="Wisuda" maxlength="60" required />
+        <label for="wishlistTarget">Target amount (Rp)</label>
+        <input id="wishlistTarget" type="number" name="targetAmount" min="1000" step="1000" required />
+        <div class="actions"><button type="submit" class="btn-primary">Add wishlist item</button></div>
+      </form>
 
       <h2>Test alert</h2>
       <p class="lede">Fires the overlay directly to check positioning in OBS/TikTok Live Studio. Doesn't post to Discord or count toward the leaderboard.</p>
@@ -102,6 +135,15 @@ export async function handleDonationSettingsPage(req, res, error) {
         <input id="testAmount" type="number" name="amount" placeholder="10000" min="1" />
         <label for="testMessage">Message</label>
         <input id="testMessage" type="text" name="message" placeholder="(optional)" />
+        ${
+          wishlistItems.length
+            ? `<label for="testWishlistItemId">Wishlist item</label>
+               <select id="testWishlistItemId" name="wishlistItemId">
+                 <option value="">(none)</option>
+                 ${wishlistItems.map((w) => `<option value="${w.id}">${escapeHtml(w.title)}</option>`).join("")}
+               </select>`
+            : ""
+        }
         <div class="actions"><button type="submit" class="btn-primary">Trigger test alert</button></div>
       </form>
 
@@ -173,9 +215,26 @@ export async function handleTestAlert(req, res) {
       donor_name: req.body.donorName?.trim().slice(0, 40) || "Test Donatur",
       amount: Number(req.body.amount) || 10000,
       message: req.body.message?.trim().slice(0, 200) || null,
+      wishlist_item_id: req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null,
     },
     { toDiscord: false }
   );
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleWishlistAdd(req, res) {
+  const { guildId } = req.params;
+  const title = req.body.title?.trim().slice(0, 60);
+  const targetAmount = Number(req.body.targetAmount);
+  if (title && Number.isFinite(targetAmount) && targetAmount > 0) {
+    await db.addWishlistItem(guildId, title, targetAmount);
+  }
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleWishlistDelete(req, res) {
+  const { guildId, id } = req.params;
+  await db.deleteWishlistItem(guildId, id);
   res.redirect(`/guilds/${guildId}/donations`);
 }
 

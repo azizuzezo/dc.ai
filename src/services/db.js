@@ -35,8 +35,10 @@ const memTriviaScores = new Map(); // `${guildId}:${userId}` -> correct_count
 const memWelcomeSettings = new Map(); // guildId -> { welcome_channel_id, welcome_message, leave_channel_id, leave_message }
 const memLevels = new Map(); // `${guildId}:${userId}` -> { guild_id, user_id, xp, level }
 const memDonationSettings = new Map(); // guildId -> { guild_id, gateway_url, gateway_api_key, alert_channel_id, overlay_token, min_amount, tts_enabled, sound_enabled, leaderboard_enabled }
-const memDonations = []; // [{ id, guild_id, trx_id, donor_name, message, amount, status, expires_at, paid_at }]
+const memDonations = []; // [{ id, guild_id, trx_id, donor_name, message, amount, status, expires_at, paid_at, wishlist_item_id }]
+const memWishlistItems = []; // [{ id, guild_id, title, target_amount }]
 let memDonationIdSeq = 1;
+let memWishlistItemIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -852,7 +854,7 @@ export async function regenerateOverlayToken(guildId) {
   return token;
 }
 
-export async function createDonation({ guildId, trxId, donorName, message, amount, expiresAt }) {
+export async function createDonation({ guildId, trxId, donorName, message, amount, expiresAt, wishlistItemId = null }) {
   if (supabase) {
     const { error } = await supabase.from("bot_donations").insert({
       guild_id: guildId,
@@ -862,6 +864,7 @@ export async function createDonation({ guildId, trxId, donorName, message, amoun
       amount,
       status: "pending",
       expires_at: expiresAt ? expiresAt.toISOString() : null,
+      wishlist_item_id: wishlistItemId,
     });
     if (error) throw error;
     return;
@@ -876,6 +879,7 @@ export async function createDonation({ guildId, trxId, donorName, message, amoun
     status: "pending",
     expires_at: expiresAt ? expiresAt.toISOString() : null,
     paid_at: null,
+    wishlist_item_id: wishlistItemId,
   });
 }
 
@@ -892,7 +896,7 @@ export async function listPendingDonations() {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_donations")
-      .select("id, guild_id, trx_id, donor_name, message, amount, expires_at")
+      .select("id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id")
       .eq("status", "pending");
     if (error) throw error;
     return data || [];
@@ -957,5 +961,78 @@ export async function getDonationLeaderboard(guildId, limit = 10) {
   return aggregateLeaderboard(
     memDonations.filter((d) => d.guild_id === guildId && d.status === "paid"),
     limit
+  );
+}
+
+// ---- donation wishlist / milestones ----
+
+export async function listWishlistItems(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_wishlist_items")
+      .select("id, title, target_amount, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  return memWishlistItems.filter((w) => w.guild_id === guildId);
+}
+
+export async function getWishlistItem(guildId, id) {
+  const items = await listWishlistItems(guildId);
+  return items.find((w) => w.id === Number(id)) || null;
+}
+
+export async function addWishlistItem(guildId, title, targetAmount) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_wishlist_items")
+      .insert({ guild_id: guildId, title, target_amount: targetAmount })
+      .select("id, title, target_amount, created_at")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+  const item = { id: memWishlistItemIdSeq++, guild_id: guildId, title, target_amount: targetAmount };
+  memWishlistItems.push(item);
+  return item;
+}
+
+export async function deleteWishlistItem(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_donation_wishlist_items")
+      .delete()
+      .eq("guild_id", guildId)
+      .eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memWishlistItems.findIndex((w) => w.guild_id === guildId && w.id === Number(id));
+  if (idx !== -1) memWishlistItems.splice(idx, 1);
+}
+
+/** Total raised + top contributors for one wishlist item, from its paid donations. */
+export async function getWishlistProgress(itemId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donations")
+      .select("donor_name, amount")
+      .eq("wishlist_item_id", itemId)
+      .eq("status", "paid");
+    if (error) throw error;
+    const rows = data || [];
+    return { total: rows.reduce((sum, r) => sum + Number(r.amount), 0), contributors: aggregateLeaderboard(rows, 10) };
+  }
+  const rows = memDonations.filter((d) => d.wishlist_item_id === Number(itemId) && d.status === "paid");
+  return { total: rows.reduce((sum, r) => sum + Number(r.amount), 0), contributors: aggregateLeaderboard(rows, 10) };
+}
+
+/** All wishlist items for a guild with their progress attached, for the overlay widget and admin page. */
+export async function listWishlistItemsWithProgress(guildId) {
+  const items = await listWishlistItems(guildId);
+  return Promise.all(
+    items.map(async (item) => ({ ...item, ...(await getWishlistProgress(item.id)) }))
   );
 }

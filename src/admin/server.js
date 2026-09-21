@@ -18,6 +18,8 @@ import {
   handleRegenerateOverlayToken,
   handleTestAlert,
   handleReplayDonation,
+  handleWishlistAdd,
+  handleWishlistDelete,
 } from "./donations.js";
 import {
   handleDonatePage,
@@ -28,6 +30,8 @@ import {
   handleOverlayAudio,
   handleLeaderboardPage,
   handleLeaderboardData,
+  handleWishlistPage,
+  handleWishlistData,
 } from "./donatePublic.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -74,6 +78,8 @@ export function startAdminServer() {
   app.post("/guilds/:guildId/donations/regenerate-token", requireAuth, handleRegenerateOverlayToken);
   app.post("/guilds/:guildId/donations/test-alert", requireAuth, handleTestAlert);
   app.post("/guilds/:guildId/donations/replay/:trxId", requireAuth, handleReplayDonation);
+  app.post("/guilds/:guildId/donations/wishlist", requireAuth, handleWishlistAdd);
+  app.post("/guilds/:guildId/donations/wishlist/:id/delete", requireAuth, handleWishlistDelete);
 
   // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
   // :identifier is either a custom slug or a raw guild ID (see db.getDonationSettingsByIdentifier).
@@ -85,6 +91,8 @@ export function startAdminServer() {
   app.get("/overlay/audio/:id", handleOverlayAudio);
   app.get("/overlay/:token/leaderboard", handleLeaderboardPage);
   app.get("/overlay/:token/leaderboard/data", handleLeaderboardData);
+  app.get("/overlay/:token/wishlist", handleWishlistPage);
+  app.get("/overlay/:token/wishlist/data", handleWishlistData);
 
   app.listen(env.adminPort, () => {
     logInfo(`Admin dashboard listening on port ${env.adminPort}`);

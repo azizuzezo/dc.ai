@@ -8,13 +8,27 @@ import { logError } from "./logger.js";
 
 /** Pushes a donation to the overlay (+ Discord, unless toDiscord is false). Used by the real payment sweep and by the admin dashboard's test/replay button. */
 export async function announceDonation(client, settings, donation, { toDiscord = true } = {}) {
+  let wishlistItem = null;
+  if (donation.wishlist_item_id) {
+    try {
+      wishlistItem = await db.getWishlistItem(donation.guild_id, donation.wishlist_item_id);
+    } catch (err) {
+      logError(`Failed to load wishlist item for guild ${donation.guild_id}:`, err);
+    }
+  }
+
+  const amountText = `Rp${Number(donation.amount).toLocaleString("id-ID")}`;
+  const narration = wishlistItem
+    ? `${amountText} dari ${donation.donor_name}, patungan ke wishlist ${wishlistItem.title}.` +
+      (donation.message ? ` Kata ${donation.donor_name}, ${donation.message}` : "")
+    : `${amountText} dari ${donation.donor_name}` + (donation.message ? `. ${donation.message}` : "");
+
   // Started first, not awaited yet, so its ~5-7s round trip to Gemini overlaps
   // with the Discord post + leaderboard query below instead of adding to them.
   const ttsPromise = settings.tts_enabled
     ? synthesizeSpeech(
         "Bacakan dengan nada hangat, lembut, dan penuh kasih sayang seperti sedang menyapa penonton live streaming: " +
-          `Rp${Number(donation.amount).toLocaleString("id-ID")} dari ${donation.donor_name}` +
-          (donation.message ? `. ${donation.message}` : "")
+          narration
       ).catch((err) => {
         logError(`TTS generation failed for guild ${donation.guild_id}:`, err);
         return null;
@@ -28,7 +42,8 @@ export async function announceDonation(client, settings, donation, { toDiscord =
         const embed = new EmbedBuilder()
           .setTitle("💸 Donasi baru!")
           .setDescription(
-            `**${donation.donor_name}** mengirim **Rp${Number(donation.amount).toLocaleString("id-ID")}**` +
+            `**${donation.donor_name}** mengirim **${amountText}**` +
+              (wishlistItem ? ` (patungan ke wishlist **${wishlistItem.title}**)` : "") +
               (donation.message ? `\n> ${donation.message}` : "")
           )
           .setColor(0x00c896)
@@ -44,6 +59,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     donorName: donation.donor_name,
     amount: donation.amount,
     message: donation.message,
+    wishlistTitle: wishlistItem?.title || null,
     sound: settings.sound_enabled,
   });
 
@@ -54,6 +70,13 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     } catch (err) {
       logError(`Failed to refresh donation leaderboard for guild ${donation.guild_id}:`, err);
     }
+  }
+
+  try {
+    const items = await db.listWishlistItemsWithProgress(donation.guild_id);
+    if (items.length) broadcast(settings.overlay_token, "wishlist", { items });
+  } catch (err) {
+    logError(`Failed to refresh wishlist progress for guild ${donation.guild_id}:`, err);
   }
 
   // Not awaited: letting this resolve on its own keeps the sweep loop (and
