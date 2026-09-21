@@ -251,57 +251,54 @@ export async function handleOverlayPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Baloo 2',sans-serif}
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Inter',sans-serif}
 
-      #unlock{position:fixed;top:16px;right:16px;padding:9px 16px;border-radius:10px;background:#ffd400;
-        color:#14121a;font:700 13px 'Baloo 2',sans-serif;cursor:pointer;border:3px solid #14121a;
-        box-shadow:4px 4px 0 #14121a;z-index:10}
+      #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(17,24,39,.85);
+        color:#fff;font:600 12px 'Inter',sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.15);z-index:10}
       #unlock.hidden{display:none}
 
-      #stage{position:fixed;bottom:48px;left:50%;width:420px;transform:translate(-50%,0)}
-      #card{position:relative;padding:22px 28px;text-align:center;border-radius:18px;
-        background:#ff3b7f;border:5px solid #14121a;box-shadow:8px 8px 0 #14121a;
-        transform:scale(0) rotate(-8deg);opacity:0}
-      #card.show{animation:pop-in .5s cubic-bezier(.2,.9,.3,1.1) forwards}
-      #card.hide{animation:pop-out .3s ease-in forwards}
-      @keyframes pop-in{
-        0%{transform:scale(0) rotate(-8deg);opacity:0}
-        60%{transform:scale(1.08) rotate(3deg);opacity:1}
-        100%{transform:scale(1) rotate(-2deg);opacity:1}
-      }
-      @keyframes pop-out{
-        0%{transform:scale(1) rotate(-2deg);opacity:1}
-        100%{transform:scale(.8) rotate(-2deg) translateY(20px);opacity:0}
-      }
+      #stage{position:fixed;bottom:56px;left:50%;width:340px;transform:translate(-50%,16px);
+        display:flex;flex-direction:column;align-items:center;text-align:center;
+        opacity:0;transition:opacity .4s ease,transform .4s ease}
+      #stage.show{opacity:1;transform:translate(-50%,0)}
+      #stage.hide{opacity:0;transform:translate(-50%,-10px)}
       @media (prefers-reduced-motion: reduce){
-        #card.show{animation:none;transform:rotate(-2deg);opacity:1}
-        #card.hide{animation:none;opacity:0}
+        #stage{transition:opacity .2s linear}
+        #stage.show,#stage.hide{transform:translate(-50%,0)}
       }
 
-      #name{font-size:26px;font-weight:800;color:#14121a;line-height:1.15}
-      #amount{display:inline-block;margin:10px 0;padding:5px 16px;border-radius:8px;
-        background:#ffd400;border:3px solid #14121a;color:#14121a;font-size:26px;font-weight:800;transform:rotate(2deg)}
-      #message{margin:0;font-size:15px;font-weight:600;color:#14121a}
+      #avatar-wrap{position:relative;width:88px;height:88px;margin-bottom:14px}
+      #avatar{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4ade80,#16a34a);
+        display:flex;align-items:center;justify-content:center;font-size:40px;
+        box-shadow:0 4px 18px rgba(0,0,0,.35)}
+      .deco{position:absolute;font-size:20px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));animation:float 2.4s ease-in-out infinite}
+      .deco.d1{top:-8px;left:-10px;animation-delay:0s}
+      .deco.d2{top:-6px;right:-12px;font-size:16px;animation-delay:.4s}
+      .deco.d3{bottom:-4px;left:50%;transform:translateX(-50%);font-size:15px;animation-delay:.8s}
+      @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+      .deco.d3{animation-name:float-center}
+      @keyframes float-center{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
 
-      .confetti{position:absolute;top:35%;left:50%;width:9px;height:9px;pointer-events:none;
-        animation:confetti-burst var(--dur) ease-out forwards}
-      @keyframes confetti-burst{
-        0%{transform:translate(-50%,-50%) rotate(0) scale(1);opacity:1}
-        100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) rotate(var(--rot)) scale(.5);opacity:0}
-      }
+      #line1{font-size:19px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.55);line-height:1.3}
+      #line1 .name{color:#86efac}
+      #line2{margin-top:4px;font-size:14px;font-weight:500;color:rgba(255,255,255,.92);
+        text-shadow:0 1px 4px rgba(0,0,0,.55);max-width:300px}
     </style></head><body>
     <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
     <div id="stage">
-      <div id="card">
-        <div id="name"></div>
-        <div id="amount"></div>
-        <p id="message"></p>
+      <div id="avatar-wrap">
+        <div id="avatar">🙏</div>
+        <span class="deco d1">💛</span>
+        <span class="deco d2">✨</span>
+        <span class="deco d3">💚</span>
       </div>
+      <div id="line1"></div>
+      <p id="line2"></p>
     </div>
     <script>
-      const card = document.getElementById("card");
+      const stage = document.getElementById("stage");
       const unlockBtn = document.getElementById("unlock");
       const bellSound = new Audio("/overlay/assets/bell.wav");
       let audioUnlocked = false;
@@ -325,34 +322,22 @@ export async function handleOverlayPage(req, res) {
         bellSound.play().catch(() => {});
       }
 
-      function burstConfetti() {
-        const colors = ["#ff3b7f", "#ffd400", "#14121a", "#fff"];
-        for (let i = 0; i < 16; i++) {
-          const el = document.createElement("span");
-          el.className = "confetti";
-          const angle = Math.random() * Math.PI * 2;
-          const dist = 60 + Math.random() * 90;
-          el.style.setProperty("--tx", Math.cos(angle) * dist + "px");
-          el.style.setProperty("--ty", Math.sin(angle) * dist - 20 + "px");
-          el.style.setProperty("--rot", Math.random() * 360 + "deg");
-          el.style.setProperty("--dur", 0.7 + Math.random() * 0.5 + "s");
-          el.style.background = colors[i % colors.length];
-          card.appendChild(el);
-          el.addEventListener("animationend", () => el.remove());
-        }
-      }
-
       function showDonation(d) {
-        document.getElementById("name").textContent = d.donorName + " ngasih dukungan!";
-        document.getElementById("amount").textContent = "Rp" + Number(d.amount).toLocaleString("id-ID");
-        document.getElementById("message").textContent = d.message || "";
-        card.classList.remove("hide");
-        card.classList.add("show");
-        burstConfetti();
+        const line1 = document.getElementById("line1");
+        line1.innerHTML = "";
+        const amountEl = document.createElement("span");
+        amountEl.textContent = "Rp" + Number(d.amount).toLocaleString("id-ID") + " dari ";
+        const nameEl = document.createElement("span");
+        nameEl.className = "name";
+        nameEl.textContent = d.donorName;
+        line1.append(amountEl, nameEl);
+        document.getElementById("line2").textContent = d.message || "";
+        stage.classList.remove("hide");
+        stage.classList.add("show");
         if (d.sound) chime();
         setTimeout(() => {
-          card.classList.add("hide");
-          card.classList.remove("show");
+          stage.classList.add("hide");
+          stage.classList.remove("show");
         }, 8000); // gives the TTS narration (arrives separately, a few seconds later) room to finish
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
@@ -390,17 +375,19 @@ export async function handleLeaderboardPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Baloo 2',sans-serif}
-      #board{width:260px;padding:16px 18px;border-radius:16px;background:#fff;border:5px solid #14121a;box-shadow:6px 6px 0 #14121a}
-      #board h3{margin:0 0 10px;font-size:16px;font-weight:800;color:#14121a}
+      html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
+      #board{width:260px;padding:16px 18px;border-radius:14px;background:rgba(17,24,39,.82);
+        border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px)}
+      #board h3{margin:0 0 12px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
+        text-transform:uppercase;letter-spacing:.04em}
       #list{list-style:none;margin:0;padding:0}
-      #list li{display:flex;justify-content:space-between;gap:10px;margin:6px 0;font-size:14px;font-weight:600;color:#14121a}
-      #list .rank{color:#ff3b7f;font-weight:800;width:20px}
-      #list .amount{font-weight:800}
+      #list li{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px;font-weight:600;color:#fff}
+      #list .rank{color:#4ade80;font-weight:700;width:20px}
+      #list .amount{font-weight:700;color:rgba(255,255,255,.85)}
     </style></head><body>
-    <div id="board"><h3>🏆 Top Donatur</h3><ol id="list"></ol></div>
+    <div id="board"><h3>Top Donatur</h3><ol id="list"></ol></div>
     <script>
       function render(leaderboard) {
         const list = document.getElementById("list");
@@ -441,19 +428,22 @@ export async function handleWishlistPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Baloo 2',sans-serif}
-      #board{width:300px;padding:16px 18px;border-radius:16px;background:#fff;border:5px solid #14121a;box-shadow:6px 6px 0 #14121a}
-      #board h3{margin:0 0 10px;font-size:16px;font-weight:800;color:#14121a}
-      .item{margin:0 0 12px}
+      html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
+      #board{width:300px;padding:16px 18px;border-radius:14px;background:rgba(17,24,39,.82);
+        border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px)}
+      #board h3{margin:0 0 12px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
+        text-transform:uppercase;letter-spacing:.04em}
+      .item{margin:0 0 14px}
       .item:last-child{margin-bottom:0}
-      .item-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#14121a;margin-bottom:4px}
-      .item-amounts{font-size:11px;color:#6b6b6b;margin-bottom:4px}
-      .bar{height:8px;background:#f0f0f0;border:2px solid #14121a;border-radius:999px;overflow:hidden}
-      .bar-fill{height:100%;background:#ff3b7f}
+      .item-top{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:600;color:#fff;margin-bottom:4px}
+      .item-top .pct{font-size:12px;font-weight:600;color:#4ade80}
+      .item-amounts{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px}
+      .bar{height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden}
+      .bar-fill{height:100%;background:#22c55e;border-radius:999px;transition:width .4s ease}
     </style></head><body>
-    <div id="board"><h3>🎯 Wishlist</h3><div id="list"></div></div>
+    <div id="board"><h3>Wishlist</h3><div id="list"></div></div>
     <script>
       function render(items) {
         const list = document.getElementById("list");
@@ -467,11 +457,12 @@ export async function handleWishlistPage(req, res) {
           const title = document.createElement("span");
           title.textContent = w.title;
           const pctEl = document.createElement("span");
+          pctEl.className = "pct";
           pctEl.textContent = pct + "%";
           top.append(title, pctEl);
           const amounts = document.createElement("div");
           amounts.className = "item-amounts";
-          amounts.textContent = "Rp" + Number(w.total).toLocaleString("id-ID") + " / Rp" + Number(w.target_amount).toLocaleString("id-ID");
+          amounts.textContent = "Rp" + Number(w.total).toLocaleString("id-ID") + " dari Rp" + Number(w.target_amount).toLocaleString("id-ID");
           const bar = document.createElement("div");
           bar.className = "bar";
           const fill = document.createElement("div");
