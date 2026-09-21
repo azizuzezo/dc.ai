@@ -254,16 +254,19 @@ export async function handleOverlayPage(req, res) {
     <script>
       const card = document.getElementById("card");
       const unlockBtn = document.getElementById("unlock");
-      let audioCtx = window.AudioContext ? new AudioContext() : null;
+      const bellSound = new Audio("/overlay/assets/bell.wav");
       let audioUnlocked = false;
 
-      // Browsers block audio until this page gets a real click, a timer
+      // Browsers block audio/speech until this page gets a real click, a timer
       // doesn't count, so this only hides once that click genuinely happens.
       function unlockAudio() {
         if (audioUnlocked) return;
         audioUnlocked = true;
         unlockBtn.classList.add("hidden");
-        try { audioCtx?.resume(); } catch {}
+        try {
+          bellSound.volume = 0;
+          bellSound.play().then(() => { bellSound.pause(); bellSound.currentTime = 0; bellSound.volume = 1; }).catch(() => {});
+        } catch {}
         try {
           const warm = new SpeechSynthesisUtterance(" ");
           warm.volume = 0;
@@ -274,19 +277,8 @@ export async function handleOverlayPage(req, res) {
       document.addEventListener("click", unlockAudio);
 
       function chime() {
-        if (!audioCtx) return;
-        const notes = [880, 1108, 1318];
-        notes.forEach((freq, i) => {
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.connect(gain); gain.connect(audioCtx.destination);
-          osc.frequency.value = freq;
-          const start = audioCtx.currentTime + i * 0.09;
-          gain.gain.setValueAtTime(0.001, start);
-          gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
-          osc.start(start); osc.stop(start + 0.3);
-        });
+        bellSound.currentTime = 0;
+        bellSound.play().catch(() => {});
       }
 
       function burstConfetti() {

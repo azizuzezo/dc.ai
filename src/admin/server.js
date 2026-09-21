@@ -1,5 +1,7 @@
 import express from "express";
 import session from "express-session";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { env } from "../config/env.js";
 import { logInfo } from "../services/logger.js";
 import { requireAuth, handleLoginPage, handleLogin, handleLogout } from "./auth.js";
@@ -27,6 +29,8 @@ import {
   handleLeaderboardData,
 } from "./donatePublic.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 export function startAdminServer() {
   const app = express();
   // Railway sits in front as a reverse proxy — trust its X-Forwarded-* headers
@@ -34,6 +38,7 @@ export function startAdminServer() {
   // build shareable donate/overlay links.
   app.set("trust proxy", 1);
   app.use(express.urlencoded({ extended: false }));
+  app.use("/overlay/assets", express.static(join(__dirname, "assets")));
   app.use(
     session({
       secret: env.sessionSecret,
