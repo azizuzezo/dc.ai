@@ -3,7 +3,7 @@ import { logError } from "./logger.js";
 
 // Flash, not Pro: Pro is noticeably slower and this is read out live on stream.
 const MODEL = "gemini-2.5-flash-preview-tts";
-const VOICE = "Kore";
+const VOICE = "Zephyr";
 // Generation alone measured 4.8-6.8s from a dev machine, but Railway's own
 // network path to Gemini has been observed exceeding even 12s and aborting
 // (production logs), so this leaves real headroom rather than the minimum.

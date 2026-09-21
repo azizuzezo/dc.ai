@@ -12,7 +12,8 @@ export async function announceDonation(client, settings, donation, { toDiscord =
   // with the Discord post + leaderboard query below instead of adding to them.
   const ttsPromise = settings.tts_enabled
     ? synthesizeSpeech(
-        `${donation.donor_name} berdonasi Rp${Number(donation.amount).toLocaleString("id-ID")}` +
+        "Bacakan dengan nada hangat, lembut, dan penuh kasih sayang seperti sedang menyapa penonton live streaming: " +
+          `${donation.donor_name} berdonasi Rp${Number(donation.amount).toLocaleString("id-ID")}` +
           (donation.message ? `. ${donation.message}` : "")
       ).catch((err) => {
         logError(`TTS generation failed for guild ${donation.guild_id}:`, err);
