@@ -1,7 +1,6 @@
 import * as db from "../services/db.js";
 import { createQris, qrisImageUrl } from "../services/gopayGateway.js";
 import { subscribe } from "../services/donationOverlay.js";
-import { getAudio } from "../services/ttsCache.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -266,8 +265,9 @@ export async function handleOverlayPage(req, res) {
         unlockBtn.classList.add("hidden");
         try { audioCtx?.resume(); } catch {}
         try {
-          // A silent play on a real gesture unlocks later, ungestured <audio>.play() calls (the TTS narration) on this page.
-          new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=").play().catch(() => {});
+          const warm = new SpeechSynthesisUtterance(" ");
+          warm.volume = 0;
+          window.speechSynthesis?.speak(warm);
         } catch {}
       }
       unlockBtn.addEventListener("click", unlockAudio);
@@ -314,6 +314,17 @@ export async function handleOverlayPage(req, res) {
         card.classList.add("show");
         burstConfetti();
         if (d.sound) chime();
+        if (d.tts && window.speechSynthesis) {
+          try {
+            window.speechSynthesis.cancel();
+            const text = "Rp" + d.amount + " dari " + d.donorName + (d.message ? ". " + d.message : "");
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = "id-ID";
+            utter.rate = 1;
+            utter.volume = 1;
+            window.speechSynthesis.speak(utter);
+          } catch {}
+        }
         setTimeout(() => {
           card.classList.add("hide");
           card.classList.remove("show");
@@ -321,13 +332,6 @@ export async function handleOverlayPage(req, res) {
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => showDonation(JSON.parse(e.data)));
-      // Narration is generated server-side (Gemini TTS) and arrives a few
-      // seconds after the "donation" event, so it's played on its own here.
-      events.addEventListener("tts", (e) => {
-        try {
-          new Audio(JSON.parse(e.data).url).play().catch(() => {});
-        } catch {}
-      });
     </script>
   </body></html>`);
 }
@@ -337,13 +341,6 @@ export async function handleOverlayEvents(req, res) {
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).end();
   subscribe(token, res);
-}
-
-export function handleOverlayAudio(req, res) {
-  const buffer = getAudio(req.params.id);
-  if (!buffer) return res.status(404).end();
-  res.set("Content-Type", "audio/wav");
-  res.send(buffer);
 }
 
 export async function handleLeaderboardPage(req, res) {
