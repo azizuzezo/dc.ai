@@ -809,10 +809,10 @@ export async function handleVideoPage(req, res) {
         opacity:0;transition:opacity .3s ease}
       #wrap.show{opacity:1}
       #player{width:100%;flex:1;min-height:0}
-      #caption{flex:none;padding:10px 16px 4px;text-align:center}
-      #capLine1{font-size:16px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      #caption{flex:none;padding:16px 20px 10px;text-align:center}
+      #capLine1{font-size:28px;font-weight:800;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);line-height:1.25}
       #capLine1 .name{color:#86efac}
-      #capLine2{margin-top:2px;font-size:13px;font-weight:500;color:rgba(255,255,255,.9);text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      #capLine2{margin-top:4px;font-size:19px;font-weight:600;color:rgba(255,255,255,.92);text-shadow:0 2px 6px rgba(0,0,0,.6)}
     </style></head><body>
     <div id="wrap"><div id="player"></div><div id="caption"><div id="capLine1"></div><div id="capLine2"></div></div></div>
     <script src="https://www.youtube.com/iframe_api"></script>
