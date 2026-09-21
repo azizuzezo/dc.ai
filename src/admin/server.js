@@ -23,6 +23,7 @@ import {
   handleDonateStatus,
   handleOverlayPage,
   handleOverlayEvents,
+  handleOverlayAudio,
   handleLeaderboardPage,
   handleLeaderboardData,
 } from "./donatePublic.js";
@@ -76,6 +77,7 @@ export function startAdminServer() {
   app.get("/donate/status/:trxId", handleDonateStatus);
   app.get("/overlay/:token", handleOverlayPage);
   app.get("/overlay/:token/events", handleOverlayEvents);
+  app.get("/overlay/audio/:id", handleOverlayAudio);
   app.get("/overlay/:token/leaderboard", handleLeaderboardPage);
   app.get("/overlay/:token/leaderboard/data", handleLeaderboardData);
 
