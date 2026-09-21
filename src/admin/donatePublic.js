@@ -53,15 +53,18 @@ export async function handleDonatePage(req, res) {
   const presets = [10000, 25000, 50000, 100000, 200000, 500000].filter((v) => v >= min).slice(0, 6);
   if (!presets.length) presets.push(min, min * 2, min * 5);
   const wishlistItems = await db.listWishlistItemsWithProgress(settings.guild_id);
+  const preselectedWishlistId = req.query.wishlist ? Number(req.query.wishlist) : null;
+  const hasPreselected = wishlistItems.some((w) => w.id === preselectedWishlistId);
 
   const wishlistHtml = wishlistItems.length
     ? `<label>Kontribusi ke wishlist (opsional)</label>
        ${wishlistItems
          .map((w) => {
            const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
-           return `<label class="wish" for="wish-${w.id}">
+           const checked = hasPreselected && w.id === preselectedWishlistId;
+           return `<label class="wish${checked ? " active" : ""}" for="wish-${w.id}">
              <div class="wish-row">
-               <input type="radio" name="wishlistItemId" id="wish-${w.id}" value="${w.id}" />
+               <input type="radio" name="wishlistItemId" id="wish-${w.id}" value="${w.id}"${checked ? " checked" : ""} />
                <div style="flex:1">
                  <div class="wish-title">${escapeHtml(w.title)}</div>
                  <div class="wish-amounts">Rp${w.total.toLocaleString("id-ID")} / Rp${Number(w.target_amount).toLocaleString("id-ID")} (${pct}%)</div>
@@ -73,7 +76,7 @@ export async function handleDonatePage(req, res) {
          .join("")}
        <label class="wish" for="wish-none">
          <div class="wish-row">
-           <input type="radio" name="wishlistItemId" id="wish-none" value="" checked />
+           <input type="radio" name="wishlistItemId" id="wish-none" value=""${hasPreselected ? "" : " checked"} />
            <div class="wish-title" style="font-weight:500">Tidak, donasi biasa aja</div>
          </div>
        </label>`
@@ -460,45 +463,55 @@ export async function handleWishlistPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
       html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
-      #board{width:300px;padding:16px 18px;border-radius:14px;background:rgba(17,24,39,.82);
-        border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px)}
-      #board h3{margin:0 0 12px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
+      #board{width:300px;padding:18px 20px;border-radius:14px;background:rgba(17,24,39,.82);
+        border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px);box-shadow:0 8px 28px rgba(0,0,0,.4)}
+      #board h3{display:flex;align-items:center;gap:6px;margin:0 0 14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
         text-transform:uppercase;letter-spacing:.04em}
-      .item{margin:0 0 14px}
+      #empty{font-size:13px;color:rgba(255,255,255,.45)}
+      .item{margin:0 0 16px;opacity:0;transform:translateY(4px);animation:item-in .3s ease forwards}
       .item:last-child{margin-bottom:0}
-      .item-top{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:600;color:#fff;margin-bottom:4px}
-      .item-top .pct{font-size:12px;font-weight:600;color:#4ade80}
+      @media (prefers-reduced-motion: reduce){.item{animation:none;opacity:1;transform:none}}
+      @keyframes item-in{to{opacity:1;transform:translateY(0)}}
+      .item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+      .item-top .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .item-top .pct{flex:none;font-size:12px;font-weight:700;color:#4ade80}
+      .item-top .pct.done{color:#fbbf24}
       .item-amounts{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px}
       .bar{height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden}
-      .bar-fill{height:100%;background:#22c55e;border-radius:999px;transition:width .4s ease}
+      .bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:999px;transition:width .5s ease}
+      .bar-fill.done{background:linear-gradient(90deg,#f59e0b,#fbbf24);box-shadow:0 0 8px rgba(251,191,36,.6)}
     </style></head><body>
-    <div id="board"><h3>Wishlist</h3><div id="list"></div></div>
+    <div id="board"><h3>🎯 Wishlist</h3><div id="list"></div><p id="empty" style="display:none">Belum ada wishlist.</p></div>
     <script>
       function render(items) {
         const list = document.getElementById("list");
+        const empty = document.getElementById("empty");
         list.innerHTML = "";
+        empty.style.display = items.length ? "none" : "block";
         items.forEach((w) => {
           const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+          const done = pct >= 100;
           const div = document.createElement("div");
           div.className = "item";
           const top = document.createElement("div");
           top.className = "item-top";
           const title = document.createElement("span");
+          title.className = "title";
           title.textContent = w.title;
           const pctEl = document.createElement("span");
-          pctEl.className = "pct";
-          pctEl.textContent = pct + "%";
+          pctEl.className = "pct" + (done ? " done" : "");
+          pctEl.textContent = done ? "🎉 Tercapai" : pct + "%";
           top.append(title, pctEl);
           const amounts = document.createElement("div");
           amounts.className = "item-amounts";
-          amounts.textContent = "Rp" + Number(w.total).toLocaleString("id-ID") + " dari Rp" + Number(w.target_amount).toLocaleString("id-ID");
+          amounts.textContent = "Rp" + Number(w.total).toLocaleString("id-ID") + " / Rp" + Number(w.target_amount).toLocaleString("id-ID");
           const bar = document.createElement("div");
           bar.className = "bar";
           const fill = document.createElement("div");
-          fill.className = "bar-fill";
+          fill.className = "bar-fill" + (done ? " done" : "");
           fill.style.width = pct + "%";
           bar.appendChild(fill);
           div.append(top, amounts, bar);
