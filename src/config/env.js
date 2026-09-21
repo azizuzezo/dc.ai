@@ -3,6 +3,10 @@ import "dotenv/config";
 export const env = {
   discordToken: process.env.DISCORD_TOKEN,
   discordClientId: process.env.DISCORD_CLIENT_ID,
+  // Separate Discord Application used only by scripts/rich-presence.mjs, so
+  // the "Playing ..." card shows your own app name/icon instead of the
+  // bot's. Falls back to the bot's client ID if you haven't made one.
+  richPresenceClientId: process.env.RICH_PRESENCE_CLIENT_ID || process.env.DISCORD_CLIENT_ID,
 
   aiBaseUrl: process.env.AI_BASE_URL,
   aiApiKey: process.env.AI_API_KEY,
@@ -38,6 +42,10 @@ export const env = {
   lavalinkSecure: process.env.LAVALINK_SECURE === "true",
 
   joobleApiKey: process.env.JOOBLE_API_KEY,
+
+  // Used only by /donate to print a full link. Optional — without it, the
+  // command points admins to the dashboard instead of guessing the domain.
+  publicBaseUrl: process.env.PUBLIC_BASE_URL,
 };
 
 export function assertRequiredEnv() {

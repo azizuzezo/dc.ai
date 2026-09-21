@@ -9,7 +9,8 @@ export async function handleGuildsPage(req, res) {
         <a href="/guilds/${g.guild_id}/allowlist">Allowlist</a> |
         <a href="/guilds/${g.guild_id}/features">Features</a> |
         <a href="/guilds/${g.guild_id}/knowledge">Knowledge</a> |
-        <a href="/guilds/${g.guild_id}/conversations">Conversations</a>
+        <a href="/guilds/${g.guild_id}/conversations">Conversations</a> |
+        <a href="/guilds/${g.guild_id}/donations">Donations</a>
       </td></tr>`
     )
     .join("");

@@ -10,9 +10,23 @@ import { handleFeaturesPage, handleFeaturesUpdate } from "./features.js";
 import { handleKnowledgePage, handleKnowledgeAdd, handleKnowledgeDelete } from "./knowledge.js";
 import { handleConversationsPage, handleConversationDetailPage } from "./conversations.js";
 import { handleScanOperatorsPage, handleScanOperatorsAdd, handleScanOperatorsDelete } from "./scanOperators.js";
+import { handleDonationSettingsPage, handleDonationSettingsUpdate, handleRegenerateOverlayToken } from "./donations.js";
+import {
+  handleDonatePage,
+  handleDonateCreate,
+  handleDonateStatus,
+  handleOverlayPage,
+  handleOverlayEvents,
+  handleLeaderboardPage,
+  handleLeaderboardData,
+} from "./donatePublic.js";
 
 export function startAdminServer() {
   const app = express();
+  // Railway sits in front as a reverse proxy — trust its X-Forwarded-* headers
+  // so req.protocol/req.get("host") reflect the public https:// URL, used to
+  // build shareable donate/overlay links.
+  app.set("trust proxy", 1);
   app.use(express.urlencoded({ extended: false }));
   app.use(
     session({
@@ -43,6 +57,18 @@ export function startAdminServer() {
   app.get("/scan-operators", requireAuth, handleScanOperatorsPage);
   app.post("/scan-operators", requireAuth, handleScanOperatorsAdd);
   app.post("/scan-operators/:discordUserId/delete", requireAuth, handleScanOperatorsDelete);
+  app.get("/guilds/:guildId/donations", requireAuth, handleDonationSettingsPage);
+  app.post("/guilds/:guildId/donations", requireAuth, handleDonationSettingsUpdate);
+  app.post("/guilds/:guildId/donations/regenerate-token", requireAuth, handleRegenerateOverlayToken);
+
+  // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
+  app.get("/donate/:guildId", handleDonatePage);
+  app.post("/donate/:guildId", handleDonateCreate);
+  app.get("/donate/status/:trxId", handleDonateStatus);
+  app.get("/overlay/:token", handleOverlayPage);
+  app.get("/overlay/:token/events", handleOverlayEvents);
+  app.get("/overlay/:token/leaderboard", handleLeaderboardPage);
+  app.get("/overlay/:token/leaderboard/data", handleLeaderboardData);
 
   app.listen(env.adminPort, () => {
     logInfo(`Admin dashboard listening on port ${env.adminPort}`);

@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "../config/env.js";
 import { logWarn } from "./logger.js";
+import { aggregateLeaderboard } from "./donationLeaderboard.js";
 
 const supabase =
   env.supabaseUrl && env.supabaseServiceRoleKey
@@ -32,6 +34,9 @@ const memTiktokWatches = new Map(); // `${guildId}:${tiktokUsername}` -> { id, g
 const memTriviaScores = new Map(); // `${guildId}:${userId}` -> correct_count
 const memWelcomeSettings = new Map(); // guildId -> { welcome_channel_id, welcome_message, leave_channel_id, leave_message }
 const memLevels = new Map(); // `${guildId}:${userId}` -> { guild_id, user_id, xp, level }
+const memDonationSettings = new Map(); // guildId -> { guild_id, gateway_url, gateway_api_key, alert_channel_id, overlay_token, min_amount, tts_enabled, sound_enabled, leaderboard_enabled }
+const memDonations = []; // [{ id, guild_id, trx_id, donor_name, message, amount, status, expires_at, paid_at }]
+let memDonationIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -750,4 +755,172 @@ export async function getLeaderboard(guildId, limit = 10) {
     .filter((row) => row.guild_id === guildId)
     .sort((a, b) => b.xp - a.xp)
     .slice(0, limit);
+}
+
+// ---- donations (QRIS gateway) ----
+
+export async function getDonationSettings(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_settings")
+      .select("*")
+      .eq("guild_id", guildId)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return memDonationSettings.get(guildId) || null;
+}
+
+export async function getDonationSettingsByOverlayToken(token) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_settings")
+      .select("*")
+      .eq("overlay_token", token)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return Array.from(memDonationSettings.values()).find((s) => s.overlay_token === token) || null;
+}
+
+/** Creates default settings (with a fresh overlay token) the first time a guild's donation page is touched. */
+export async function ensureDonationSettings(guildId) {
+  const existing = await getDonationSettings(guildId);
+  if (existing) return existing;
+
+  const fresh = {
+    guild_id: guildId,
+    gateway_url: null,
+    gateway_api_key: null,
+    alert_channel_id: null,
+    overlay_token: randomBytes(16).toString("hex"),
+    min_amount: 5000,
+    tts_enabled: true,
+    sound_enabled: true,
+    leaderboard_enabled: true,
+  };
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_settings").insert(fresh);
+    if (error) throw error;
+    return fresh;
+  }
+  memDonationSettings.set(guildId, fresh);
+  return fresh;
+}
+
+export async function updateDonationSettings(guildId, fields) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_donation_settings")
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq("guild_id", guildId);
+    if (error) throw error;
+    return;
+  }
+  const existing = memDonationSettings.get(guildId);
+  if (existing) Object.assign(existing, fields);
+}
+
+export async function regenerateOverlayToken(guildId) {
+  const token = randomBytes(16).toString("hex");
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_settings").update({ overlay_token: token }).eq("guild_id", guildId);
+    if (error) throw error;
+    return token;
+  }
+  const existing = memDonationSettings.get(guildId);
+  if (existing) existing.overlay_token = token;
+  return token;
+}
+
+export async function createDonation({ guildId, trxId, donorName, message, amount, expiresAt }) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donations").insert({
+      guild_id: guildId,
+      trx_id: trxId,
+      donor_name: donorName,
+      message,
+      amount,
+      status: "pending",
+      expires_at: expiresAt ? expiresAt.toISOString() : null,
+    });
+    if (error) throw error;
+    return;
+  }
+  memDonations.push({
+    id: memDonationIdSeq++,
+    guild_id: guildId,
+    trx_id: trxId,
+    donor_name: donorName,
+    message,
+    amount,
+    status: "pending",
+    expires_at: expiresAt ? expiresAt.toISOString() : null,
+    paid_at: null,
+  });
+}
+
+export async function getDonationByTrxId(trxId) {
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donations").select("*").eq("trx_id", trxId).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return memDonations.find((d) => d.trx_id === trxId) || null;
+}
+
+export async function listPendingDonations() {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donations")
+      .select("id, guild_id, trx_id, donor_name, message, amount, expires_at")
+      .eq("status", "pending");
+    if (error) throw error;
+    return data || [];
+  }
+  return memDonations.filter((d) => d.status === "pending");
+}
+
+export async function markDonationPaid(trxId, paidAt = new Date()) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_donations")
+      .update({ status: "paid", paid_at: paidAt.toISOString() })
+      .eq("trx_id", trxId);
+    if (error) throw error;
+    return;
+  }
+  const row = memDonations.find((d) => d.trx_id === trxId);
+  if (row) {
+    row.status = "paid";
+    row.paid_at = paidAt.toISOString();
+  }
+}
+
+export async function markDonationExpired(trxId) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donations").update({ status: "expired" }).eq("trx_id", trxId);
+    if (error) throw error;
+    return;
+  }
+  const row = memDonations.find((d) => d.trx_id === trxId);
+  if (row) row.status = "expired";
+}
+
+export async function getDonationLeaderboard(guildId, limit = 10) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donations")
+      .select("donor_name, amount")
+      .eq("guild_id", guildId)
+      .eq("status", "paid");
+    if (error) throw error;
+    return aggregateLeaderboard(data || [], limit);
+  }
+  return aggregateLeaderboard(
+    memDonations.filter((d) => d.guild_id === guildId && d.status === "paid"),
+    limit
+  );
 }
