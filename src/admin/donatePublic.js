@@ -2,6 +2,7 @@ import * as db from "../services/db.js";
 import { createQris, qrisImageUrl } from "../services/gopayGateway.js";
 import { subscribe } from "../services/donationOverlay.js";
 import { getAudio } from "../services/ttsCache.js";
+import { extractYouTubeId } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -105,6 +106,10 @@ export async function handleDonatePage(req, res) {
 
       ${wishlistHtml}
 
+      <label for="youtubeUrl">Link video YouTube (opsional)</label>
+      <input type="text" name="youtubeUrl" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
+      <p class="hint">Diputar di layar live pas donasi kamu muncul.</p>
+
       <label class="check">
         <input type="checkbox" required />
         Saya menyatakan donasi ini dukungan pribadi, bukan transaksi komersial, dan tidak melanggar hukum yang berlaku.
@@ -160,6 +165,7 @@ export async function handleDonateCreate(req, res) {
   const message = (req.body.message || "").trim().slice(0, 200) || null;
   const rawWishlistItemId = req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null;
   const wishlistItem = rawWishlistItemId ? await db.getWishlistItem(guildId, rawWishlistItemId) : null;
+  const youtubeVideoId = extractYouTubeId(req.body.youtubeUrl);
 
   let qris;
   try {
@@ -178,6 +184,7 @@ export async function handleDonateCreate(req, res) {
       amount: qris.amount,
       expiresAt: qris.expires_at ? new Date(qris.expires_at) : null,
       wishlistItemId: wishlistItem?.id || null,
+      youtubeVideoId,
     });
   } catch (err) {
     logError(`Failed to store donation for guild ${guildId}:`, err);
@@ -496,4 +503,85 @@ export async function handleWishlistData(req, res) {
   if (!settings) return res.status(404).json({ items: [] });
   const items = await db.listWishlistItemsWithProgress(settings.guild_id);
   res.json({ items });
+}
+
+const VIDEO_MAX_SECONDS = 60;
+
+export async function handleVideoPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Inter',sans-serif}
+      #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(17,24,39,.85);
+        color:#fff;font:600 12px 'Inter',sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.15);z-index:10}
+      #unlock.hidden{display:none}
+      #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        opacity:0;transition:opacity .3s ease}
+      #wrap.show{opacity:1}
+      #player{width:100%;height:100%}
+    </style></head><body>
+    <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
+    <div id="wrap"><div id="player"></div></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+      const wrap = document.getElementById("wrap");
+      const unlockBtn = document.getElementById("unlock");
+      let audioUnlocked = false;
+      function unlockAudio() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+        unlockBtn.classList.add("hidden");
+      }
+      unlockBtn.addEventListener("click", unlockAudio);
+      document.addEventListener("click", unlockAudio);
+
+      let player = null;
+      let ready = false;
+      let hideTimer = null;
+      const queue = [];
+
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player("player", {
+          playerVars: { autoplay: 1, playsinline: 1, controls: 0, modestbranding: 1 },
+          events: {
+            onReady: () => { ready = true; drain(); },
+            onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED) hideVideo(); },
+          },
+        });
+      }
+      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+      function drain() {
+        if (!ready || !queue.length) return;
+        playVideo(queue.shift());
+      }
+
+      function playVideo(videoId) {
+        clearTimeout(hideTimer);
+        player.loadVideoById(videoId);
+        player.unMute?.();
+        wrap.classList.add("show");
+        hideTimer = setTimeout(hideVideo, ${VIDEO_MAX_SECONDS * 1000});
+      }
+
+      function hideVideo() {
+        clearTimeout(hideTimer);
+        wrap.classList.remove("show");
+        try { player?.stopVideo(); } catch {}
+      }
+
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      events.addEventListener("donation", (e) => {
+        const d = JSON.parse(e.data);
+        if (!d.youtubeVideoId) return;
+        queue.push(d.youtubeVideoId);
+        drain();
+      });
+    </script>
+  </body></html>`);
 }

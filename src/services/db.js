@@ -856,7 +856,16 @@ export async function regenerateOverlayToken(guildId) {
   return token;
 }
 
-export async function createDonation({ guildId, trxId, donorName, message, amount, expiresAt, wishlistItemId = null }) {
+export async function createDonation({
+  guildId,
+  trxId,
+  donorName,
+  message,
+  amount,
+  expiresAt,
+  wishlistItemId = null,
+  youtubeVideoId = null,
+}) {
   if (supabase) {
     const { error } = await supabase.from("bot_donations").insert({
       guild_id: guildId,
@@ -867,6 +876,7 @@ export async function createDonation({ guildId, trxId, donorName, message, amoun
       status: "pending",
       expires_at: expiresAt ? expiresAt.toISOString() : null,
       wishlist_item_id: wishlistItemId,
+      youtube_video_id: youtubeVideoId,
     });
     if (error) throw error;
     return;
@@ -882,6 +892,7 @@ export async function createDonation({ guildId, trxId, donorName, message, amoun
     expires_at: expiresAt ? expiresAt.toISOString() : null,
     paid_at: null,
     wishlist_item_id: wishlistItemId,
+    youtube_video_id: youtubeVideoId,
   });
 }
 
@@ -898,7 +909,7 @@ export async function listPendingDonations() {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_donations")
-      .select("id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id")
+      .select("id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id, youtube_video_id")
       .eq("status", "pending");
     if (error) throw error;
     return data || [];

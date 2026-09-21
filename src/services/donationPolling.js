@@ -60,6 +60,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     amount: donation.amount,
     message: donation.message,
     wishlistTitle: wishlistItem?.title || null,
+    youtubeVideoId: donation.youtube_video_id || null,
     sound: settings.sound_enabled,
   });
 

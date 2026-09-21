@@ -36,6 +36,7 @@ import {
   handleLeaderboardData,
   handleWishlistPage,
   handleWishlistData,
+  handleVideoPage,
 } from "./donatePublic.js";
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
@@ -81,7 +82,7 @@ export function startAdminServer() {
   app.post("/scan-operators/:discordUserId/delete", requireAuth, handleScanOperatorsDelete);
   // Wrapped (not passed directly) because Express always invokes route handlers
   // with a 3rd "next" argument, and handleDonationSettingsPage's 3rd param is
-  // an optional error *message* — passing it directly leaked Express's own
+  // an optional error *message*, so passing it directly leaked Express's own
   // next() function into that param, which then got rendered as its source.
   app.get("/guilds/:guildId/donations", requireAuth, (req, res) => handleDonationSettingsPage(req, res));
   app.post("/guilds/:guildId/donations", requireAuth, handleDonationSettingsUpdate);
@@ -106,6 +107,7 @@ export function startAdminServer() {
   app.get("/overlay/:token/leaderboard/data", handleLeaderboardData);
   app.get("/overlay/:token/wishlist", handleWishlistPage);
   app.get("/overlay/:token/wishlist/data", handleWishlistData);
+  app.get("/overlay/:token/video", handleVideoPage);
 
   app.listen(env.adminPort, () => {
     logInfo(`Admin dashboard listening on port ${env.adminPort}`);
