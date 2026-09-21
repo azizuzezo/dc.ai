@@ -4,8 +4,9 @@ import { checkPayment } from "./gopayGateway.js";
 import { broadcast } from "./donationOverlay.js";
 import { logError } from "./logger.js";
 
-async function announcePaid(client, settings, donation) {
-  if (settings.alert_channel_id) {
+/** Pushes a donation to the overlay (+ Discord, unless toDiscord is false). Used by the real payment sweep and by the admin dashboard's test/replay button. */
+export async function announceDonation(client, settings, donation, { toDiscord = true } = {}) {
+  if (toDiscord && client && settings.alert_channel_id) {
     try {
       const channel = await client.channels.fetch(settings.alert_channel_id);
       if (channel?.isTextBased()) {
@@ -84,7 +85,7 @@ export async function sweepPendingDonations(client) {
       if (!result?.paid) continue;
 
       await db.markDonationPaid(donation.trx_id);
-      await announcePaid(client, settings, donation);
+      await announceDonation(client, settings, donation);
     } catch (err) {
       logError(`Failed to check payment for donation ${donation.trx_id}:`, err);
     }

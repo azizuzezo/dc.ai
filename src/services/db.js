@@ -926,6 +926,24 @@ export async function markDonationExpired(trxId) {
   if (row) row.status = "expired";
 }
 
+export async function listRecentPaidDonations(guildId, limit = 10) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donations")
+      .select("trx_id, donor_name, message, amount, paid_at")
+      .eq("guild_id", guildId)
+      .eq("status", "paid")
+      .order("paid_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
+  return memDonations
+    .filter((d) => d.guild_id === guildId && d.status === "paid")
+    .sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at))
+    .slice(0, limit);
+}
+
 export async function getDonationLeaderboard(guildId, limit = 10) {
   if (supabase) {
     const { data, error } = await supabase

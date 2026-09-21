@@ -10,7 +10,13 @@ import { handleFeaturesPage, handleFeaturesUpdate } from "./features.js";
 import { handleKnowledgePage, handleKnowledgeAdd, handleKnowledgeDelete } from "./knowledge.js";
 import { handleConversationsPage, handleConversationDetailPage } from "./conversations.js";
 import { handleScanOperatorsPage, handleScanOperatorsAdd, handleScanOperatorsDelete } from "./scanOperators.js";
-import { handleDonationSettingsPage, handleDonationSettingsUpdate, handleRegenerateOverlayToken } from "./donations.js";
+import {
+  handleDonationSettingsPage,
+  handleDonationSettingsUpdate,
+  handleRegenerateOverlayToken,
+  handleTestAlert,
+  handleReplayDonation,
+} from "./donations.js";
 import {
   handleDonatePage,
   handleDonateCreate,
@@ -60,6 +66,8 @@ export function startAdminServer() {
   app.get("/guilds/:guildId/donations", requireAuth, handleDonationSettingsPage);
   app.post("/guilds/:guildId/donations", requireAuth, handleDonationSettingsUpdate);
   app.post("/guilds/:guildId/donations/regenerate-token", requireAuth, handleRegenerateOverlayToken);
+  app.post("/guilds/:guildId/donations/test-alert", requireAuth, handleTestAlert);
+  app.post("/guilds/:guildId/donations/replay/:trxId", requireAuth, handleReplayDonation);
 
   // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
   // :identifier is either a custom slug or a raw guild ID (see db.getDonationSettingsByIdentifier).

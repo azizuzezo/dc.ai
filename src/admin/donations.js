@@ -1,4 +1,5 @@
 import * as db from "../services/db.js";
+import { announceDonation } from "../services/donationPolling.js";
 import { layout } from "./layout.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]{3,32}$/;
@@ -14,6 +15,7 @@ export async function handleDonationSettingsPage(req, res, error) {
   const donateUrl = `${baseUrl(req)}/donate/${settings.slug || guildId}`;
   const overlayUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}`;
   const leaderboardUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/leaderboard`;
+  const recent = await db.listRecentPaidDonations(guildId, 10);
 
   res.send(
     layout(`
@@ -57,6 +59,31 @@ export async function handleDonationSettingsPage(req, res, error) {
         settings.leaderboard_enabled
           ? `<p><b>Leaderboard widget</b> (Browser Source terpisah, opsional):<br/><a href="${leaderboardUrl}">${leaderboardUrl}</a></p>`
           : ""
+      }
+      <hr/>
+      <h3>Test alert</h3>
+      <p>Nge-trigger overlay langsung (buat ngecek posisi/tampilan di OBS/TikTok Live Studio) — nggak nge-post ke Discord dan nggak masuk leaderboard.</p>
+      <form method="post" action="/guilds/${guildId}/donations/test-alert">
+        <input type="text" name="donorName" placeholder="Nama (default: Test Donatur)" style="width:100%" />
+        <input type="number" name="amount" placeholder="Jumlah (default: 10000)" min="1" style="width:100%" />
+        <input type="text" name="message" placeholder="Pesan (opsional)" style="width:100%" />
+        <button type="submit">🔔 Trigger test alert</button>
+      </form>
+      <h3>Donasi terakhir</h3>
+      ${
+        recent.length
+          ? `<table border="1" cellpadding="6"><tr><th>Nama</th><th>Jumlah</th><th>Pesan</th><th>Dibayar</th><th></th></tr>${recent
+              .map(
+                (d) => `<tr>
+                <td>${d.donor_name}</td>
+                <td>Rp${Number(d.amount).toLocaleString("id-ID")}</td>
+                <td>${d.message || ""}</td>
+                <td>${d.paid_at ? new Date(d.paid_at).toLocaleString("id-ID") : ""}</td>
+                <td><form method="post" action="/guilds/${guildId}/donations/replay/${d.trx_id}"><button type="submit">🔁 Replay</button></form></td>
+              </tr>`
+              )
+              .join("")}</table>`
+          : "<p>Belum ada donasi yang masuk.</p>"
       }
       <p><a href="/guilds">Back to guilds</a></p>
     `)
@@ -105,5 +132,32 @@ export async function handleRegenerateOverlayToken(req, res) {
   const { guildId } = req.params;
   await db.ensureDonationSettings(guildId);
   await db.regenerateOverlayToken(guildId);
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleTestAlert(req, res) {
+  const { guildId } = req.params;
+  const settings = await db.ensureDonationSettings(guildId);
+  await announceDonation(
+    null,
+    settings,
+    {
+      guild_id: guildId,
+      donor_name: req.body.donorName?.trim().slice(0, 40) || "Test Donatur",
+      amount: Number(req.body.amount) || 10000,
+      message: req.body.message?.trim().slice(0, 200) || null,
+    },
+    { toDiscord: false }
+  );
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleReplayDonation(req, res) {
+  const { guildId, trxId } = req.params;
+  const settings = await db.ensureDonationSettings(guildId);
+  const donation = await db.getDonationByTrxId(trxId);
+  if (donation && donation.guild_id === guildId) {
+    await announceDonation(null, settings, donation, { toDiscord: false });
+  }
   res.redirect(`/guilds/${guildId}/donations`);
 }
