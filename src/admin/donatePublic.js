@@ -298,6 +298,40 @@ export async function handleOverlayPage(req, res) {
         }
       }
 
+      // speechSynthesis.getVoices() can return [] right after the page loads,
+      // even in browsers that do have voices, until "voiceschanged" fires
+      // once. Speaking before that can silently no-op, so this waits for a
+      // real voice list (falling back to a timer in case the event never
+      // fires) instead of calling speak() blind.
+      function speakWhenReady(text) {
+        if (!window.speechSynthesis) {
+          console.warn("[overlay] speechSynthesis is not available in this browser.");
+          return;
+        }
+        const go = () => {
+          const voices = window.speechSynthesis.getVoices();
+          if (!voices.length) {
+            console.warn("[overlay] No TTS voices installed in this browser/OS — narration will stay silent. " +
+              "This is a browser/OS limitation, not something the page can fix.");
+          }
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          const idVoice = voices.find((v) => v.lang?.startsWith("id"));
+          if (idVoice) utter.voice = idVoice;
+          utter.lang = "id-ID";
+          utter.rate = 1;
+          utter.volume = 1;
+          utter.onerror = (e) => console.error("[overlay] TTS error:", e.error);
+          window.speechSynthesis.speak(utter);
+        };
+        if (window.speechSynthesis.getVoices().length) {
+          go();
+        } else {
+          window.speechSynthesis.addEventListener("voiceschanged", go, { once: true });
+          setTimeout(go, 500);
+        }
+      }
+
       function showDonation(d) {
         document.getElementById("name").textContent = d.donorName + " ngasih dukungan!";
         document.getElementById("amount").textContent = "Rp" + Number(d.amount).toLocaleString("id-ID");
@@ -306,21 +340,14 @@ export async function handleOverlayPage(req, res) {
         card.classList.add("show");
         burstConfetti();
         if (d.sound) chime();
-        if (d.tts && window.speechSynthesis) {
-          try {
-            window.speechSynthesis.cancel();
-            const text = "Rp" + d.amount + " dari " + d.donorName + (d.message ? ". " + d.message : "");
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.lang = "id-ID";
-            utter.rate = 1;
-            utter.volume = 1;
-            window.speechSynthesis.speak(utter);
-          } catch {}
+        if (d.tts) {
+          const text = "Rp" + d.amount + " dari " + d.donorName + (d.message ? ". " + d.message : "");
+          setTimeout(() => speakWhenReady(text), 2000);
         }
         setTimeout(() => {
           card.classList.add("hide");
           card.classList.remove("show");
-        }, 6000);
+        }, 8000); // gives the 2s-delayed TTS room to finish before the card fades
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => showDonation(JSON.parse(e.data)));
