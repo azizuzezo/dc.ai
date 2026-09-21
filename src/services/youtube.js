@@ -22,3 +22,18 @@ export function extractYouTubeId(input) {
 
   return id && /^[\w-]{11}$/.test(id) ? id : null;
 }
+
+/** Parses "mm:ss", "h:mm:ss", or a plain number of seconds into an integer. Returns null if empty/unparseable/negative. */
+export function parseTimeToSeconds(input) {
+  if (input == null) return null;
+  const trimmed = String(input).trim();
+  if (!trimmed) return null;
+
+  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+
+  const parts = trimmed.split(":");
+  if (parts.length < 2 || parts.length > 3 || !parts.every((p) => /^\d+$/.test(p))) return null;
+  const nums = parts.map(Number);
+  const seconds = nums.length === 3 ? nums[0] * 3600 + nums[1] * 60 + nums[2] : nums[0] * 60 + nums[1];
+  return seconds >= 0 ? seconds : null;
+}

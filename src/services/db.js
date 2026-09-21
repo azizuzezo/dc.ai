@@ -865,6 +865,8 @@ export async function createDonation({
   expiresAt,
   wishlistItemId = null,
   youtubeVideoId = null,
+  youtubeStartSeconds = null,
+  youtubeEndSeconds = null,
 }) {
   if (supabase) {
     const { error } = await supabase.from("bot_donations").insert({
@@ -877,6 +879,8 @@ export async function createDonation({
       expires_at: expiresAt ? expiresAt.toISOString() : null,
       wishlist_item_id: wishlistItemId,
       youtube_video_id: youtubeVideoId,
+      youtube_start_seconds: youtubeStartSeconds,
+      youtube_end_seconds: youtubeEndSeconds,
     });
     if (error) throw error;
     return;
@@ -891,6 +895,8 @@ export async function createDonation({
     status: "pending",
     expires_at: expiresAt ? expiresAt.toISOString() : null,
     paid_at: null,
+    youtube_start_seconds: youtubeStartSeconds,
+    youtube_end_seconds: youtubeEndSeconds,
     wishlist_item_id: wishlistItemId,
     youtube_video_id: youtubeVideoId,
   });
@@ -909,7 +915,9 @@ export async function listPendingDonations() {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_donations")
-      .select("id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id, youtube_video_id")
+      .select(
+        "id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id, youtube_video_id, youtube_start_seconds, youtube_end_seconds"
+      )
       .eq("status", "pending");
     if (error) throw error;
     return data || [];

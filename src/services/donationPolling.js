@@ -61,6 +61,8 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     message: donation.message,
     wishlistTitle: wishlistItem?.title || null,
     youtubeVideoId: donation.youtube_video_id || null,
+    youtubeStart: donation.youtube_start_seconds ?? null,
+    youtubeEnd: donation.youtube_end_seconds ?? null,
     sound: settings.sound_enabled,
   });
 

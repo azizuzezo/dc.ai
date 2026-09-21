@@ -2,7 +2,7 @@ import * as db from "../services/db.js";
 import { createQris, qrisImageUrl } from "../services/gopayGateway.js";
 import { subscribe } from "../services/donationOverlay.js";
 import { getAudio } from "../services/ttsCache.js";
-import { extractYouTubeId } from "../services/youtube.js";
+import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -109,6 +109,16 @@ export async function handleDonatePage(req, res) {
       <label for="youtubeUrl">Link video YouTube (opsional)</label>
       <input type="text" name="youtubeUrl" id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
       <p class="hint">Diputar di layar live pas donasi kamu muncul.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label for="youtubeStart" style="margin-top:8px">Mulai dari (mm:ss)</label>
+          <input type="text" name="youtubeStart" id="youtubeStart" placeholder="0:00" />
+        </div>
+        <div>
+          <label for="youtubeEnd" style="margin-top:8px">Sampai (mm:ss, opsional)</label>
+          <input type="text" name="youtubeEnd" id="youtubeEnd" placeholder="1:30" />
+        </div>
+      </div>
 
       <label class="check">
         <input type="checkbox" required />
@@ -166,6 +176,9 @@ export async function handleDonateCreate(req, res) {
   const rawWishlistItemId = req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null;
   const wishlistItem = rawWishlistItemId ? await db.getWishlistItem(guildId, rawWishlistItemId) : null;
   const youtubeVideoId = extractYouTubeId(req.body.youtubeUrl);
+  let youtubeStartSeconds = youtubeVideoId ? parseTimeToSeconds(req.body.youtubeStart) : null;
+  let youtubeEndSeconds = youtubeVideoId ? parseTimeToSeconds(req.body.youtubeEnd) : null;
+  if (youtubeEndSeconds != null && youtubeEndSeconds <= (youtubeStartSeconds || 0)) youtubeEndSeconds = null;
 
   let qris;
   try {
@@ -185,6 +198,8 @@ export async function handleDonateCreate(req, res) {
       expiresAt: qris.expires_at ? new Date(qris.expires_at) : null,
       wishlistItemId: wishlistItem?.id || null,
       youtubeVideoId,
+      youtubeStartSeconds,
+      youtubeEndSeconds,
     });
   } catch (err) {
     logError(`Failed to store donation for guild ${guildId}:`, err);
@@ -566,17 +581,21 @@ export async function handleVideoPage(req, res) {
         playVideo(queue.shift());
       }
 
-      function durationMsFor(amount) {
-        const seconds = Math.min(${VIDEO_MAX_SECONDS}, Math.max(${VIDEO_MIN_SECONDS}, Math.floor(amount / ${VIDEO_RP_PER_SECOND})));
+      // The donor's chosen clip length (end - start) wins when given; otherwise
+      // it falls back to the amount-scaled length from the start point. Either
+      // way it's clamped to [MIN,MAX] so the admin's cap always holds.
+      function durationMsFor(item) {
+        const requested = item.end != null ? item.end - item.start : Math.floor(item.amount / ${VIDEO_RP_PER_SECOND});
+        const seconds = Math.min(${VIDEO_MAX_SECONDS}, Math.max(${VIDEO_MIN_SECONDS}, requested));
         return seconds * 1000;
       }
 
       function playVideo(item) {
         clearTimeout(hideTimer);
-        player.loadVideoById(item.videoId);
+        player.loadVideoById({ videoId: item.videoId, startSeconds: item.start });
         player.unMute?.();
         wrap.classList.add("show");
-        hideTimer = setTimeout(hideVideo, durationMsFor(item.amount));
+        hideTimer = setTimeout(hideVideo, durationMsFor(item));
       }
 
       function hideVideo() {
@@ -589,7 +608,12 @@ export async function handleVideoPage(req, res) {
       events.addEventListener("donation", (e) => {
         const d = JSON.parse(e.data);
         if (!d.youtubeVideoId) return;
-        queue.push({ videoId: d.youtubeVideoId, amount: Number(d.amount) || 0 });
+        queue.push({
+          videoId: d.youtubeVideoId,
+          amount: Number(d.amount) || 0,
+          start: d.youtubeStart || 0,
+          end: d.youtubeEnd ?? null,
+        });
         drain();
       });
     </script>

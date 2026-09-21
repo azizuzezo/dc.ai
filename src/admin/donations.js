@@ -1,6 +1,6 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
-import { extractYouTubeId } from "../services/youtube.js";
+import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { layout, guildTabs, crumbs } from "./layout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -171,6 +171,16 @@ export async function handleDonationSettingsPage(req, res, error) {
         }
         <label for="testYoutubeUrl">YouTube link (optional)</label>
         <input id="testYoutubeUrl" type="text" name="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label for="testYoutubeStart">Start (mm:ss)</label>
+            <input id="testYoutubeStart" type="text" name="youtubeStart" placeholder="0:00" />
+          </div>
+          <div>
+            <label for="testYoutubeEnd">End (mm:ss)</label>
+            <input id="testYoutubeEnd" type="text" name="youtubeEnd" placeholder="1:30" />
+          </div>
+        </div>
         <div class="actions"><button type="submit" class="btn-primary">Trigger test alert</button></div>
       </form>
 
@@ -244,6 +254,8 @@ export async function handleTestAlert(req, res) {
       message: req.body.message?.trim().slice(0, 200) || null,
       wishlist_item_id: req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null,
       youtube_video_id: extractYouTubeId(req.body.youtubeUrl),
+      youtube_start_seconds: parseTimeToSeconds(req.body.youtubeStart),
+      youtube_end_seconds: parseTimeToSeconds(req.body.youtubeEnd),
     },
     { toDiscord: false }
   );

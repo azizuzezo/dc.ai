@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { extractYouTubeId } from "../src/services/youtube.js";
+import { extractYouTubeId, parseTimeToSeconds } from "../src/services/youtube.js";
 
 test("extracts id from a standard watch URL", () => {
   assert.equal(extractYouTubeId("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ");
@@ -37,4 +37,27 @@ test("returns null for a malformed URL", () => {
 test("returns null for empty input", () => {
   assert.equal(extractYouTubeId(""), null);
   assert.equal(extractYouTubeId(null), null);
+});
+
+test("parseTimeToSeconds handles mm:ss", () => {
+  assert.equal(parseTimeToSeconds("1:30"), 90);
+  assert.equal(parseTimeToSeconds("0:05"), 5);
+});
+
+test("parseTimeToSeconds handles h:mm:ss", () => {
+  assert.equal(parseTimeToSeconds("1:02:03"), 3723);
+});
+
+test("parseTimeToSeconds handles a plain number of seconds", () => {
+  assert.equal(parseTimeToSeconds("90"), 90);
+  assert.equal(parseTimeToSeconds("0"), 0);
+});
+
+test("parseTimeToSeconds returns null for empty/malformed input", () => {
+  assert.equal(parseTimeToSeconds(""), null);
+  assert.equal(parseTimeToSeconds(null), null);
+  assert.equal(parseTimeToSeconds(undefined), null);
+  assert.equal(parseTimeToSeconds("abc"), null);
+  assert.equal(parseTimeToSeconds("1:2:3:4"), null);
+  assert.equal(parseTimeToSeconds("-5"), null);
 });
