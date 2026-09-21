@@ -1,5 +1,6 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
+import { extractYouTubeId } from "../services/youtube.js";
 import { layout, guildTabs, crumbs } from "./layout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -168,6 +169,8 @@ export async function handleDonationSettingsPage(req, res, error) {
                </select>`
             : ""
         }
+        <label for="testYoutubeUrl">YouTube link (optional)</label>
+        <input id="testYoutubeUrl" type="text" name="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
         <div class="actions"><button type="submit" class="btn-primary">Trigger test alert</button></div>
       </form>
 
@@ -240,6 +243,7 @@ export async function handleTestAlert(req, res) {
       amount: Number(req.body.amount) || 10000,
       message: req.body.message?.trim().slice(0, 200) || null,
       wishlist_item_id: req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null,
+      youtube_video_id: extractYouTubeId(req.body.youtubeUrl),
     },
     { toDiscord: false }
   );
