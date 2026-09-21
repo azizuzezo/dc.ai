@@ -6,6 +6,9 @@ import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
+/** Attaching a YouTube clip requires a bigger donation than the guild's own minimum. */
+const VIDEO_MIN_AMOUNT = 25000;
+
 /** Clean green checkout style (matches the streamer's SociaBuzz reference) for the donate form + QR pages. */
 const CHECKOUT_STYLE = `
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -216,7 +219,7 @@ export async function handleDonatePage(req, res) {
       <button type="button" class="back-btn" id="backBtn">&larr; Kembali</button>
       <form class="card" id="donateForm" method="post" action="/donate/${identifier}">
         <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
-        <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})<span class="required-mark">*</span></label>
+        <label><span id="amountLabelText">Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</span><span class="required-mark">*</span></label>
         <div class="pills">
           ${presets.map((p) => `<button type="button" class="pill" data-amount="${p}">${p.toLocaleString("id-ID")}</button>`).join("")}
         </div>
@@ -313,6 +316,9 @@ export async function handleDonatePage(req, res) {
       });
       document.getElementById("backBtn")?.addEventListener("click", () => showStep(step2, step1));
 
+      const baseMinAmount = ${min};
+      const videoMinAmount = Math.max(baseMinAmount, ${VIDEO_MIN_AMOUNT});
+      const amountLabelText = document.getElementById("amountLabelText");
       const youtubeToggle = document.getElementById("youtubeToggle");
       const youtubeFields = document.getElementById("youtubeFields");
       const youtubeToggleLabel = document.getElementById("youtubeToggleLabel");
@@ -320,6 +326,10 @@ export async function handleDonatePage(req, res) {
         const expanded = youtubeFields.classList.toggle("hidden") === false;
         youtubeToggle.classList.toggle("expanded", expanded);
         youtubeToggleLabel.textContent = expanded ? "Batalkan video YouTube" : "Tambahin video YouTube (opsional)";
+        amountInput.min = expanded ? videoMinAmount : baseMinAmount;
+        amountLabelText.textContent = expanded
+          ? "Nominal (Rp, minimal " + videoMinAmount.toLocaleString("id-ID") + " karena pakai video)"
+          : "Nominal (Rp, minimal " + baseMinAmount.toLocaleString("id-ID") + ")";
         if (!expanded) {
           document.getElementById("youtubeUrl").value = "";
           document.getElementById("youtubeStart").value = "";
@@ -365,6 +375,9 @@ export async function handleDonateCreate(req, res) {
   const rawWishlistItemId = req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null;
   const wishlistItem = rawWishlistItemId ? await db.getWishlistItem(guildId, rawWishlistItemId) : null;
   const youtubeVideoId = extractYouTubeId(req.body.youtubeUrl);
+  if (youtubeVideoId && amount < Math.max(settings.min_amount, VIDEO_MIN_AMOUNT)) {
+    return res.status(400).send(`Minimal donasi Rp${VIDEO_MIN_AMOUNT.toLocaleString("id-ID")} kalau mau nyertain video YouTube.`);
+  }
   let youtubeStartSeconds = youtubeVideoId ? parseTimeToSeconds(req.body.youtubeStart) : null;
   let youtubeEndSeconds = youtubeVideoId ? parseTimeToSeconds(req.body.youtubeEnd) : null;
   if (youtubeEndSeconds != null && youtubeEndSeconds <= (youtubeStartSeconds || 0)) youtubeEndSeconds = null;
