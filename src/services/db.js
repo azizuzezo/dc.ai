@@ -958,7 +958,7 @@ export async function listRecentPaidDonations(guildId, limit = 10) {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_donations")
-      .select("trx_id, donor_name, message, amount, paid_at")
+      .select("trx_id, donor_name, message, amount, paid_at, wishlist_item_id")
       .eq("guild_id", guildId)
       .eq("status", "paid")
       .order("paid_at", { ascending: false })

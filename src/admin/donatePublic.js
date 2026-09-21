@@ -30,16 +30,40 @@ const CHECKOUT_STYLE = `
     .counter{font-size:12px;color:var(--muted);text-align:right}
     .check{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:500;margin-top:14px}
     .check input{width:18px;height:18px;margin-top:2px;accent-color:var(--green)}
-    .wish{display:block;width:100%;text-align:left;background:#fff;font:inherit;color:inherit;
-      border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:10px;cursor:pointer}
-    .wish.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
-    .wish-title{font-weight:700;font-size:14px}
-    .wish-amounts{font-size:12px;color:var(--muted);margin-top:2px}
     .bar{height:6px;background:var(--track);border-radius:999px;margin-top:8px;overflow:hidden}
     .bar-fill{height:100%;background:var(--green-light)}
-    .shortcuts{margin-top:4px}
-    .shortcuts-hint{font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0}
     .hidden{display:none}
+    .divider{border:none;border-top:1px solid var(--border);margin:28px 0 0}
+    .section{margin-top:24px}
+    .section-title{font-size:19px;font-weight:800;text-align:center;margin:0 0 16px}
+    .link-btn{display:block;background:none;border:none;padding:0;margin-top:8px;
+      font:600 13px 'Inter',sans-serif;color:var(--green);cursor:pointer;text-decoration:underline}
+
+    .wishlist-grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media (min-width:480px){.wishlist-grid{grid-template-columns:1fr 1fr}}
+    .wish-card{border:1px solid var(--border);border-radius:14px;padding:16px;background:#fff}
+    .wish-card.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+    .wish-card .wish-title{font-weight:800;font-size:15px}
+    .wish-target{font-size:12px;color:var(--muted);margin-top:4px}
+    .wish-current{font-size:13px;font-weight:700;margin:2px 0 8px}
+    .wish-contrib{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+    .wish-pick{width:100%;margin-top:14px;padding:11px;font-size:14px}
+
+    .supporters{list-style:none;margin:0;padding:0}
+    .supporters li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
+    .supporters li:last-child{border-bottom:none}
+    .supporters li.more-hidden{display:none}
+    .rank-badge{width:26px;height:26px;border-radius:50%;background:#d1d5db;color:#fff;font-weight:800;font-size:12px;
+      display:flex;align-items:center;justify-content:center;flex:none}
+    .rank-badge.top{background:var(--green-light)}
+    .supporter-name{font-weight:700;font-size:14px}
+
+    .message-item{padding:14px 0;border-bottom:1px solid var(--border)}
+    .message-item:last-child{border-bottom:none}
+    .message-item.more-hidden{display:none}
+    .message-name{font-weight:700;font-size:14px}
+    .message-wishlist{font-size:12px;color:var(--green);margin-top:2px}
+    .message-text{font-size:14px;margin-top:4px}
   </style>`;
 
 export async function handleDonatePage(req, res) {
@@ -60,22 +84,78 @@ export async function handleDonatePage(req, res) {
   const wishlistItems = await db.listWishlistItemsWithProgress(settings.guild_id);
   const preselectedWishlistId = req.query.wishlist ? Number(req.query.wishlist) : null;
   const hasPreselected = wishlistItems.some((w) => w.id === preselectedWishlistId);
+  const wishlistTitleById = new Map(wishlistItems.map((w) => [w.id, w.title]));
 
-  const shortcutsHtml = `<div class="shortcuts">
-         <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
-         ${wishlistItems
-           .map((w) => {
-             const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
-             const active = hasPreselected && w.id === preselectedWishlistId;
-             return `<button type="button" class="wish${active ? " active" : ""}" data-wishlist-id="${w.id}">
-               <div class="wish-title">${escapeHtml(w.title)}</div>
-               <div class="wish-amounts">Rp${w.total.toLocaleString("id-ID")} / Rp${Number(w.target_amount).toLocaleString("id-ID")} (${pct}%)</div>
-               <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
-             </button>`;
+  const wishlistSectionHtml = wishlistItems.length
+    ? `<hr class="divider" />
+       <div class="section">
+         <h2 class="section-title">Wishlist</h2>
+         <div class="wishlist-grid">
+           ${wishlistItems
+             .map((w) => {
+               const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+               const active = hasPreselected && w.id === preselectedWishlistId;
+               const contributors = w.contributors || [];
+               const fmt = (c) => `${escapeHtml(c.donorName)} (Rp${Number(c.total).toLocaleString("id-ID")})`;
+               const preview = contributors.slice(0, 3).map(fmt).join(", ");
+               const rest = contributors.slice(3).map(fmt).join(", ");
+               return `<div class="wish-card${active ? " active" : ""}">
+                 <div class="wish-title">${escapeHtml(w.title)}</div>
+                 <div class="wish-target">Target Rp${Number(w.target_amount).toLocaleString("id-ID")}</div>
+                 <div class="wish-current">Rp${w.total.toLocaleString("id-ID")} (${pct}%)</div>
+                 <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+                 ${
+                   contributors.length
+                     ? `<div class="wish-contrib">Kontributor: <span class="contrib-preview">${preview}</span><span class="contrib-rest hidden">${rest ? ", " + rest : ""}</span></div>`
+                     : ""
+                 }
+                 ${rest ? `<button type="button" class="link-btn detail-toggle">Tampilkan detail</button>` : ""}
+                 <button type="button" class="btn-primary wish-pick" data-wishlist-id="${w.id}">Pilih</button>
+               </div>`;
+             })
+             .join("")}
+         </div>
+       </div>`
+    : "";
+
+  const leaderboard = await db.getDonationLeaderboard(settings.guild_id, 25);
+  const topSupportersHtml = leaderboard.length
+    ? `<hr class="divider" />
+       <div class="section">
+         <h2 class="section-title">Top Supporters</h2>
+         <ol class="supporters">
+           ${leaderboard
+             .map(
+               (d, i) => `<li class="${i >= 10 ? "more-hidden" : ""}">
+                 <span class="rank-badge${i < 3 ? " top" : ""}">${i + 1}</span>
+                 <span class="supporter-name">${escapeHtml(d.donorName)}</span>
+               </li>`
+             )
+             .join("")}
+         </ol>
+         ${leaderboard.length > 10 ? `<button type="button" class="link-btn" id="supportersToggle" style="text-align:center">Lihat semua</button>` : ""}
+       </div>`
+    : "";
+
+  const recentDonations = await db.listRecentPaidDonations(settings.guild_id, 30);
+  const messages = recentDonations.filter((d) => d.message);
+  const pesanHtml = messages.length
+    ? `<hr class="divider" />
+       <div class="section">
+         <h2 class="section-title">Pesan</h2>
+         ${messages
+           .map((d, i) => {
+             const wishTitle = d.wishlist_item_id ? wishlistTitleById.get(d.wishlist_item_id) : null;
+             return `<div class="message-item${i >= 5 ? " more-hidden" : ""}">
+               <div class="message-name">${escapeHtml(d.donor_name)}</div>
+               ${wishTitle ? `<div class="message-wishlist">Kontribusi ke wishlist: ${escapeHtml(wishTitle)}</div>` : ""}
+               <div class="message-text">&ldquo;${escapeHtml(d.message)}&rdquo;</div>
+             </div>`;
            })
            .join("")}
-         ${wishlistItems.length ? `<p class="shortcuts-hint">Atau isi donasi bebas di bawah tanpa pilih wishlist.</p>` : ""}
-       </div>`;
+         ${messages.length > 5 ? `<button type="button" class="link-btn" id="messagesToggle" style="text-align:center">Lihat semua</button>` : ""}
+       </div>`
+    : "";
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${title}</title>
@@ -86,9 +166,13 @@ export async function handleDonatePage(req, res) {
         display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
       <h1 style="margin:0;font-size:22px">${title}</h1>
       ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
+      <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
     </div>
-    ${shortcutsHtml}
-    <form class="card${hasPreselected ? "" : " hidden"}" id="donateForm" method="post" action="/donate/${identifier}">
+    ${wishlistSectionHtml}
+    ${topSupportersHtml}
+    ${pesanHtml}
+    <hr class="divider" />
+    <form class="card${hasPreselected ? "" : " hidden"}" id="donateForm" method="post" action="/donate/${identifier}" style="margin-top:24px">
       <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
       <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</label>
       <div class="pills">
@@ -153,18 +237,18 @@ export async function handleDonatePage(req, res) {
       message.addEventListener("input", () => { msgCount.textContent = message.value.length; });
 
       const wishlistItemId = document.getElementById("wishlistItemId");
-      const wishCards = document.querySelectorAll(".wish[data-wishlist-id]");
+      const wishCards = document.querySelectorAll(".wish-card");
       const donateForm = document.getElementById("donateForm");
       function openForm() {
         donateForm.classList.remove("hidden");
         donateForm.scrollIntoView({ behavior: "smooth", block: "start" });
         amountInput.focus();
       }
-      wishCards.forEach((card) => {
-        card.addEventListener("click", () => {
+      document.querySelectorAll(".wish-pick[data-wishlist-id]").forEach((btn) => {
+        btn.addEventListener("click", () => {
           wishCards.forEach((c) => c.classList.remove("active"));
-          card.classList.add("active");
-          wishlistItemId.value = card.dataset.wishlistId;
+          btn.closest(".wish-card")?.classList.add("active");
+          wishlistItemId.value = btn.dataset.wishlistId;
           openForm();
         });
       });
@@ -172,6 +256,21 @@ export async function handleDonatePage(req, res) {
         wishCards.forEach((c) => c.classList.remove("active"));
         wishlistItemId.value = "";
         openForm();
+      });
+
+      document.querySelectorAll(".detail-toggle").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          btn.previousElementSibling?.querySelector(".contrib-rest")?.classList.remove("hidden");
+          btn.style.display = "none";
+        });
+      });
+      document.getElementById("supportersToggle")?.addEventListener("click", (e) => {
+        document.querySelectorAll(".supporters li.more-hidden").forEach((li) => li.classList.remove("more-hidden"));
+        e.currentTarget.style.display = "none";
+      });
+      document.getElementById("messagesToggle")?.addEventListener("click", (e) => {
+        document.querySelectorAll(".message-item.more-hidden").forEach((el) => el.classList.remove("more-hidden"));
+        e.currentTarget.style.display = "none";
       });
     </script>
   </body></html>`);
