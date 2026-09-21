@@ -578,12 +578,38 @@ export async function handleOverlayPage(req, res) {
           stage.classList.remove("show");
         }, 8000); // gives the TTS narration (arrives separately, a few seconds later) room to finish
       }
+      // Narration is normally generated server-side (Gemini TTS) and arrives
+      // a few seconds later as its own "tts" event. If that never shows up
+      // (no API key configured, quota out, or generation failed), this falls
+      // back to the viewer's own browser voice via the Web Speech API so the
+      // donation still gets read out loud one way or another.
+      let pendingNarration = null;
+      let narrationFallbackTimer = null;
+      function speakFallback(text) {
+        if (!text || !("speechSynthesis" in window)) return;
+        try {
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = "id-ID";
+          window.speechSynthesis.speak(utter);
+        } catch {}
+      }
+
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
-      events.addEventListener("donation", (e) => showDonation(JSON.parse(e.data)));
-      // Narration is generated server-side (Gemini TTS, always works the
-      // same regardless of the viewer's browser/OS) and arrives a few
-      // seconds after the "donation" event, so it's played on its own here.
+      events.addEventListener("donation", (e) => {
+        const d = JSON.parse(e.data);
+        showDonation(d);
+        clearTimeout(narrationFallbackTimer);
+        pendingNarration = d.narration || null;
+        if (pendingNarration) {
+          narrationFallbackTimer = setTimeout(() => {
+            if (pendingNarration) speakFallback(pendingNarration);
+            pendingNarration = null;
+          }, 4000);
+        }
+      });
       events.addEventListener("tts", (e) => {
+        clearTimeout(narrationFallbackTimer);
+        pendingNarration = null;
         try {
           new Audio(JSON.parse(e.data).url).play().catch(() => {});
         } catch {}

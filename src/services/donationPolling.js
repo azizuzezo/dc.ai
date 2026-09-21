@@ -64,6 +64,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     youtubeStart: donation.youtube_start_seconds ?? null,
     youtubeEnd: donation.youtube_end_seconds ?? null,
     sound: settings.sound_enabled,
+    narration: settings.tts_enabled ? narration : null,
   });
 
   if (settings.leaderboard_enabled) {
