@@ -44,14 +44,27 @@ narration arriving a few seconds after the visual alert instead of
 instantly. Without `GEMINI_TTS_API_KEYS`, the alert still shows and chimes,
 it just won't narrate the message.
 
-Saving generates three links shown on that page:
+Saving generates several links shown on that page:
 - **Donate link** (`/donate/<guildId>`) — share this in your TikTok/
   Instagram bio for viewers to send support
 - **Overlay link** (`/overlay/<token>`) — add as a Browser Source in OBS or
-  TikTok Live Studio (transparent background; e.g. 500×300, positioned
+  TikTok Live Studio (transparent background; e.g. 380×260, positioned
   wherever you want the alert to pop up)
 - **Leaderboard link** (`/overlay/<token>/leaderboard`) — optional second
-  Browser Source (e.g. 300×300) showing top donators, updates live
+  Browser Source (e.g. 280×320) showing top donators, updates live
+- **Wishlist widget** (`/overlay/<token>/wishlist`) — optional Browser Source
+  (e.g. 320×140) showing one wishlist milestone at a time, rotating every 6s
+- **Video widget** (`/overlay/<token>/video`) — optional full-window Browser
+  Source that plays a donor's attached YouTube clip with their name/message
+  captioned underneath
+
+All four are fully transparent, so the box only needs to be roughly as big
+as its visible content — since OBS shows the source's actual configured
+box size (not just its transparent pixels) when you're arranging your
+scene, an oversized box can sit on top of other sources and get in the way
+of clicking them, even though nothing is visibly drawn there. If a widget
+still feels like it's blocking something else, drag its resize handle in
+OBS's edit mode down until it just hugs the content.
 
 If the overlay link ever leaks, hit **Regenerate overlay link** to rotate it,
 the old link stops working immediately.
