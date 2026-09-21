@@ -39,6 +39,7 @@ const CHECKOUT_STYLE = `
     .bar-fill{height:100%;background:var(--green-light)}
     .shortcuts{margin-top:4px}
     .shortcuts-hint{font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0}
+    .hidden{display:none}
   </style>`;
 
 export async function handleDonatePage(req, res) {
@@ -60,8 +61,7 @@ export async function handleDonatePage(req, res) {
   const preselectedWishlistId = req.query.wishlist ? Number(req.query.wishlist) : null;
   const hasPreselected = wishlistItems.some((w) => w.id === preselectedWishlistId);
 
-  const shortcutsHtml = wishlistItems.length
-    ? `<div class="shortcuts">
+  const shortcutsHtml = `<div class="shortcuts">
          <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
          ${wishlistItems
            .map((w) => {
@@ -74,9 +74,8 @@ export async function handleDonatePage(req, res) {
              </button>`;
            })
            .join("")}
-         <p class="shortcuts-hint">Atau isi donasi bebas di bawah tanpa pilih wishlist.</p>
-       </div>`
-    : "";
+         ${wishlistItems.length ? `<p class="shortcuts-hint">Atau isi donasi bebas di bawah tanpa pilih wishlist.</p>` : ""}
+       </div>`;
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${title}</title>
@@ -89,7 +88,7 @@ export async function handleDonatePage(req, res) {
       ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
     </div>
     ${shortcutsHtml}
-    <form class="card" method="post" action="/donate/${identifier}">
+    <form class="card${hasPreselected ? "" : " hidden"}" id="donateForm" method="post" action="/donate/${identifier}">
       <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
       <label>Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</label>
       <div class="pills">
@@ -100,6 +99,10 @@ export async function handleDonatePage(req, res) {
       <label>Nama</label>
       <input type="text" name="donorName" id="donorName" maxlength="40" placeholder="Nama kamu" />
       <label class="check"><input type="checkbox" id="anon" /> Donasi sebagai Anonim</label>
+
+      <label for="donorEmail">Email</label>
+      <input type="email" name="donorEmail" id="donorEmail" required placeholder="email@kamu.com" />
+      <p class="hint">Buat konfirmasi/struk donasi, gak ditampilkan ke publik.</p>
 
       <label>Pesan (opsional)</label>
       <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
@@ -151,8 +154,10 @@ export async function handleDonatePage(req, res) {
 
       const wishlistItemId = document.getElementById("wishlistItemId");
       const wishCards = document.querySelectorAll(".wish[data-wishlist-id]");
-      function focusAmount() {
-        amountInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      const donateForm = document.getElementById("donateForm");
+      function openForm() {
+        donateForm.classList.remove("hidden");
+        donateForm.scrollIntoView({ behavior: "smooth", block: "start" });
         amountInput.focus();
       }
       wishCards.forEach((card) => {
@@ -160,13 +165,13 @@ export async function handleDonatePage(req, res) {
           wishCards.forEach((c) => c.classList.remove("active"));
           card.classList.add("active");
           wishlistItemId.value = card.dataset.wishlistId;
-          focusAmount();
+          openForm();
         });
       });
       document.getElementById("mainDonateBtn")?.addEventListener("click", () => {
         wishCards.forEach((c) => c.classList.remove("active"));
         wishlistItemId.value = "";
-        focusAmount();
+        openForm();
       });
     </script>
   </body></html>`);
@@ -184,6 +189,10 @@ export async function handleDonateCreate(req, res) {
     return res.status(400).send(`Jumlah minimal Rp${settings.min_amount.toLocaleString("id-ID")}.`);
   }
   const donorName = (req.body.donorName || "").trim().slice(0, 40) || "Anonim";
+  const donorEmail = (req.body.donorEmail || "").trim().slice(0, 254);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donorEmail)) {
+    return res.status(400).send("Masukkan alamat email yang valid.");
+  }
   const message = (req.body.message || "").trim().slice(0, 200) || null;
   const rawWishlistItemId = req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null;
   const wishlistItem = rawWishlistItemId ? await db.getWishlistItem(guildId, rawWishlistItemId) : null;
@@ -205,6 +214,7 @@ export async function handleDonateCreate(req, res) {
       guildId,
       trxId: qris.trx_id,
       donorName,
+      donorEmail,
       message,
       amount: qris.amount,
       expiresAt: qris.expires_at ? new Date(qris.expires_at) : null,
@@ -366,6 +376,7 @@ export async function handleOverlayPage(req, res) {
       }
 
       function showDonation(d) {
+        if (d.youtubeVideoId) return; // shown below the video widget instead
         const line1 = document.getElementById("line1");
         line1.innerHTML = "";
         const amountEl = document.createElement("span");
@@ -427,17 +438,17 @@ export async function handleLeaderboardPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
       html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
-      #board{width:260px;padding:16px 18px;border-radius:14px;background:rgba(17,24,39,.82);
-        border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px)}
-      #board h3{margin:0 0 12px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
-        text-transform:uppercase;letter-spacing:.04em}
+      #board{width:260px}
+      #board h3{margin:0 0 10px;font-size:12px;font-weight:700;color:rgba(255,255,255,.75);
+        text-transform:uppercase;letter-spacing:.06em;text-shadow:0 1px 4px rgba(0,0,0,.55)}
       #list{list-style:none;margin:0;padding:0}
-      #list li{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px;font-weight:600;color:#fff}
-      #list .rank{color:#4ade80;font-weight:700;width:20px}
-      #list .amount{font-weight:700;color:rgba(255,255,255,.85)}
+      #list li{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px;font-weight:700;color:#fff;
+        text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      #list .rank{color:#4ade80;font-weight:800;width:20px}
+      #list .amount{font-weight:800;color:rgba(255,255,255,.9)}
     </style></head><body>
     <div id="board"><h3>Top Donatur</h3><ol id="list"></ol></div>
     <script>
@@ -483,61 +494,78 @@ export async function handleWishlistPage(req, res) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
       html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
-      #board{width:300px;padding:18px 20px;border-radius:14px;background:rgba(17,24,39,.82);
-        border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px);box-shadow:0 8px 28px rgba(0,0,0,.4)}
-      #board h3{margin:0 0 14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);
-        text-transform:uppercase;letter-spacing:.04em}
-      #empty{font-size:13px;color:rgba(255,255,255,.45)}
-      .item{margin:0 0 16px;opacity:0;transform:translateY(4px);animation:item-in .3s ease forwards}
-      .item:last-child{margin-bottom:0}
-      @media (prefers-reduced-motion: reduce){.item{animation:none;opacity:1;transform:none}}
-      @keyframes item-in{to{opacity:1;transform:translateY(0)}}
-      .item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+      #board{width:300px}
+      #board h3{margin:0 0 10px;font-size:12px;font-weight:700;color:rgba(255,255,255,.75);
+        text-transform:uppercase;letter-spacing:.06em;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      #empty{font-size:13px;color:rgba(255,255,255,.7);text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      #current{opacity:0;transition:opacity .4s ease}
+      #current.show{opacity:1}
+      @media (prefers-reduced-motion: reduce){#current{transition:none}}
+      .item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:16px;font-weight:800;color:#fff;
+        margin-bottom:4px;text-shadow:0 1px 4px rgba(0,0,0,.55)}
       .item-top .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .item-top .pct{flex:none;font-size:12px;font-weight:700;color:#4ade80}
+      .item-top .pct{flex:none;font-size:13px;font-weight:800;color:#4ade80}
       .item-top .pct.done{color:#fbbf24}
-      .item-amounts{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px}
-      .bar{height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden}
+      .item-amounts{font-size:12px;font-weight:600;color:rgba(255,255,255,.8);margin-bottom:6px;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      .bar{height:6px;background:rgba(255,255,255,.25);border-radius:999px;overflow:hidden}
       .bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:999px;transition:width .5s ease}
       .bar-fill.done{background:linear-gradient(90deg,#f59e0b,#fbbf24);box-shadow:0 0 8px rgba(251,191,36,.6)}
     </style></head><body>
-    <div id="board"><h3>Wishlist</h3><div id="list"></div><p id="empty" style="display:none">Belum ada wishlist.</p></div>
+    <div id="board">
+      <h3>Wishlist</h3>
+      <div id="current"><div class="item-top"><span class="title" id="curTitle"></span><span class="pct" id="curPct"></span></div>
+        <div class="item-amounts" id="curAmounts"></div>
+        <div class="bar"><div class="bar-fill" id="curBar"></div></div>
+      </div>
+      <p id="empty" style="display:none">Belum ada wishlist.</p>
+    </div>
     <script>
-      function render(items) {
-        const list = document.getElementById("list");
-        const empty = document.getElementById("empty");
-        list.innerHTML = "";
-        empty.style.display = items.length ? "none" : "block";
-        items.forEach((w) => {
-          const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
-          const done = pct >= 100;
-          const div = document.createElement("div");
-          div.className = "item";
-          const top = document.createElement("div");
-          top.className = "item-top";
-          const title = document.createElement("span");
-          title.className = "title";
-          title.textContent = w.title;
-          const pctEl = document.createElement("span");
-          pctEl.className = "pct" + (done ? " done" : "");
-          pctEl.textContent = done ? "Tercapai" : pct + "%";
-          top.append(title, pctEl);
-          const amounts = document.createElement("div");
-          amounts.className = "item-amounts";
-          amounts.textContent = "Rp" + Number(w.total).toLocaleString("id-ID") + " / Rp" + Number(w.target_amount).toLocaleString("id-ID");
-          const bar = document.createElement("div");
-          bar.className = "bar";
-          const fill = document.createElement("div");
-          fill.className = "bar-fill" + (done ? " done" : "");
-          fill.style.width = pct + "%";
-          bar.appendChild(fill);
-          div.append(top, amounts, bar);
-          list.appendChild(div);
-        });
+      const ROTATE_MS = 6000;
+      let items = [];
+      let idx = 0;
+      let rotateTimer = null;
+      const current = document.getElementById("current");
+      const empty = document.getElementById("empty");
+
+      function paint() {
+        if (!items.length) return;
+        const w = items[idx % items.length];
+        const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
+        const done = pct >= 100;
+        document.getElementById("curTitle").textContent = w.title;
+        const pctEl = document.getElementById("curPct");
+        pctEl.textContent = done ? "Tercapai" : pct + "%";
+        pctEl.classList.toggle("done", done);
+        document.getElementById("curAmounts").textContent =
+          "Rp" + Number(w.total).toLocaleString("id-ID") + " / Rp" + Number(w.target_amount).toLocaleString("id-ID");
+        const bar = document.getElementById("curBar");
+        bar.classList.toggle("done", done);
+        bar.style.width = pct + "%";
       }
-      fetch(${JSON.stringify(`/overlay/${token}/wishlist/data`)}).then((r) => r.json()).then((d) => render(d.items));
+
+      function showCurrent() {
+        current.classList.remove("show");
+        setTimeout(() => { paint(); current.classList.add("show"); }, items.length > 1 ? 250 : 0);
+      }
+
+      function setItems(nextItems) {
+        items = nextItems;
+        empty.style.display = items.length ? "none" : "block";
+        current.style.display = items.length ? "block" : "none";
+        idx = idx % Math.max(items.length, 1);
+        clearInterval(rotateTimer);
+        showCurrent();
+        if (items.length > 1) {
+          rotateTimer = setInterval(() => {
+            idx = (idx + 1) % items.length;
+            showCurrent();
+          }, ROTATE_MS);
+        }
+      }
+
+      fetch(${JSON.stringify(`/overlay/${token}/wishlist/data`)}).then((r) => r.json()).then((d) => setItems(d.items));
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
-      events.addEventListener("wishlist", (e) => render(JSON.parse(e.data).items));
+      events.addEventListener("wishlist", (e) => setItems(JSON.parse(e.data).items));
     </script>
   </body></html>`);
 }
@@ -564,19 +592,23 @@ export async function handleVideoPage(req, res) {
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
       html,body{margin:0;background:transparent;overflow:hidden;font-family:'Inter',sans-serif}
       #unlock{position:fixed;top:16px;right:16px;padding:8px 14px;border-radius:999px;background:rgba(17,24,39,.85);
         color:#fff;font:600 12px 'Inter',sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.15);z-index:10}
       #unlock.hidden{display:none}
-      #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      #wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
         opacity:0;transition:opacity .3s ease}
       #wrap.show{opacity:1}
-      #player{width:100%;height:100%}
+      #player{width:100%;flex:1;min-height:0}
+      #caption{flex:none;padding:10px 16px 4px;text-align:center}
+      #capLine1{font-size:16px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      #capLine1 .name{color:#86efac}
+      #capLine2{margin-top:2px;font-size:13px;font-weight:500;color:rgba(255,255,255,.9);text-shadow:0 1px 4px rgba(0,0,0,.55)}
     </style></head><body>
     <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
-    <div id="wrap"><div id="player"></div></div>
+    <div id="wrap"><div id="player"></div><div id="caption"><div id="capLine1"></div><div id="capLine2"></div></div></div>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
       const wrap = document.getElementById("wrap");
@@ -589,6 +621,23 @@ export async function handleVideoPage(req, res) {
       }
       unlockBtn.addEventListener("click", unlockAudio);
       document.addEventListener("click", unlockAudio);
+
+      function showCaption(item) {
+        const line1 = document.getElementById("capLine1");
+        line1.innerHTML = "";
+        const amountEl = document.createElement("span");
+        amountEl.textContent = "Rp" + item.amount.toLocaleString("id-ID") + " dari ";
+        const nameEl = document.createElement("span");
+        nameEl.className = "name";
+        nameEl.textContent = item.donorName;
+        line1.append(amountEl, nameEl);
+        document.getElementById("capLine2").textContent = item.message || "";
+      }
+
+      function clearCaption() {
+        document.getElementById("capLine1").textContent = "";
+        document.getElementById("capLine2").textContent = "";
+      }
 
       let player = null;
       let ready = false;
@@ -625,12 +674,14 @@ export async function handleVideoPage(req, res) {
         player.loadVideoById({ videoId: item.videoId, startSeconds: item.start });
         player.unMute?.();
         wrap.classList.add("show");
+        showCaption(item);
         hideTimer = setTimeout(hideVideo, durationMsFor(item));
       }
 
       function hideVideo() {
         clearTimeout(hideTimer);
         wrap.classList.remove("show");
+        clearCaption();
         try { player?.stopVideo(); } catch {}
       }
 
@@ -643,6 +694,8 @@ export async function handleVideoPage(req, res) {
           amount: Number(d.amount) || 0,
           start: d.youtubeStart || 0,
           end: d.youtubeEnd ?? null,
+          donorName: d.donorName,
+          message: d.message,
         });
         drain();
       });
