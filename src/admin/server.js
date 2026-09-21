@@ -1,5 +1,6 @@
 import express from "express";
 import session from "express-session";
+import multer from "multer";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { env } from "../config/env.js";
@@ -20,6 +21,8 @@ import {
   handleReplayDonation,
   handleWishlistAdd,
   handleWishlistDelete,
+  handleAvatarUpload,
+  handleAvatarDelete,
 } from "./donations.js";
 import {
   handleDonatePage,
@@ -28,11 +31,14 @@ import {
   handleOverlayPage,
   handleOverlayEvents,
   handleOverlayAudio,
+  handleOverlayAvatar,
   handleLeaderboardPage,
   handleLeaderboardData,
   handleWishlistPage,
   handleWishlistData,
 } from "./donatePublic.js";
+
+const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -80,6 +86,8 @@ export function startAdminServer() {
   app.post("/guilds/:guildId/donations/replay/:trxId", requireAuth, handleReplayDonation);
   app.post("/guilds/:guildId/donations/wishlist", requireAuth, handleWishlistAdd);
   app.post("/guilds/:guildId/donations/wishlist/:id/delete", requireAuth, handleWishlistDelete);
+  app.post("/guilds/:guildId/donations/avatar", requireAuth, avatarUpload.single("avatar"), handleAvatarUpload);
+  app.post("/guilds/:guildId/donations/avatar/delete", requireAuth, handleAvatarDelete);
 
   // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
   // :identifier is either a custom slug or a raw guild ID (see db.getDonationSettingsByIdentifier).
@@ -89,6 +97,7 @@ export function startAdminServer() {
   app.get("/overlay/:token", handleOverlayPage);
   app.get("/overlay/:token/events", handleOverlayEvents);
   app.get("/overlay/audio/:id", handleOverlayAudio);
+  app.get("/overlay/:token/avatar", handleOverlayAvatar);
   app.get("/overlay/:token/leaderboard", handleLeaderboardPage);
   app.get("/overlay/:token/leaderboard/data", handleLeaderboardData);
   app.get("/overlay/:token/wishlist", handleWishlistPage);

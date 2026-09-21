@@ -272,7 +272,8 @@ export async function handleOverlayPage(req, res) {
       #avatar-wrap{position:relative;width:88px;height:88px;margin-bottom:14px}
       #avatar{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4ade80,#16a34a);
         display:flex;align-items:center;justify-content:center;font-size:40px;
-        box-shadow:0 4px 18px rgba(0,0,0,.35)}
+        box-shadow:0 4px 18px rgba(0,0,0,.35);overflow:hidden}
+      #avatar img{width:100%;height:100%;object-fit:cover}
       .deco{position:absolute;font-size:20px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));animation:float 2.4s ease-in-out infinite}
       .deco.d1{top:-8px;left:-10px;animation-delay:0s}
       .deco.d2{top:-6px;right:-12px;font-size:16px;animation-delay:.4s}
@@ -289,7 +290,7 @@ export async function handleOverlayPage(req, res) {
     <button id="unlock" type="button">🔈 Klik buat aktifin suara</button>
     <div id="stage">
       <div id="avatar-wrap">
-        <div id="avatar">🙏</div>
+        <div id="avatar">${settings.avatar_data ? `<img src="/overlay/${token}/avatar" alt="" />` : "🙏"}</div>
         <span class="deco d1">💛</span>
         <span class="deco d2">✨</span>
         <span class="deco d3">💚</span>
@@ -366,6 +367,15 @@ export function handleOverlayAudio(req, res) {
   if (!buffer) return res.status(404).end();
   res.set("Content-Type", "audio/wav");
   res.send(buffer);
+}
+
+export async function handleOverlayAvatar(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings?.avatar_data) return res.status(404).end();
+  res.set("Content-Type", settings.avatar_mime || "image/png");
+  res.set("Cache-Control", "no-cache");
+  res.send(Buffer.from(settings.avatar_data, "base64"));
 }
 
 export async function handleLeaderboardPage(req, res) {

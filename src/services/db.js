@@ -819,6 +819,8 @@ export async function ensureDonationSettings(guildId) {
     slug: null,
     display_name: null,
     description: null,
+    avatar_data: null,
+    avatar_mime: null,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);

@@ -81,6 +81,27 @@ export async function handleDonationSettingsPage(req, res, error) {
         <button type="submit" class="btn-sm">Regenerate overlay link</button>
       </form>
 
+      <h2>Overlay avatar</h2>
+      <p class="lede">Shown in the center of the alert overlay instead of the default 🙏 icon. PNG/JPG/WebP/GIF, up to 2MB.</p>
+      <div class="card">
+        ${
+          settings.avatar_data
+            ? `<img src="/overlay/${settings.overlay_token}/avatar" alt="Current avatar"
+                 style="width:72px;height:72px;border-radius:50%;object-fit:cover;display:block;margin-bottom:14px" />`
+            : ""
+        }
+        <form method="post" action="/guilds/${guildId}/donations/avatar" enctype="multipart/form-data">
+          <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" required />
+          <div class="actions"><button type="submit" class="btn-primary">Upload</button></div>
+        </form>
+        ${
+          settings.avatar_data
+            ? `<form method="post" action="/guilds/${guildId}/donations/avatar/delete" style="margin-top:8px">
+                 <button type="submit" class="btn-danger btn-sm">Remove avatar</button></form>`
+            : ""
+        }
+      </div>
+
       <h2>Links</h2>
       <div class="card">
         <label>Donate link <span class="hint">(share in your TikTok/Instagram bio)</span></label>
@@ -245,5 +266,23 @@ export async function handleReplayDonation(req, res) {
   if (donation && donation.guild_id === guildId) {
     await announceDonation(null, settings, donation, { toDiscord: false });
   }
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleAvatarUpload(req, res) {
+  const { guildId } = req.params;
+  await db.ensureDonationSettings(guildId);
+  if (req.file) {
+    await db.updateDonationSettings(guildId, {
+      avatar_data: req.file.buffer.toString("base64"),
+      avatar_mime: req.file.mimetype,
+    });
+  }
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleAvatarDelete(req, res) {
+  const { guildId } = req.params;
+  await db.updateDonationSettings(guildId, { avatar_data: null, avatar_mime: null });
   res.redirect(`/guilds/${guildId}/donations`);
 }
