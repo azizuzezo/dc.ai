@@ -8,22 +8,24 @@ function escapeHtml(str) {
 }
 
 export async function handleDonatePage(req, res) {
-  const { guildId } = req.params;
-  const settings = await db.getDonationSettings(guildId);
+  const settings = await db.getDonationSettingsByIdentifier(req.params.identifier);
   if (!settings?.gateway_url || !settings?.gateway_api_key) {
     return res.status(404).send("Halaman donasi belum diaktifkan untuk server ini.");
   }
 
+  const title = escapeHtml(settings.display_name || "Kirim Dukungan");
+
   res.send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Kirim Dukungan</title>
+    <title>${title}</title>
     <style>
       body{font-family:sans-serif;max-width:420px;margin:40px auto;padding:0 16px;background:#0f0f14;color:#fff}
       input,textarea,button{width:100%;box-sizing:border-box;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #333;background:#1a1a22;color:#fff;font-size:16px}
       button{background:#00c896;color:#04140f;font-weight:bold;border:none;cursor:pointer}
       label{font-size:13px;opacity:.8}
     </style></head><body>
-    <h2>💛 Kirim Dukungan</h2>
-    <form method="post" action="/donate/${guildId}">
+    <h2>💛 ${title}</h2>
+    ${settings.description ? `<p style="opacity:.8">${escapeHtml(settings.description)}</p>` : ""}
+    <form method="post" action="/donate/${req.params.identifier}">
       <label>Nama (opsional)</label>
       <input type="text" name="donorName" maxlength="40" placeholder="Anonim" />
       <label>Jumlah (Rp, minimal ${settings.min_amount.toLocaleString("id-ID")})</label>
@@ -36,11 +38,11 @@ export async function handleDonatePage(req, res) {
 }
 
 export async function handleDonateCreate(req, res) {
-  const { guildId } = req.params;
-  const settings = await db.getDonationSettings(guildId);
+  const settings = await db.getDonationSettingsByIdentifier(req.params.identifier);
   if (!settings?.gateway_url || !settings?.gateway_api_key) {
     return res.status(404).send("Halaman donasi belum diaktifkan untuk server ini.");
   }
+  const guildId = settings.guild_id;
 
   const amount = Number(req.body.amount);
   if (!Number.isFinite(amount) || amount < settings.min_amount) {

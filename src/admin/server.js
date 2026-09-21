@@ -62,8 +62,9 @@ export function startAdminServer() {
   app.post("/guilds/:guildId/donations/regenerate-token", requireAuth, handleRegenerateOverlayToken);
 
   // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
-  app.get("/donate/:guildId", handleDonatePage);
-  app.post("/donate/:guildId", handleDonateCreate);
+  // :identifier is either a custom slug or a raw guild ID (see db.getDonationSettingsByIdentifier).
+  app.get("/donate/:identifier", handleDonatePage);
+  app.post("/donate/:identifier", handleDonateCreate);
   app.get("/donate/status/:trxId", handleDonateStatus);
   app.get("/overlay/:token", handleOverlayPage);
   app.get("/overlay/:token/events", handleOverlayEvents);

@@ -20,6 +20,11 @@ project on its own (see its own README), note its public URL and the
 ## 2. Configure it in this bot's admin dashboard
 
 Go to `/guilds` → pick your server → **Donations**, and fill in:
+- **Custom link** (optional) — a vanity slug so the donate page is
+  `/donate/your-name` instead of `/donate/<guildId>`. Letters/numbers/hyphens,
+  3-32 chars, must be unique across all servers using this bot.
+- **Page title / description** (optional) — shown at the top of the donate
+  page (e.g. "Dukung DuaCincin Live" + a short bio line).
 - **Gateway URL** — the gopay-api-gateaway deployment's public URL
 - **Gateway API Key** — must match that deployment's `API_KEY`
 - **Alert channel ID** — the Discord channel where "💸 Donasi baru!" embeds

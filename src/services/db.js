@@ -785,6 +785,20 @@ export async function getDonationSettingsByOverlayToken(token) {
   return Array.from(memDonationSettings.values()).find((s) => s.overlay_token === token) || null;
 }
 
+export async function getDonationSettingsBySlug(slug) {
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_settings").select("*").eq("slug", slug).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return Array.from(memDonationSettings.values()).find((s) => s.slug === slug) || null;
+}
+
+/** Resolves a /donate/:identifier path segment — either a custom slug or a raw guild ID. */
+export async function getDonationSettingsByIdentifier(identifier) {
+  return (await getDonationSettingsBySlug(identifier)) || (await getDonationSettings(identifier));
+}
+
 /** Creates default settings (with a fresh overlay token) the first time a guild's donation page is touched. */
 export async function ensureDonationSettings(guildId) {
   const existing = await getDonationSettings(guildId);
@@ -800,6 +814,9 @@ export async function ensureDonationSettings(guildId) {
     tts_enabled: true,
     sound_enabled: true,
     leaderboard_enabled: true,
+    slug: null,
+    display_name: null,
+    description: null,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
