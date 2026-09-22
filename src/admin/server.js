@@ -40,6 +40,12 @@ import {
   handleWishlistPage,
   handleWishlistData,
   handleVideoPage,
+  handleChatPage,
+  handleGiftPage,
+  handleLiveEvents,
+  handleLikesPage,
+  handleFollowersPage,
+  handleJarPage,
 } from "./donatePublic.js";
 import { requireHostAuth, handleHostLoginPage, handleHostLogin, handleHostLogout } from "./hostAuth.js";
 import {
@@ -57,6 +63,7 @@ import {
   handleHostRegenerateToken,
   handleHostPasswordUpdate,
   handleHostReplayDonation,
+  handleHostTestLiveEvent,
 } from "./hostDashboard.js";
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
@@ -125,6 +132,15 @@ export function startAdminServer() {
   app.get("/overlay/:token/wishlist", handleWishlistPage);
   app.get("/overlay/:token/wishlist/data", handleWishlistData);
   app.get("/overlay/:token/video", handleVideoPage);
+  // Real TikTok LIVE chat/gift widgets — separate from the donation SSE hub above
+  // (handleOverlayEvents) so opening the alert/leaderboard/wishlist/video widgets
+  // never opens a live TikTok connection; only these two do, and only on demand.
+  app.get("/overlay/:token/chat", handleChatPage);
+  app.get("/overlay/:token/gift", handleGiftPage);
+  app.get("/overlay/:token/likes", handleLikesPage);
+  app.get("/overlay/:token/followers", handleFollowersPage);
+  app.get("/overlay/:token/jar", handleJarPage);
+  app.get("/overlay/:token/live-events", handleLiveEvents);
 
   // Self-service host dashboard — separate login from the bot-owner admin panel above,
   // scoped per guild via username/password set by the admin on the Patungan settings page.
@@ -137,6 +153,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/wishlist/:id/delete", requireHostAuth, handleHostWishlistDelete);
   app.get("/host/:identifier/pesan", requireHostAuth, handleHostMessagesPage);
   app.post("/host/:identifier/replay/:trxId", requireHostAuth, handleHostReplayDonation);
+  app.post("/host/:identifier/pengaturan/test-live-event", requireHostAuth, handleHostTestLiveEvent);
   app.get("/host/:identifier/tampilan", requireHostAuth, (req, res) => handleHostAppearancePage(req, res));
   app.post("/host/:identifier/tampilan", requireHostAuth, handleHostAppearanceUpdate);
   app.post("/host/:identifier/tampilan/avatar", requireHostAuth, avatarUpload.single("avatar"), handleHostAvatarUpload);

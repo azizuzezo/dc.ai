@@ -1,6 +1,7 @@
 import * as db from "../services/db.js";
 import { hashPassword } from "../services/password.js";
 import { announceDonation } from "../services/donationPolling.js";
+import { broadcast } from "../services/donationOverlay.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -93,24 +94,27 @@ export async function handleHostWishlistPage(req, res, error) {
   const identifier = req.params.identifier;
   const items = await db.listWishlistItemsWithProgress(settings.guild_id);
 
-  const rows = items.length
-    ? `<table><tr><th>Judul</th><th>Progress</th><th></th></tr>${items
+  const cards = items.length
+    ? items
         .map((w) => {
           const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
-          return `<tr>
-            <td>${escapeHtml(w.title)}</td>
-            <td>${rupiah(w.total)} / ${rupiah(w.target_amount)} (${pct}%)</td>
-            <td><form method="post" action="/host/${identifier}/wishlist/${w.id}/delete">
-              <button type="submit" class="btn btn-danger btn-sm">Hapus</button></form></td>
-          </tr>`;
+          return `
+        <div class="widget-card">
+          <h3>${escapeHtml(w.title)}</h3>
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="progress-label"><span>${rupiah(w.total)} / ${rupiah(w.target_amount)}</span><span>${pct}%</span></div>
+          <form method="post" action="/host/${identifier}/wishlist/${w.id}/delete" style="margin-top:.85rem">
+            <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
+          </form>
+        </div>`;
         })
-        .join("")}</table>`
-    : `<div class="empty">Belum ada wishlist. Tambahin satu di bawah.</div>`;
+        .join("")
+    : `<div class="panel empty">Belum ada wishlist. Tambahin satu di bawah.</div>`;
 
   const body = `
     <div class="topbar"><div><h1>Wishlist</h1><p>Milestone yang donatur bisa patungan ke situ (mis. "Wisuda", "Penunjang Live").</p></div></div>
     ${error ? `<p class="hint" style="color:var(--error)">${escapeHtml(error)}</p>` : ""}
-    <div class="panel">${rows}</div>
+    ${cards}
     <form class="panel" method="post" action="/host/${identifier}/wishlist" style="margin-top:1.25rem">
       <label for="title">Judul</label>
       <input id="title" type="text" name="title" placeholder="Wisuda" maxlength="60" required />
@@ -265,6 +269,11 @@ export async function handleHostSettingsPage(req, res, notice) {
   const leaderboardUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/leaderboard`;
   const wishlistWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/wishlist`;
   const videoWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/video`;
+  const chatWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/chat`;
+  const giftWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/gift`;
+  const likesWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/likes`;
+  const followersWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/followers`;
+  const jarWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/jar`;
 
   const body = `
     <div class="topbar"><div><h1>Pengaturan</h1><p>Nominal minimal, notifikasi, dan akses dashboard kamu.</p></div></div>
@@ -283,18 +292,114 @@ export async function handleHostSettingsPage(req, res, notice) {
     <div class="panel" style="margin-top:1.25rem">
       <h2>Link widget OBS</h2>
       <p class="hint">Tambahin sebagai Browser Source di OBS/TikTok Live Studio.</p>
-      <label>Alert</label>
-      <p class="mono hint" style="word-break:break-all">${overlayUrl}</p>
-      <label>Leaderboard</label>
-      <p class="mono hint" style="word-break:break-all">${leaderboardUrl}</p>
-      <label>Wishlist</label>
-      <p class="mono hint" style="word-break:break-all">${wishlistWidgetUrl}</p>
-      <label>Video</label>
-      <p class="mono hint" style="word-break:break-all">${videoWidgetUrl}</p>
+      ${!settings.tiktok_url ? `<p class="hint" style="color:var(--warning)">Widget Chat &amp; Gift butuh username TikTok — isi dulu di halaman <a href="/host/${identifier}/tampilan" style="color:inherit">Tampilan</a>.</p>` : ""}
+      ${[
+        { label: "Alert", desc: "Muncul di layar tiap ada donasi masuk, lengkap sama nominal, nama, dan pesan.", url: overlayUrl, testType: "donation" },
+        { label: "Leaderboard", desc: "Papan peringkat donatur terbesar, update otomatis tiap ada donasi baru.", url: leaderboardUrl },
+        { label: "Wishlist", desc: "Progress milestone wishlist yang lagi dikejar, gantian tiap beberapa detik.", url: wishlistWidgetUrl, testType: "wishlist" },
+        { label: "Video", desc: "Muterin klip YouTube yang di-request lewat donasi, otomatis nongol di layar.", url: videoWidgetUrl },
+        { label: "Chat Live", desc: "Nampilin chat TikTok LIVE beneran langsung di overlay stream kamu.", url: chatWidgetUrl, testType: "chat" },
+        { label: "Gift", desc: "Popup tiap ada yang ngirim gift TikTok, nama pengirim + jenis hadiahnya.", url: giftWidgetUrl, testType: "gift" },
+        { label: "Like Counter", desc: "Jumlah like real-time selama live, langsung dari TikTok LIVE.", url: likesWidgetUrl, testType: "likes" },
+        { label: "Follower Count", desc: "Jumlah follower baru yang masuk selama live berlangsung.", url: followersWidgetUrl, testType: "follow" },
+        { label: "Coin Jar", desc: "Toples visual yang keisi tiap ada gift masuk selama live.", url: jarWidgetUrl, testType: "gift" },
+      ]
+        .map(
+          (w) => `
+        <div class="widget-card">
+          <h3>${w.label}</h3>
+          <p class="hint" style="margin:-.4rem 0 .75rem">${w.desc}</p>
+          <div class="widget-url-row">
+            <input class="url-box" type="text" readonly value="${escapeHtml(w.url)}" onclick="this.select()" />
+            <button type="button" class="widget-btn" onclick="copyWidgetUrl(this)" data-url="${escapeHtml(w.url)}">Copy URL</button>
+            ${
+              w.testType
+                ? `<button type="button" class="widget-btn" onclick="testLiveWidget(this)" data-url="${escapeHtml(w.url)}" data-type="${w.testType}">Buka + Test</button>`
+                : `<a class="widget-btn" href="${escapeHtml(w.url)}" target="_blank" rel="noopener">Test</a>`
+            }
+          </div>
+        </div>`
+        )
+        .join("")}
+      <div class="widget-card" style="border-color:var(--rule-strong)">
+        <h3 style="color:var(--ink)">Mode Demo</h3>
+        <p class="hint" style="margin:-.4rem 0 .75rem">Kirim chat, gift, like, dan follower palsu terus-menerus tiap beberapa detik — buka widget Chat/Gift/Like Counter/Follower Count di OBS dulu, terus nyalain ini buat lihat semuanya hidup pas ngatur posisi/gaya di scene.</p>
+        <button type="button" class="btn btn-primary btn-sm" id="demoToggle" onclick="toggleDemoMode(this)">Mulai Demo Live</button>
+        <p class="hint" id="demoStatus" style="margin-top:.6rem"></p>
+      </div>
       <form method="post" action="/host/${identifier}/pengaturan/regenerate-token" style="margin-top:12px">
         <button type="submit" class="btn btn-sm">Buat ulang link widget</button>
       </form>
     </div>
+    <script>
+      function copyWidgetUrl(btn) {
+        navigator.clipboard.writeText(btn.dataset.url).then(() => {
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          btn.classList.add("copied");
+          setTimeout(() => { btn.textContent = original; btn.classList.remove("copied"); }, 1500);
+        });
+      }
+
+      // Opens the widget in a new tab, then fires a fake chat/gift/likes/follow
+      // event a moment later (once that tab's had time to connect its SSE
+      // stream) — so Chat/Gift/Like Counter/Follower Count/Coin Jar can be
+      // previewed without needing to actually be live on TikTok.
+      function testLiveWidget(btn) {
+        window.open(btn.dataset.url, "_blank", "noopener");
+        const original = btn.textContent;
+        btn.textContent = "Menyiapkan...";
+        btn.disabled = true;
+        setTimeout(() => {
+          fetch(${JSON.stringify(`/host/${identifier}/pengaturan/test-live-event`)}, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "type=" + encodeURIComponent(btn.dataset.type),
+          }).finally(() => {
+            btn.textContent = "Terkirim!";
+            setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1500);
+          });
+        }, 1200);
+      }
+
+      // Fires a random chat/gift/likes/follow event every few seconds so the
+      // widgets already added as OBS browser sources look "alive" while
+      // arranging the scene — no real TikTok LIVE needed. Stops itself if the
+      // tab is closed; toggled off manually otherwise.
+      let demoTimer = null;
+      let demoIdx = 0;
+      // Round-robin, not random — random 25%-per-type meant Gift/Like Counter
+      // could sit unrolled for a while (and Gift's popup auto-hides after 5s,
+      // easy to miss). This guarantees every type fires once per ~10s cycle.
+      const DEMO_TYPES = ["chat", "gift", "likes", "follow"];
+      function sendDemoEvent() {
+        const type = DEMO_TYPES[demoIdx % DEMO_TYPES.length];
+        demoIdx++;
+        const status = document.getElementById("demoStatus");
+        if (status) status.textContent = "Terakhir dikirim: " + type + " (" + new Date().toLocaleTimeString("id-ID") + ")";
+        fetch(${JSON.stringify(`/host/${identifier}/pengaturan/test-live-event`)}, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "type=" + type,
+        }).catch(() => {});
+      }
+      function toggleDemoMode(btn) {
+        if (demoTimer) {
+          clearInterval(demoTimer);
+          demoTimer = null;
+          btn.textContent = "Mulai Demo Live";
+          btn.classList.remove("btn-danger");
+          const status = document.getElementById("demoStatus");
+          if (status) status.textContent = "";
+          return;
+        }
+        demoIdx = 0;
+        sendDemoEvent();
+        demoTimer = setInterval(sendDemoEvent, 2500);
+        btn.textContent = "Matiin Demo Live";
+        btn.classList.add("btn-danger");
+      }
+    </script>
 
     <form class="panel" method="post" action="/host/${identifier}/pengaturan/password" style="margin-top:1.25rem">
       <h2>Ganti password dashboard</h2>
@@ -345,4 +450,89 @@ export async function handleHostReplayDonation(req, res) {
     await announceDonation(null, settings, donation, { toDiscord: false });
   }
   res.redirect(`/host/${req.params.identifier}/pesan`);
+}
+
+// ---- Test live widgets (Chat/Gift/Likes/Followers/Jar) without needing a real TikTok LIVE ----
+
+const TEST_NAMES = ["Budi", "Rizky", "Ani_23", "kazuha", "Citra Dewi", "mahdi"];
+const TEST_GIFTS = ["Rose", "GG", "TikTok", "Perfume", "Corgi", "Ice Cream Cone"];
+const TEST_MESSAGES = [
+  "Halo dari test! 👋 semangat live-nya",
+  "keren banget kontennya",
+  "request lagu dong kak",
+  "🔥🔥🔥",
+  "pertama kali mampir, langsung betah",
+  "wkwkwk lucu banget",
+];
+
+function randomTestPayload(type) {
+  const user = TEST_NAMES[Math.floor(Math.random() * TEST_NAMES.length)];
+  switch (type) {
+    case "chat":
+      return { user, message: TEST_MESSAGES[Math.floor(Math.random() * TEST_MESSAGES.length)] };
+    case "gift":
+      return {
+        user,
+        giftName: TEST_GIFTS[Math.floor(Math.random() * TEST_GIFTS.length)],
+        giftImage: null,
+        repeatCount: Math.floor(Math.random() * 5) + 1,
+      };
+    case "likes":
+      return { total: Math.floor(Math.random() * 5000) + 100 };
+    case "follow":
+      return { total: Math.floor(Math.random() * 20) + 1, user };
+    default:
+      return null;
+  }
+}
+
+/** Broadcasts one fake chat/gift/likes/follow/wishlist event straight to the
+ * overlay's SSE stream — bypasses tiktokLiveEvents.js (and, for wishlist, the
+ * database) entirely, so hosts can preview these widgets without needing to
+ * actually be live on TikTok or make a real payment. */
+export async function handleHostTestLiveEvent(req, res) {
+  const settings = req.donationSettings;
+  const type = req.body.type;
+
+  if (type === "donation") {
+    // Runs the exact same path a real paid donation takes (announceDonation:
+    // sound flag, Gemini/Piper TTS narration, leaderboard + wishlist refresh)
+    // so the Alert widget's bell/voice actually fire during a test, not just
+    // a bare SSE payload.
+    const user = TEST_NAMES[Math.floor(Math.random() * TEST_NAMES.length)];
+    await announceDonation(
+      null,
+      settings,
+      {
+        guild_id: settings.guild_id,
+        donor_name: user,
+        amount: (Math.floor(Math.random() * 20) + 1) * 5000,
+        message: TEST_MESSAGES[Math.floor(Math.random() * TEST_MESSAGES.length)],
+        wishlist_item_id: null,
+        youtube_video_id: null,
+        youtube_start_seconds: null,
+        youtube_end_seconds: null,
+      },
+      { toDiscord: false }
+    );
+    return res.status(204).end();
+  }
+
+  if (type === "wishlist") {
+    // Reads real wishlist items but only bumps the first one's total in the
+    // broadcast payload — nothing is written back to the database, so the
+    // next real donation (or page reload) shows the untouched real progress.
+    const items = await db.listWishlistItemsWithProgress(settings.guild_id);
+    if (items.length) {
+      const bumped = items.map((w, i) =>
+        i === 0 ? { ...w, total: Math.min(w.target_amount, w.total + Math.round(w.target_amount * 0.15) + 1000) } : w
+      );
+      broadcast(settings.overlay_token, "wishlist", { items: bumped });
+    }
+    return res.status(204).end();
+  }
+
+  const payload = randomTestPayload(type);
+  if (payload) broadcast(settings.overlay_token, type, payload);
+  res.status(204).end();
 }

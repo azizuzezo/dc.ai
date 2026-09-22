@@ -1,6 +1,7 @@
 import * as db from "../services/db.js";
 import { createQris, qrisImageUrl } from "../services/gopayGateway.js";
 import { subscribe } from "../services/donationOverlay.js";
+import { acquireLiveConnection, releaseLiveConnection } from "../services/tiktokLiveEvents.js";
 import { getAudio } from "../services/ttsCache.js";
 import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
@@ -25,13 +26,17 @@ const SOCIAL_ICONS = {
 const CHECKOUT_STYLE = `
   <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;
-      --ink:#122e1e;--muted:#5b7267;--border:#d7ebdc;--track:#e3f2e8;--page-bg:#f7fbf8;
+    /* Colors/font matched exactly against sociabuzz.com's own computed styles
+       (getComputedStyle on their live donate page): brand green #76cc11,
+       "Open Sans", white page background, #e5e5e5 progress track. */
+    :root{--green:#76cc11;--green-light:#93dc3e;--green-deep:#5da80d;
+      --ink:#122e1e;--muted:#5b7267;--border:#d7ebdc;--track:#e5e5e5;--page-bg:#fff;
+      --rank-1:#76cc11;--rank-2:#93dc3e;--rank-3:#aced60;--rank-other:#dddddd;
       --ease:cubic-bezier(.16,1,.3,1)}
     *{box-sizing:border-box}
-    body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:var(--page-bg);color:var(--ink)}
+    body{font-family:'Open Sans',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:var(--page-bg);color:var(--ink)}
     /* On a real desktop viewport (not just a resized phone view), give the
        wishlist grid room to actually be a grid instead of two squeezed
        columns, while keeping the header/form/lists at a readable column
@@ -50,15 +55,15 @@ const CHECKOUT_STYLE = `
       border-radius:50%;background:var(--track);color:var(--ink);transition:transform .25s var(--ease),background .25s var(--ease)}
     .social-links a:hover{background:var(--border);transform:translateY(-2px)}
     input[type=text],input[type=number],input[type=email],textarea{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
-      background:#fff;color:var(--ink);font:500 15px 'Inter',sans-serif;transition:border-color .15s ease}
+      background:#fff;color:var(--ink);font:500 15px 'Open Sans',sans-serif;transition:border-color .15s ease}
     input[type=text]:hover,input[type=number]:hover,input[type=email]:hover,textarea:hover{border-color:#c3c9d1}
     input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
     input:invalid:not(:placeholder-shown){border-color:#dc2626}
     textarea{resize:vertical}
-    button{font:700 15px 'Inter',sans-serif;border:none;border-radius:999px;cursor:pointer}
-    .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green-deep);color:#fff;
+    button{font:800 15px 'Open Sans',sans-serif;border:none;border-radius:999px;cursor:pointer}
+    .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green);color:#fff;
       box-shadow:0 1px 2px rgba(21,128,61,.15)}
-    .btn-primary:hover{background:var(--green);transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(21,128,61,.45)}
+    .btn-primary:hover{background:var(--green-deep);transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(21,128,61,.45)}
     .pill{padding:9px 4px;background:#fff;color:var(--ink);font-size:14px;border:1px solid var(--border);border-radius:999px}
     .pill.active{background:var(--green);color:#fff;border-color:var(--green)}
     .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
@@ -66,14 +71,14 @@ const CHECKOUT_STYLE = `
     .counter{font-size:12px;color:var(--muted);text-align:right}
     .check{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:500;margin-top:14px}
     .check input{width:18px;height:18px;margin-top:2px;accent-color:var(--green)}
-    .bar{height:6px;background:var(--track);border-radius:999px;margin-top:8px;overflow:hidden}
-    .bar-fill{height:100%;background:var(--green-light)}
+    .bar{height:16px;background:var(--track);border-radius:10px;margin-top:8px;overflow:hidden}
+    .bar-fill{height:100%;background:var(--green)}
     .hidden{display:none}
     .divider{border:none;border-top:1px solid var(--border);margin:28px 0 0}
     .section{margin-top:24px}
     .section-title{font-size:21px;font-weight:800;text-align:center;margin:0 0 16px;letter-spacing:-.01em}
     .link-btn{display:block;background:none;border:none;padding:0;margin-top:8px;
-      font:600 13px 'Inter',sans-serif;color:var(--green);cursor:pointer;text-decoration:underline}
+      font:600 13px 'Open Sans',sans-serif;color:var(--green);cursor:pointer;text-decoration:underline}
 
     .wishlist-grid{display:grid;grid-template-columns:1fr;gap:14px}
     @media (min-width:480px){.wishlist-grid{grid-template-columns:1fr 1fr}}
@@ -87,15 +92,17 @@ const CHECKOUT_STYLE = `
     .wish-pick{width:100%;margin-top:14px;padding:11px;font-size:14px}
 
     .range-select{display:block;width:100%;margin:0 0 14px;padding:9px 12px;border-radius:10px;
-      border:1px solid var(--border);background:#fff;color:var(--ink);font:500 13px 'Inter',sans-serif}
+      border:1px solid var(--border);background:#fff;color:var(--ink);font:500 13px 'Open Sans',sans-serif}
     .supporters{list-style:none;margin:0;padding:0}
     .supporters .empty-row{color:var(--muted);font-size:13px;padding:9px 0;border-bottom:none}
     .supporters li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
     .supporters li:last-child{border-bottom:none}
     .supporters li.more-hidden{display:none}
-    .rank-badge{width:26px;height:26px;border-radius:50%;background:#d1d5db;color:#fff;font-weight:800;font-size:12px;
+    .rank-badge{width:26px;height:26px;border-radius:50%;background:var(--rank-other);color:#fff;font-weight:800;font-size:12px;
       display:flex;align-items:center;justify-content:center;flex:none}
-    .rank-badge.top{background:var(--green-light)}
+    .rank-badge.rank-1{background:var(--rank-1)}
+    .rank-badge.rank-2{background:var(--rank-2)}
+    .rank-badge.rank-3{background:var(--rank-3)}
     .supporter-name{font-weight:700;font-size:14px}
 
     .message-item{padding:14px 0;border-bottom:1px solid var(--border)}
@@ -106,15 +113,18 @@ const CHECKOUT_STYLE = `
     .message-text{font-size:14px;margin-top:4px}
 
     .yt-toggle{display:flex;align-items:center;gap:8px;width:100%;margin-top:16px;padding:11px 14px;
-      background:#fff;border:1px solid var(--border);border-radius:10px;font:600 14px 'Inter',sans-serif;
+      background:#fff;border:1px solid var(--border);border-radius:10px;font:600 14px 'Open Sans',sans-serif;
       color:var(--ink);cursor:pointer;text-align:left}
     .yt-toggle:hover{border-color:var(--green)}
     .yt-toggle.expanded{border-color:var(--green);background:#f0fdf4}
     .yt-toggle svg{flex:none}
+    .yt-toggle:disabled{cursor:not-allowed;opacity:.55;background:#f6f7f8}
+    .yt-toggle:disabled:hover{border-color:var(--border)}
+    .yt-toggle .lock-icon{flex:none;color:var(--muted)}
 
     #step1.hidden,#step2.hidden{display:none}
     #step2 .back-btn{display:flex;align-items:center;gap:4px;margin-bottom:14px;
-      background:none;border:none;padding:0;font:600 14px 'Inter',sans-serif;color:var(--muted);cursor:pointer}
+      background:none;border:none;padding:0;font:600 14px 'Open Sans',sans-serif;color:var(--muted);cursor:pointer}
     #step2 .back-btn:hover{color:var(--ink)}
     @keyframes view-in{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
     .view-enter{animation:view-in .35s cubic-bezier(.22,1,.36,1)}
@@ -230,7 +240,7 @@ export async function handleDonatePage(req, res) {
            ${leaderboard
              .map(
                (d, i) => `<li class="${i >= 10 ? "more-hidden" : ""}">
-                 <span class="rank-badge${i < 3 ? " top" : ""}">${i + 1}</span>
+                 <span class="rank-badge${i < 3 ? ` rank-${i + 1}` : ""}">${i + 1}</span>
                  <span class="supporter-name">${escapeHtml(d.donorName)}</span>
                </li>`
              )
@@ -302,6 +312,7 @@ export async function handleDonatePage(req, res) {
 
         <button type="button" class="yt-toggle" id="youtubeToggle">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="17" y="3.5" rx="5" fill="#FF0000"/><path d="M10 8.7l6 3.3-6 3.3z" fill="#fff"/></svg>
+          <svg id="youtubeLockIcon" class="lock-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span id="youtubeToggleLabel">Tambahin video YouTube (opsional)</span>
         </button>
         <div id="youtubeFields" class="hidden" style="margin-top:6px">
@@ -353,10 +364,12 @@ export async function handleDonatePage(req, res) {
           document.querySelectorAll(".pill").forEach((b) => b.classList.remove("active"));
           btn.classList.add("active");
           amountInput.value = btn.dataset.amount;
+          updateYoutubeLock();
         });
       });
       amountInput.addEventListener("input", () => {
         document.querySelectorAll(".pill").forEach((b) => b.classList.toggle("active", b.dataset.amount === amountInput.value));
+        updateYoutubeLock();
       });
 
       const donorName = document.getElementById("donorName");
@@ -405,6 +418,32 @@ export async function handleDonatePage(req, res) {
       const youtubeToggle = document.getElementById("youtubeToggle");
       const youtubeFields = document.getElementById("youtubeFields");
       const youtubeToggleLabel = document.getElementById("youtubeToggleLabel");
+      const youtubeLockIcon = document.getElementById("youtubeLockIcon");
+
+      // Locked until the entered amount reaches the video minimum — reflects
+      // the same ${VIDEO_MIN_AMOUNT} the server enforces in handleDonateCreate,
+      // so donors see the requirement up front instead of after submitting.
+      function updateYoutubeLock() {
+        const locked = (Number(amountInput.value) || 0) < ${VIDEO_MIN_AMOUNT};
+        youtubeToggle.disabled = locked;
+        youtubeLockIcon.classList.toggle("hidden", !locked);
+        if (locked) {
+          youtubeToggleLabel.textContent = "Terkunci — minimal Rp" + (${VIDEO_MIN_AMOUNT}).toLocaleString("id-ID") + " buat pakai video";
+          if (!youtubeFields.classList.contains("hidden")) {
+            youtubeFields.classList.add("hidden");
+            youtubeToggle.classList.remove("expanded");
+            document.getElementById("youtubeUrl").value = "";
+            document.getElementById("youtubeStart").value = "";
+            document.getElementById("youtubeEnd").value = "";
+            amountInput.min = baseMinAmount;
+            amountLabelText.textContent = "Nominal (Rp, minimal " + baseMinAmount.toLocaleString("id-ID") + ")";
+          }
+        } else if (youtubeFields.classList.contains("hidden")) {
+          youtubeToggleLabel.textContent = "Tambahin video YouTube (opsional)";
+        }
+      }
+      updateYoutubeLock();
+
       youtubeToggle.addEventListener("click", () => {
         const expanded = youtubeFields.classList.toggle("hidden") === false;
         youtubeToggle.classList.toggle("expanded", expanded);
@@ -1032,6 +1071,229 @@ export async function handleVideoPage(req, res) {
           message: d.message,
         });
         drain();
+      });
+    </script>
+  </body></html>`);
+}
+
+// ---- Live chat & gift overlays (real TikTok LIVE events, not the donation pipeline) ----
+
+export async function handleChatPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      /* Same white-card/green language as the Leaderboard/Wishlist overlays. */
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #feed{width:340px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;min-height:400px}
+      .msg{display:flex;align-items:baseline;gap:6px;background:rgba(255,255,255,.97);border-radius:12px;
+        padding:7px 12px;box-shadow:0 2px 10px rgba(0,0,0,.12);
+        opacity:0;transform:translateY(6px);animation:msgIn .25s ease forwards}
+      @keyframes msgIn{to{opacity:1;transform:translateY(0)}}
+      @media (prefers-reduced-motion: reduce){.msg{animation:none;opacity:1;transform:none}}
+      .msg .user{font-size:13px;font-weight:800;color:#76cc11;flex:none}
+      .msg .text{color:#122e1e;font-size:13px;font-weight:400;word-break:break-word}
+    </style></head><body>
+    <div id="feed"></div>
+    <script>
+      const feed = document.getElementById("feed");
+      const MAX_MESSAGES = 8;
+      function addMessage(m) {
+        const row = document.createElement("div");
+        row.className = "msg";
+        const user = document.createElement("span");
+        user.className = "user";
+        user.textContent = m.user + ":";
+        const text = document.createElement("span");
+        text.className = "text";
+        text.textContent = m.message;
+        row.append(user, text);
+        feed.appendChild(row);
+        while (feed.children.length > MAX_MESSAGES) feed.removeChild(feed.firstChild);
+      }
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("chat", (e) => addMessage(JSON.parse(e.data)));
+    </script>
+  </body></html>`);
+}
+
+export async function handleGiftPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      /* Same white-card/green language as the other overlays. */
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Open Sans',sans-serif}
+      #stage{position:fixed;bottom:56px;left:50%;transform:translate(-50%,16px);
+        display:flex;align-items:stretch;background:rgba(255,255,255,.97);border-radius:14px;
+        box-shadow:0 4px 20px rgba(0,0,0,.15);overflow:hidden;
+        opacity:0;transition:opacity .3s ease,transform .3s ease}
+      #stage.show{opacity:1;transform:translate(-50%,0)}
+      @media (prefers-reduced-motion: reduce){#stage{transition:opacity .2s linear}#stage.show{transform:translate(-50%,0)}}
+      #giftImg{width:48px;height:48px;flex:none;object-fit:cover;background:#e5e5e5;display:none}
+      #giftText{font-size:15px;font-weight:700;color:#122e1e;padding:0 16px;display:flex;align-items:center;white-space:nowrap}
+      #giftText .user{color:#122e1e}
+      #giftText .name{color:#76cc11}
+    </style></head><body>
+    <div id="stage">
+      <img id="giftImg" src="" alt="" onerror="this.style.display='none'" />
+      <div id="giftText"></div>
+    </div>
+    <script>
+      const stage = document.getElementById("stage");
+      let hideTimer = null;
+      function showGift(g) {
+        const img = document.getElementById("giftImg");
+        if (g.giftImage) { img.src = g.giftImage; img.style.display = ""; } else { img.style.display = "none"; }
+        const text = document.getElementById("giftText");
+        text.innerHTML = "";
+        const userEl = document.createElement("span");
+        userEl.className = "user";
+        userEl.textContent = g.user;
+        const nameEl = document.createElement("span");
+        nameEl.className = "name";
+        nameEl.textContent = g.giftName;
+        text.append(userEl, document.createTextNode(" mengirim "), nameEl,
+          document.createTextNode(g.repeatCount > 1 ? " x" + g.repeatCount + "!" : "!"));
+        clearTimeout(hideTimer);
+        stage.classList.add("show");
+        hideTimer = setTimeout(() => stage.classList.remove("show"), 5000);
+      }
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("gift", (e) => showGift(JSON.parse(e.data)));
+    </script>
+  </body></html>`);
+}
+
+export async function handleLiveEvents(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).end();
+  if (!settings.tiktok_url) {
+    return res.status(400).send("Username TikTok belum diset di halaman Tampilan.");
+  }
+
+  subscribe(token, res);
+  acquireLiveConnection(token, settings.tiktok_url);
+  res.on("close", () => releaseLiveConnection(token));
+}
+
+export async function handleLikesPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.97);color:#122e1e;
+        font-size:20px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+    </style></head><body>
+    <div id="tag">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#76cc11"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.1c2.3-1.15 4.7-.3 5.9 1.3l1.5 2 1.5-2c1.2-1.6 3.6-2.45 5.9-1.3 3 1.5 3.6 5 1.9 7.8C18.7 16.65 12 21 12 21z"/></svg>
+      <span id="count">0</span>
+    </div>
+    <script>
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("likes", (e) => {
+        document.getElementById("count").textContent = Number(JSON.parse(e.data).total).toLocaleString("id-ID");
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handleFollowersPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.97);color:#122e1e;
+        font-size:20px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+        transition:background .2s ease}
+      #tag.flash{background:#eaffd6}
+    </style></head><body>
+    <div id="tag">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76cc11" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>
+      </svg>
+      <span id="count">0</span><span>follower baru</span>
+    </div>
+    <script>
+      const tag = document.getElementById("tag");
+      let flashTimer = null;
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("follow", (e) => {
+        document.getElementById("count").textContent = Number(JSON.parse(e.data).total).toLocaleString("id-ID");
+        tag.classList.add("flash");
+        clearTimeout(flashTimer);
+        flashTimer = setTimeout(() => tag.classList.remove("flash"), 600);
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handleJarPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  // Visual fill is relative, not a real currency total — every JAR_STEP-th gift
+  // fills the jar and it resets, so it keeps animating all stream long instead
+  // of maxing out once and going static. Jar drawn as a real SVG shape (rounded
+  // shoulders, glass highlight) instead of stacked rectangles.
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #wrap{display:inline-block;text-align:center}
+      #fill{transition:height .4s ease,y .4s ease}
+      #label{margin-top:8px;text-align:center;color:#122e1e;background:rgba(255,255,255,.97);font-size:12px;
+        font-weight:800;padding:4px 12px;display:inline-block;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      .drop{position:absolute;color:#76cc11;font-size:14px;font-weight:700;animation:drop .6s ease forwards}
+      @keyframes drop{to{transform:translateY(-30px);opacity:0}}
+    </style></head><body>
+    <div id="wrap">
+      <svg width="90" height="140" viewBox="0 0 90 140">
+        <rect x="30" y="4" width="30" height="10" rx="2" fill="#5da80d"/>
+        <rect x="34" y="12" width="22" height="8" rx="1" fill="#4a8a0a"/>
+        <path d="M20 30 Q20 22 30 20 L60 20 Q70 22 70 30 L70 118 Q70 128 60 128 L30 128 Q20 128 20 118 Z"
+              fill="rgba(255,255,255,.9)" stroke="#5da80d" stroke-width="3"/>
+        <clipPath id="jarClip"><path d="M21 31 Q21 23 30 21 L60 21 Q69 23 69 31 L69 118 Q69 127 60 127 L30 127 Q21 127 21 118 Z"/></clipPath>
+        <rect id="fill" x="21" y="128" width="48" height="0" fill="#76cc11" clip-path="url(#jarClip)"/>
+        <path d="M28 30 Q28 24 34 23" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div id="label">Gift: <span id="count">0</span></div>
+    </div>
+    <script>
+      const JAR_STEP = 10;
+      const JAR_TOP = 21, JAR_BOTTOM = 127; // inner clip bounds, matches the SVG path above
+      let total = 0;
+      const fill = document.getElementById("fill");
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("gift", (e) => {
+        const g = JSON.parse(e.data);
+        total += g.repeatCount || 1;
+        document.getElementById("count").textContent = total;
+        const pct = (total % JAR_STEP) / JAR_STEP;
+        const h = pct * (JAR_BOTTOM - JAR_TOP);
+        fill.setAttribute("height", h);
+        fill.setAttribute("y", JAR_BOTTOM - h);
       });
     </script>
   </body></html>`);
