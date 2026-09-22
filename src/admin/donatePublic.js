@@ -675,6 +675,10 @@ export async function handleOverlayPage(req, res) {
         #stage{transition:opacity .2s linear}
         #stage.show,#stage.hide{transform:translate(-50%,0)}
       }
+      /* A configured tier effect gets a punchier, bigger entrance than a plain donation. */
+      #stage.fx-entrance.show{animation:fx-pop .55s cubic-bezier(.2,1.4,.4,1)}
+      @keyframes fx-pop{0%{transform:translate(-50%,0) scale(.3);opacity:0}
+        55%{transform:translate(-50%,0) scale(1.12);opacity:1}100%{transform:translate(-50%,0) scale(1)}}
 
       #avatar-wrap{position:relative;width:88px;height:88px;margin-bottom:14px}
       #avatar{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4ade80,#16a34a);
@@ -694,26 +698,53 @@ export async function handleOverlayPage(req, res) {
       #line2{margin-top:4px;font-size:14px;font-weight:500;color:rgba(255,255,255,.92);
         text-shadow:0 1px 4px rgba(0,0,0,.55);max-width:300px}
 
-      #tier-image{display:none;width:180px;max-height:140px;object-fit:contain;margin-bottom:10px;
-        filter:drop-shadow(0 4px 14px rgba(0,0,0,.4))}
+      #tier-image{display:none;width:220px;max-height:180px;object-fit:contain;margin-bottom:12px;
+        filter:drop-shadow(0 6px 20px rgba(0,0,0,.5))}
+      #tier-image.fx-framed{padding:6px;border-radius:16px;background:linear-gradient(135deg,#ffd700,#fff6c8,#ffd700);
+        box-shadow:0 0 40px 6px rgba(255,215,0,.55)}
 
-      /* Amount-tier effects — see bot_donation_alert_tiers / Tampilan Alert dashboard page. */
-      #stage.fx-shake{animation:fx-shake .5s ease}
-      @keyframes fx-shake{10%,90%{transform:translate(-50%,0) translateX(-2px)}20%,80%{transform:translate(-50%,0) translateX(3px)}
-        30%,50%,70%{transform:translate(-50%,0) translateX(-5px)}40%,60%{transform:translate(-50%,0) translateX(5px)}}
-      #stage.fx-glow #avatar{animation:fx-glow 1.2s ease-in-out infinite}
-      @keyframes fx-glow{0%,100%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 rgba(255,215,0,.6)}
-        50%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 32px 10px rgba(255,215,0,.75)}}
-      #effect-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-      .particle{position:absolute;top:-20px;border-radius:2px;animation:fx-fall linear forwards}
-      @keyframes fx-fall{to{transform:translateY(110vh) rotate(540deg);opacity:.2}}
-      .spark{position:fixed;border-radius:50%;pointer-events:none;animation:fx-spark .8s ease-out forwards}
+      /* Amount-tier effects — see bot_donation_alert_tiers / Tampilan Alert dashboard page.
+         Reworked to be a real screen-level "wow" moment, not a subtle accent: every effect
+         also fires a full-viewport flash + the stage's own punchy pop-in entrance above. */
+      #screen-flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:5;
+        background:radial-gradient(circle at 50% 65%,rgba(255,255,255,.9),rgba(255,215,0,.35) 45%,transparent 75%)}
+      #screen-flash.fire{animation:fx-flash 1.4s ease-out}
+      @keyframes fx-flash{0%{opacity:0}10%{opacity:1}100%{opacity:0}}
+
+      #stage.fx-shake{animation:fx-pop .55s cubic-bezier(.2,1.4,.4,1),fx-shake .7s ease .1s}
+      @keyframes fx-shake{0%,100%{transform:translate(-50%,0) translateX(0) scale(1)}
+        10%{transform:translate(-50%,0) translateX(-10px) scale(1.06)}20%{transform:translate(-50%,0) translateX(10px) scale(1.06)}
+        30%{transform:translate(-50%,0) translateX(-9px) scale(1.04)}40%{transform:translate(-50%,0) translateX(9px) scale(1.04)}
+        50%{transform:translate(-50%,0) translateX(-6px)}60%{transform:translate(-50%,0) translateX(6px)}
+        70%{transform:translate(-50%,0) translateX(-3px)}80%{transform:translate(-50%,0) translateX(3px)}
+        90%{transform:translate(-50%,0) translateX(-1px)}}
+      #stage.fx-glow{animation:fx-pop .55s cubic-bezier(.2,1.4,.4,1)}
+      #stage.fx-glow #avatar-wrap::before{content:"";position:absolute;inset:-18px;border-radius:50%;
+        background:radial-gradient(circle,rgba(255,215,0,.85),transparent 70%);animation:fx-glow-ring 1.1s ease-in-out infinite;z-index:-1}
+      @keyframes fx-glow-ring{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.35)}}
+      #stage.fx-glow #avatar{animation:fx-glow 1.1s ease-in-out infinite}
+      @keyframes fx-glow{0%,100%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 10px 2px rgba(255,215,0,.7)}
+        50%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 46px 16px rgba(255,215,0,.9)}}
+
+      #effect-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:4}
+      .particle{position:absolute;top:-24px;animation:fx-fall linear forwards}
+      @keyframes fx-fall{to{transform:translateY(110vh) rotate(720deg);opacity:.15}}
+      .confetti-cannon{position:fixed;bottom:-10px;animation:fx-cannon ease-out forwards}
+      @keyframes fx-cannon{to{transform:translate(var(--cdx),var(--cdy)) rotate(var(--crot));opacity:0}}
+      .spark{position:fixed;border-radius:50%;pointer-events:none;animation:fx-spark ease-out forwards;
+        box-shadow:0 0 8px 2px currentColor}
       @keyframes fx-spark{to{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+      .shell{position:fixed;bottom:0;width:4px;height:4px;border-radius:50%;pointer-events:none;
+        animation:fx-shell ease-in forwards}
+      @keyframes fx-shell{to{transform:translateY(var(--rise))}}
       @media (prefers-reduced-motion: reduce){
-        #stage.fx-shake{animation:none}#stage.fx-glow #avatar{animation:none}
-        .particle,.spark{display:none}
+        #stage.fx-shake,#stage.fx-glow,#stage.fx-entrance.show{animation:none}
+        #stage.fx-glow #avatar{animation:none}#stage.fx-glow #avatar-wrap::before{animation:none;display:none}
+        #screen-flash.fire{animation:none;opacity:0}
+        .particle,.spark,.shell,.confetti-cannon{display:none}
       }
     </style></head><body>
+    <div id="screen-flash"></div>
     <div id="effect-layer"></div>
     <div id="stage">
       <img id="tier-image" src="" alt="" onerror="this.style.display='none'" />
@@ -727,53 +758,104 @@ export async function handleOverlayPage(req, res) {
       <p id="line2"></p>
     </div>
     <script>
-      const CONFETTI_COLORS = ["#76cc11", "#5da80d", "#aced60", "#fbbf24", "#f472b6", "#60a5fa"];
+      const CONFETTI_COLORS = ["#76cc11", "#5da80d", "#aced60", "#fbbf24", "#f472b6", "#60a5fa", "#ffffff", "#ff6b6b"];
+      function flashScreen() {
+        const flash = document.getElementById("screen-flash");
+        flash.classList.remove("fire");
+        void flash.offsetWidth;
+        flash.classList.add("fire");
+      }
       function runConfetti() {
         const layer = document.getElementById("effect-layer");
-        for (let i = 0; i < 40; i++) {
+        // Falling confetti across the whole top edge — bigger, denser, mixed shapes.
+        for (let i = 0; i < 140; i++) {
           const p = document.createElement("div");
           p.className = "particle";
-          const size = 6 + Math.random() * 6;
+          const size = 8 + Math.random() * 10;
+          const round = Math.random() > 0.5;
           p.style.width = size + "px";
-          p.style.height = size * 0.4 + "px";
+          p.style.height = (round ? size : size * 0.4) + "px";
+          p.style.borderRadius = round ? "50%" : "2px";
           p.style.left = Math.random() * 100 + "vw";
           p.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-          p.style.animationDuration = 2 + Math.random() * 1.5 + "s";
-          p.style.animationDelay = Math.random() * 0.4 + "s";
+          p.style.animationDuration = 2.2 + Math.random() * 1.8 + "s";
+          p.style.animationDelay = Math.random() * 0.6 + "s";
           layer.appendChild(p);
-          setTimeout(() => p.remove(), 4000);
+          setTimeout(() => p.remove(), 5000);
         }
+        // Two corner cannons shooting confetti up and inward, like a real party popper.
+        [0, 100].forEach((originVw, idx) => {
+          for (let i = 0; i < 45; i++) {
+            const c = document.createElement("div");
+            c.className = "confetti-cannon";
+            const size = 6 + Math.random() * 8;
+            c.style.width = size + "px";
+            c.style.height = size * 0.5 + "px";
+            c.style.left = originVw + "vw";
+            c.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+            const angle = idx === 0 ? -60 + Math.random() * 50 : -120 - Math.random() * 50;
+            const dist = 45 + Math.random() * 40;
+            c.style.setProperty("--cdx", Math.cos((angle * Math.PI) / 180) * dist + "vw");
+            c.style.setProperty("--cdy", Math.sin((angle * Math.PI) / 180) * dist + "vh");
+            c.style.setProperty("--crot", 360 + Math.random() * 720 + "deg");
+            c.style.animationDuration = 1.6 + Math.random() * 0.8 + "s";
+            layer.appendChild(c);
+            setTimeout(() => c.remove(), 2600);
+          }
+        });
       }
       function runFireworks() {
         const layer = document.getElementById("effect-layer");
-        const bursts = 3;
+        const bursts = 6;
         for (let b = 0; b < bursts; b++) {
           setTimeout(() => {
-            const cx = 20 + Math.random() * 60;
-            const cy = 20 + Math.random() * 40;
+            const cx = 15 + Math.random() * 70;
+            const cy = 15 + Math.random() * 45;
             const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-            for (let i = 0; i < 24; i++) {
-              const angle = (Math.PI * 2 * i) / 24;
-              const dist = 60 + Math.random() * 40;
-              const spark = document.createElement("div");
-              spark.className = "spark";
-              spark.style.left = cx + "vw";
-              spark.style.top = cy + "vh";
-              spark.style.width = spark.style.height = 5 + Math.random() * 4 + "px";
-              spark.style.background = color;
-              spark.style.setProperty("--dx", Math.cos(angle) * dist + "px");
-              spark.style.setProperty("--dy", Math.sin(angle) * dist + "px");
-              layer.appendChild(spark);
-              setTimeout(() => spark.remove(), 900);
-            }
-          }, b * 350);
+
+            // Rising shell trail before the burst, like a real firework launch.
+            const shell = document.createElement("div");
+            shell.className = "shell";
+            shell.style.left = cx + "vw";
+            shell.style.background = color;
+            shell.style.color = color;
+            shell.style.setProperty("--rise", "-" + (100 - cy) + "vh");
+            shell.style.animationDuration = "0.35s";
+            layer.appendChild(shell);
+
+            setTimeout(() => {
+              shell.remove();
+              const sparkCount = 36;
+              for (let i = 0; i < sparkCount; i++) {
+                const angle = (Math.PI * 2 * i) / sparkCount + Math.random() * 0.2;
+                const dist = 90 + Math.random() * 90;
+                const spark = document.createElement("div");
+                spark.className = "spark";
+                spark.style.left = cx + "vw";
+                spark.style.top = cy + "vh";
+                spark.style.width = spark.style.height = 4 + Math.random() * 5 + "px";
+                spark.style.background = color;
+                spark.style.color = color;
+                spark.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+                spark.style.setProperty("--dy", Math.sin(angle) * dist + "px");
+                spark.style.animationDuration = 0.9 + Math.random() * 0.5 + "s";
+                layer.appendChild(spark);
+                setTimeout(() => spark.remove(), 1500);
+              }
+            }, 350);
+          }, b * 280);
         }
       }
       function applyTierEffect(effect) {
-        stage.classList.remove("fx-shake", "fx-glow");
+        stage.classList.remove("fx-shake", "fx-glow", "fx-entrance");
+        document.getElementById("tier-image").classList.remove("fx-framed");
+        if (effect === "none") return;
+        // restart entrance/flash even if one just played a moment ago
+        void stage.offsetWidth;
+        stage.classList.add("fx-entrance");
+        document.getElementById("tier-image").classList.add("fx-framed");
+        flashScreen();
         if (effect === "shake") {
-          // restart the animation even if it was already applied recently
-          void stage.offsetWidth;
           stage.classList.add("fx-shake");
         } else if (effect === "glow") {
           stage.classList.add("fx-glow");

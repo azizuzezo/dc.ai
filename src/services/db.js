@@ -1161,6 +1161,23 @@ export async function addWishlistItem(guildId, title, targetAmount) {
   return item;
 }
 
+export async function updateWishlistItem(guildId, id, { title, targetAmount }) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_donation_wishlist_items")
+      .update({ title, target_amount: targetAmount })
+      .eq("guild_id", guildId)
+      .eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const item = memWishlistItems.find((w) => w.guild_id === guildId && w.id === Number(id));
+  if (item) {
+    item.title = title;
+    item.target_amount = targetAmount;
+  }
+}
+
 export async function deleteWishlistItem(guildId, id) {
   if (supabase) {
     const { error } = await supabase

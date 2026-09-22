@@ -130,10 +130,24 @@ export async function handleHostWishlistPage(req, res, error) {
           const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
           return `
         <div class="widget-card">
-          <h3>${escapeHtml(w.title)}</h3>
-          <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <div class="progress-label"><span>${rupiah(w.total)} / ${rupiah(w.target_amount)}</span><span>${pct}%</span></div>
-          <form method="post" action="/host/${identifier}/wishlist/${w.id}/delete" style="margin-top:.85rem">
+          <form method="post" action="/host/${identifier}/wishlist/${w.id}/edit">
+            <div class="grid grid-2">
+              <div>
+                <label for="title-${w.id}">Judul</label>
+                <input id="title-${w.id}" type="text" name="title" value="${escapeHtml(w.title)}" maxlength="60" required />
+              </div>
+              <div>
+                <label for="targetAmount-${w.id}">Target (Rp)</label>
+                <input id="targetAmount-${w.id}" type="number" name="targetAmount" value="${w.target_amount}" min="1000" step="1000" required />
+              </div>
+            </div>
+            <div class="progress-track" style="margin-top:.85rem"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="progress-label"><span>${rupiah(w.total)} / ${rupiah(w.target_amount)}</span><span>${pct}%</span></div>
+            <div style="display:flex;gap:.5rem;margin-top:.85rem">
+              <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+            </div>
+          </form>
+          <form method="post" action="/host/${identifier}/wishlist/${w.id}/delete" style="margin-top:.5rem">
             <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
           </form>
         </div>`;
@@ -163,6 +177,17 @@ export async function handleHostWishlistAdd(req, res) {
   const targetAmount = Number(req.body.targetAmount);
   if (title && Number.isFinite(targetAmount) && targetAmount > 0) {
     await db.addWishlistItem(settings.guild_id, title, targetAmount);
+  }
+  res.redirect(`/host/${identifier}/wishlist`);
+}
+
+export async function handleHostWishlistEdit(req, res) {
+  const settings = req.donationSettings;
+  const identifier = req.params.identifier;
+  const title = req.body.title?.trim().slice(0, 60);
+  const targetAmount = Number(req.body.targetAmount);
+  if (title && Number.isFinite(targetAmount) && targetAmount > 0) {
+    await db.updateWishlistItem(settings.guild_id, req.params.id, { title, targetAmount });
   }
   res.redirect(`/host/${identifier}/wishlist`);
 }
