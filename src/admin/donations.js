@@ -57,6 +57,16 @@ export async function handleDonationSettingsPage(req, res, error) {
         <label for="description">Bio</label>
         <textarea id="description" name="description" maxlength="200" rows="2">${escapeHtml(settings.description || "")}</textarea>
 
+        <label for="tiktokUrl">TikTok link (optional)</label>
+        <input id="tiktokUrl" type="url" name="tiktokUrl" value="${escapeHtml(settings.tiktok_url || "")}" placeholder="https://tiktok.com/@kamu" />
+        <label for="instagramUrl">Instagram link (optional)</label>
+        <input id="instagramUrl" type="url" name="instagramUrl" value="${escapeHtml(settings.instagram_url || "")}" placeholder="https://instagram.com/kamu" />
+        <label for="youtubeUrl">YouTube link (optional)</label>
+        <input id="youtubeUrl" type="url" name="youtubeUrl" value="${escapeHtml(settings.youtube_url || "")}" placeholder="https://youtube.com/@kamu" />
+        <label for="twitterUrl">Twitter/X link (optional)</label>
+        <input id="twitterUrl" type="url" name="twitterUrl" value="${escapeHtml(settings.twitter_url || "")}" placeholder="https://x.com/kamu" />
+        <p class="hint">Ditampilkan sebagai ikon di bawah nama kamu di halaman donate.</p>
+
         <label for="gatewayUrl">Gateway URL</label>
         <input id="gatewayUrl" type="url" name="gatewayUrl" value="${escapeHtml(settings.gateway_url || "")}" placeholder="https://gateway-kamu.example.com" />
 
@@ -217,6 +227,10 @@ export async function handleDonationSettingsUpdate(req, res) {
       slug,
       display_name: req.body.displayName?.trim().slice(0, 60) || null,
       description: req.body.description?.trim().slice(0, 200) || null,
+      tiktok_url: req.body.tiktokUrl?.trim() || null,
+      instagram_url: req.body.instagramUrl?.trim() || null,
+      youtube_url: req.body.youtubeUrl?.trim() || null,
+      twitter_url: req.body.twitterUrl?.trim() || null,
       gateway_url: req.body.gatewayUrl?.trim() || null,
       gateway_api_key: req.body.gatewayApiKey?.trim() || null,
       alert_channel_id: req.body.alertChannelId?.trim() || null,

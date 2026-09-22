@@ -29,6 +29,7 @@ import {
   handleDonateCreate,
   handleDonateStatus,
   handleDonateAvatar,
+  handleDonateSupporters,
   handleOverlayPage,
   handleOverlayEvents,
   handleOverlayAudio,
@@ -101,6 +102,7 @@ export function startAdminServer() {
   app.post("/donate/:identifier", handleDonateCreate);
   app.get("/donate/status/:trxId", handleDonateStatus);
   app.get("/donate/:identifier/avatar", handleDonateAvatar);
+  app.get("/donate/:identifier/supporters", handleDonateSupporters);
   app.get("/overlay/:token", handleOverlayPage);
   app.get("/overlay/:token/events", handleOverlayEvents);
   app.get("/overlay/audio/:id", handleOverlayAudio);

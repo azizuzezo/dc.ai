@@ -9,6 +9,18 @@ import { escapeHtml } from "./htmlEscape.js";
 /** Attaching a YouTube clip requires a bigger donation than the guild's own minimum. */
 const VIDEO_MIN_AMOUNT = 25000;
 
+/** Simplified, single-color social glyphs (not the exact trademarked logos) for the donate page's profile link row. */
+const SOCIAL_ICONS = {
+  tiktok:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 1 1-2.6-2.6c.2 0 .4.02.6.06V9.66a5.85 5.85 0 0 0-.6-.03c-3.2 0-5.79 2.6-5.79 5.79s2.6 5.79 5.79 5.79 5.79-2.6 5.79-5.79V9.01a7.3 7.3 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z"/></svg>',
+  instagram:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" stroke="none"/></svg>',
+  youtube:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor" stroke="none"/></svg>',
+  twitter:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.9 3H21l-6.6 7.6L22 21h-6.4l-5-6.5L4.7 21H2.6l7-8.1L2 3h6.5l4.5 6 5.9-6z"/></svg>',
+};
+
 /** Clean green checkout style (matches the streamer's SociaBuzz reference) for the donate form + QR pages. */
 const CHECKOUT_STYLE = `
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,6 +41,10 @@ const CHECKOUT_STYLE = `
     .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:22px}
     label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
     .required-mark{color:#dc2626;margin-left:2px}
+    .social-links{display:flex;justify-content:center;gap:14px;margin-top:10px}
+    .social-links a{display:flex;align-items:center;justify-content:center;width:34px;height:34px;
+      border-radius:50%;background:var(--track);color:var(--ink);transition:transform .15s ease,background .15s ease}
+    .social-links a:hover{background:var(--border);transform:translateY(-2px)}
     input[type=text],input[type=number],input[type=email],textarea{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
       background:#fff;color:var(--ink);font:500 15px 'Inter',sans-serif;transition:border-color .15s ease}
     input[type=text]:hover,input[type=number]:hover,input[type=email]:hover,textarea:hover{border-color:#c3c9d1}
@@ -64,7 +80,10 @@ const CHECKOUT_STYLE = `
     .wish-contrib{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
     .wish-pick{width:100%;margin-top:14px;padding:11px;font-size:14px}
 
+    .range-select{display:block;width:100%;margin:0 0 14px;padding:9px 12px;border-radius:10px;
+      border:1px solid var(--border);background:#fff;color:var(--ink);font:500 13px 'Inter',sans-serif}
     .supporters{list-style:none;margin:0;padding:0}
+    .supporters .empty-row{color:var(--muted);font-size:13px;padding:9px 0;border-bottom:none}
     .supporters li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
     .supporters li:last-child{border-bottom:none}
     .supporters li.more-hidden{display:none}
@@ -129,6 +148,22 @@ export async function handleDonatePage(req, res) {
   const avatarHtml = settings.avatar_data
     ? `<img src="/donate/${identifier}/avatar" alt="" style="width:100%;height:100%;object-fit:cover" />`
     : initial;
+  const socialLinks = [
+    { url: settings.tiktok_url, label: "TikTok", icon: SOCIAL_ICONS.tiktok },
+    { url: settings.instagram_url, label: "Instagram", icon: SOCIAL_ICONS.instagram },
+    { url: settings.youtube_url, label: "YouTube", icon: SOCIAL_ICONS.youtube },
+    { url: settings.twitter_url, label: "Twitter/X", icon: SOCIAL_ICONS.twitter },
+  ].filter((s) => s.url);
+  const socialLinksHtml = socialLinks.length
+    ? `<div class="social-links">
+         ${socialLinks
+           .map(
+             (s) =>
+               `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(s.label)}">${s.icon}</a>`
+           )
+           .join("")}
+       </div>`
+    : "";
   const min = settings.min_amount;
   const presets = [10000, 25000, 50000, 100000, 200000, 500000].filter((v) => v >= min).slice(0, 6);
   if (!presets.length) presets.push(min, min * 2, min * 5);
@@ -174,7 +209,12 @@ export async function handleDonatePage(req, res) {
     ? `<hr class="divider" />
        <div class="section fade-in" style="animation-delay:.2s">
          <h2 class="section-title">Top Supporters</h2>
-         <ol class="supporters">
+         <select id="supportersRange" class="range-select">
+           <option value="all">Sejak awal</option>
+           <option value="30d">30 hari terakhir</option>
+           <option value="7d">7 hari terakhir</option>
+         </select>
+         <ol class="supporters" id="supportersList">
            ${leaderboard
              .map(
                (d, i) => `<li class="${i >= 10 ? "more-hidden" : ""}">
@@ -184,7 +224,7 @@ export async function handleDonatePage(req, res) {
              )
              .join("")}
          </ol>
-         ${leaderboard.length > 10 ? `<button type="button" class="link-btn" id="supportersToggle" style="text-align:center">Lihat semua</button>` : ""}
+         <button type="button" class="link-btn" id="supportersToggle" style="text-align:center${leaderboard.length > 10 ? "" : ";display:none"}">Lihat semua</button>
        </div>`
     : "";
 
@@ -219,6 +259,7 @@ export async function handleDonatePage(req, res) {
           display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
         <h1 style="margin:0;font-size:22px">${title}</h1>
         ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
+        ${socialLinksHtml}
         <button type="button" class="btn-primary main-cta">Berikan Patungan</button>
       </div>
       ${wishlistSectionHtml}
@@ -355,13 +396,45 @@ export async function handleDonatePage(req, res) {
           btn.style.display = "none";
         });
       });
-      document.getElementById("supportersToggle")?.addEventListener("click", (e) => {
+      const supportersToggle = document.getElementById("supportersToggle");
+      supportersToggle?.addEventListener("click", (e) => {
         document.querySelectorAll(".supporters li.more-hidden").forEach((li) => li.classList.remove("more-hidden"));
         e.currentTarget.style.display = "none";
       });
       document.getElementById("messagesToggle")?.addEventListener("click", (e) => {
         document.querySelectorAll(".message-item.more-hidden").forEach((el) => el.classList.remove("more-hidden"));
         e.currentTarget.style.display = "none";
+      });
+
+      const supportersList = document.getElementById("supportersList");
+      function renderSupporters(leaderboard) {
+        supportersList.innerHTML = "";
+        if (!leaderboard.length) {
+          const empty = document.createElement("li");
+          empty.className = "empty-row";
+          empty.textContent = "Belum ada yang donasi di periode ini.";
+          supportersList.appendChild(empty);
+        }
+        leaderboard.forEach((d, i) => {
+          const li = document.createElement("li");
+          if (i >= 10) li.classList.add("more-hidden");
+          const rank = document.createElement("span");
+          rank.className = "rank-badge" + (i < 3 ? " top" : "");
+          rank.textContent = i + 1;
+          const name = document.createElement("span");
+          name.className = "supporter-name";
+          name.textContent = d.donorName;
+          li.append(rank, name);
+          supportersList.appendChild(li);
+        });
+        if (supportersToggle) supportersToggle.style.display = leaderboard.length > 10 ? "" : "none";
+      }
+      document.getElementById("supportersRange")?.addEventListener("change", async (e) => {
+        try {
+          const res = await fetch(${JSON.stringify(`/donate/${identifier}/supporters`)} + "?range=" + e.target.value);
+          const data = await res.json();
+          renderSupporters(data.leaderboard || []);
+        } catch {}
       });
     </script>
   </body></html>`);
@@ -487,6 +560,20 @@ export async function handleDonateAvatar(req, res) {
   res.set("Content-Type", settings.avatar_mime || "image/png");
   res.set("Cache-Control", "no-cache");
   res.send(Buffer.from(settings.avatar_data, "base64"));
+}
+
+/** Top Supporters' time-range dropdown re-fetches through this, so switching ranges doesn't reload the page. */
+export async function handleDonateSupporters(req, res) {
+  const settings = await db.getDonationSettingsByIdentifier(req.params.identifier);
+  if (!settings) return res.status(404).json({ leaderboard: [] });
+  const sinceIso =
+    req.query.range === "7d"
+      ? new Date(Date.now() - 7 * 86400000).toISOString()
+      : req.query.range === "30d"
+        ? new Date(Date.now() - 30 * 86400000).toISOString()
+        : null;
+  const leaderboard = await db.getDonationLeaderboard(settings.guild_id, 25, sinceIso);
+  res.json({ leaderboard });
 }
 
 export async function handleOverlayPage(req, res) {

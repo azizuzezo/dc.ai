@@ -821,6 +821,10 @@ export async function ensureDonationSettings(guildId) {
     description: null,
     avatar_data: null,
     avatar_mime: null,
+    tiktok_url: null,
+    instagram_url: null,
+    youtube_url: null,
+    twitter_url: null,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
@@ -972,18 +976,19 @@ export async function listRecentPaidDonations(guildId, limit = 10) {
     .slice(0, limit);
 }
 
-export async function getDonationLeaderboard(guildId, limit = 10) {
+/** sinceIso limits the ranking to donations paid on/after that timestamp; null means all-time. */
+export async function getDonationLeaderboard(guildId, limit = 10, sinceIso = null) {
   if (supabase) {
-    const { data, error } = await supabase
-      .from("bot_donations")
-      .select("donor_name, amount")
-      .eq("guild_id", guildId)
-      .eq("status", "paid");
+    let query = supabase.from("bot_donations").select("donor_name, amount").eq("guild_id", guildId).eq("status", "paid");
+    if (sinceIso) query = query.gte("paid_at", sinceIso);
+    const { data, error } = await query;
     if (error) throw error;
     return aggregateLeaderboard(data || [], limit);
   }
   return aggregateLeaderboard(
-    memDonations.filter((d) => d.guild_id === guildId && d.status === "paid"),
+    memDonations.filter(
+      (d) => d.guild_id === guildId && d.status === "paid" && (!sinceIso || d.paid_at >= sinceIso)
+    ),
     limit
   );
 }
