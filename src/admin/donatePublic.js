@@ -193,6 +193,7 @@ export async function handleDonatePage(req, res) {
   const pesanHtml = messages.length
     ? `<hr class="divider" />
        <div class="section fade-in" style="animation-delay:.3s">
+         <button type="button" class="btn-primary main-cta" style="margin-top:0;margin-bottom:20px">Berikan Patungan</button>
          <h2 class="section-title">Pesan</h2>
          ${messages
            .map((d, i) => {
@@ -218,7 +219,7 @@ export async function handleDonatePage(req, res) {
           display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
         <h1 style="margin:0;font-size:22px">${title}</h1>
         ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
-        <button type="button" class="btn-primary" id="mainDonateBtn">Berikan Patungan</button>
+        <button type="button" class="btn-primary main-cta">Berikan Patungan</button>
       </div>
       ${wishlistSectionHtml}
       ${topSupportersHtml}
@@ -318,10 +319,12 @@ export async function handleDonatePage(req, res) {
           showStep(step1, step2);
         });
       });
-      document.getElementById("mainDonateBtn")?.addEventListener("click", () => {
-        wishCards.forEach((c) => c.classList.remove("active"));
-        wishlistItemId.value = "";
-        showStep(step1, step2);
+      document.querySelectorAll(".main-cta").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          wishCards.forEach((c) => c.classList.remove("active"));
+          wishlistItemId.value = "";
+          showStep(step1, step2);
+        });
       });
       document.getElementById("backBtn")?.addEventListener("click", () => showStep(step2, step1));
 
