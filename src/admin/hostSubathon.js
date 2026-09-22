@@ -10,7 +10,7 @@ export async function handleHostSubathonPage(req, res, notice) {
   const running = !!endAt && endAt.getTime() > Date.now();
 
   const body = `
-    <div class="topbar"><div><h1>Subathon</h1><p>Timer countdown buat live subathon — mulai dengan durasi awal, terus tiap ada yang donate waktunya otomatis nambah sesuai aturan di bawah.</p></div></div>
+    <div class="topbar"><div><h1>Waktu</h1><p>Timer countdown buat live — mulai dengan durasi awal, terus tiap ada yang donate waktunya otomatis nambah sesuai aturan di bawah.</p></div></div>
     ${notice ? `<p class="hint" style="color:var(--success)">${escapeHtml(notice)}</p>` : ""}
 
     <div class="panel">
@@ -18,21 +18,21 @@ export async function handleHostSubathonPage(req, res, notice) {
       ${
         running
           ? `<p class="hint">Lagi jalan, berakhir <strong id="countdownLabel" data-end-at="${endAt.toISOString()}">${endAt.toLocaleString("id-ID")}</strong>.</p>
-             <form method="post" action="/host/${identifier}/subathon/stop"><button type="submit" class="btn btn-danger btn-sm">Stop Subathon</button></form>`
-          : `<p class="empty">Subathon belum jalan. Set durasi awal di bawah buat mulai.</p>`
+             <form method="post" action="/host/${identifier}/subathon/stop"><button type="submit" class="btn btn-danger btn-sm">Stop Timer</button></form>`
+          : `<p class="empty">Timer belum jalan. Set durasi awal di bawah buat mulai.</p>`
       }
     </div>
 
     <form class="panel" method="post" action="/host/${identifier}/subathon/start" style="margin-top:1.25rem">
-      <h2>${running ? "Restart" : "Mulai"} Subathon</h2>
+      <h2>${running ? "Restart" : "Mulai"} Timer</h2>
       <label for="hours">Durasi awal dari sekarang (jam)</label>
       <input id="hours" type="number" name="hours" min="0.1" step="0.1" value="1" required />
-      <button type="submit" class="btn btn-primary" style="margin-top:16px">${running ? "Restart" : "Mulai"} Subathon</button>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">${running ? "Restart" : "Mulai"} Timer</button>
     </form>
 
     <form class="panel" method="post" action="/host/${identifier}/subathon/rate" style="margin-top:1.25rem">
       <h2>Aturan Tambahan Waktu</h2>
-      <p class="hint">Tiap donasi otomatis nambah waktu subathon, proporsional ke aturan ini. Contoh: Rp10.000 = 5 menit berarti donasi Rp5.000 nambah 2.5 menit.</p>
+      <p class="hint">Tiap donasi otomatis nambah waktu, proporsional ke aturan ini. Contoh: Rp10.000 = 5 menit berarti donasi Rp5.000 nambah 2.5 menit.</p>
       <div class="grid grid-2">
         <div>
           <label for="rateAmount">Setiap donasi Rp</label>

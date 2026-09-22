@@ -1650,7 +1650,7 @@ export async function handleSubathonPage(req, res) {
       @media (prefers-reduced-motion: reduce){#clock.bump{animation:none}}
     </style></head><body>
     <div id="wrap">
-      <div id="label">Subathon</div>
+      <div id="label">Waktu</div>
       <div id="clock">--:--:--</div>
     </div>
     <script>
