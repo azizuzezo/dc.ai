@@ -18,6 +18,10 @@ export const env = {
 
   aiHistoryLimit: Number(process.env.AI_HISTORY_LIMIT) || 10,
   aiCooldownMs: Number(process.env.AI_COOLDOWN_MS) || 8000,
+  // gemini-web2api's own anonymous-session generation time currently runs
+  // 30-90s (no cookie configured, by choice — see geminiClient.js), so this
+  // has to stay generous enough not to cut off an otherwise-working reply.
+  aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS) || 90000,
   floodLimit: Number(process.env.FLOOD_LIMIT) || 6,
   floodWindowMs: Number(process.env.FLOOD_WINDOW_MS) || 10000,
 

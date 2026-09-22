@@ -20,11 +20,18 @@ export function buildChatRequestBody({ model, messages, temperature = DEFAULT_TE
  * No retry here — gemini-web2api already retries upstream with
  * backoff + a 429 circuit breaker (see PRD §9).
  */
-export async function chatCompletion({ baseUrl, apiKey, model, messages, fetchImpl = fetch }) {
+export async function chatCompletion({ baseUrl, apiKey, model, messages, fetchImpl = fetch, timeoutMs = env.aiTimeoutMs }) {
   // AI_BASE_URL is expected to already include the /v1 prefix (matches
   // whatsapp-group-bot's convention, e.g. https://host/v1) — do not
   // append /v1 again here.
   const url = `${baseUrl}/chat/completions`;
+
+  // Without this, a request that never resolves (gemini-web2api's own
+  // request_timeout_sec is 180s) leaves the caller — and whoever's waiting
+  // on a Discord reply — hanging for up to 3 minutes instead of getting a
+  // "try again" response in a bounded, predictable time.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let response;
   try {
@@ -35,9 +42,15 @@ export async function chatCompletion({ baseUrl, apiKey, model, messages, fetchIm
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(buildChatRequestBody({ model, messages })),
+      signal: controller.signal,
     });
   } catch (cause) {
+    if (cause?.name === "AbortError") {
+      throw new GeminiRequestError(`gemini-web2api didn't respond within ${timeoutMs / 1000}s`, { cause });
+    }
     throw new GeminiRequestError("Network error calling gemini-web2api", { cause });
+  } finally {
+    clearTimeout(timer);
   }
 
   let data;

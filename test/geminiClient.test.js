@@ -77,3 +77,20 @@ test("chatCompletion throws GeminiRequestError on network failure", async () => 
     GeminiRequestError
   );
 });
+
+test("chatCompletion aborts and throws a clear GeminiRequestError once timeoutMs elapses", async () => {
+  const fetchImpl = (url, { signal }) =>
+    new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        reject(err);
+      });
+      // Never resolves on its own within the test's timeframe — only the
+      // abort should end this call.
+    });
+  await assert.rejects(
+    () => chatCompletion({ baseUrl: "http://example.test", apiKey: "key", model: "m", messages: [], fetchImpl, timeoutMs: 20 }),
+    (err) => err instanceof GeminiRequestError && /didn't respond within/.test(err.message)
+  );
+});

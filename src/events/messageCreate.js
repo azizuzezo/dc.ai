@@ -53,8 +53,16 @@ export async function execute(message) {
     return;
   }
 
+  // Discord clears the typing indicator after ~10s, but the AI backend can
+  // currently take 30-90s to reply (see geminiClient.js) — without refreshing
+  // it periodically, the bot looks like it's stopped responding for most of
+  // that wait instead of visibly still working on it.
+  await message.channel.sendTyping();
+  const typingInterval = setInterval(() => {
+    message.channel.sendTyping().catch(() => {});
+  }, 8000);
+
   try {
-    await message.channel.sendTyping();
     const reply = await runAiChat({
       channelId: message.channelId,
       guildId: message.guildId,
@@ -66,5 +74,7 @@ export async function execute(message) {
   } catch (err) {
     logError("mention-trigger chat failed:", err);
     await message.reply("Sorry, I couldn't get a response right now. Please try again shortly.").catch(() => {});
+  } finally {
+    clearInterval(typingInterval);
   }
 }
