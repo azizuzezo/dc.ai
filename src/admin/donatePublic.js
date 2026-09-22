@@ -1650,12 +1650,13 @@ export async function handleSubathonPage(req, res) {
       @media (prefers-reduced-motion: reduce){#clock.bump{animation:none}}
     </style></head><body>
     <div id="wrap">
-      <div id="label">Waktu</div>
+      <div id="label">${escapeHtml(settings.subathon_label || "Waktu")}</div>
       <div id="clock">--:--:--</div>
     </div>
     <script>
       let endAt = ${settings.subathon_end_at ? `new Date(${JSON.stringify(settings.subathon_end_at)}).getTime()` : "null"};
       const clockEl = document.getElementById("clock");
+      const labelEl = document.getElementById("label");
 
       function render() {
         if (!endAt) { clockEl.textContent = "--:--:--"; clockEl.classList.remove("ended"); return; }
@@ -1684,6 +1685,9 @@ export async function handleSubathonPage(req, res) {
         void clockEl.offsetWidth;
         clockEl.classList.add("bump");
         render();
+      });
+      events.addEventListener("subathon-label", (e) => {
+        labelEl.textContent = JSON.parse(e.data).label;
       });
     </script>
   </body></html>`);

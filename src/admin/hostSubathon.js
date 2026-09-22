@@ -31,8 +31,10 @@ export async function handleHostSubathonPage(req, res, notice) {
     </form>
 
     <form class="panel" method="post" action="/host/${identifier}/subathon/rate" style="margin-top:1.25rem">
-      <h2>Aturan Tambahan Waktu</h2>
-      <p class="hint">Tiap donasi otomatis nambah waktu, proporsional ke aturan ini. Contoh: Rp10.000 = 5 menit berarti donasi Rp5.000 nambah 2.5 menit.</p>
+      <h2>Nama & Aturan Tambahan Waktu</h2>
+      <label for="label">Nama widget (ditampilin di overlay)</label>
+      <input id="label" type="text" name="label" maxlength="40" value="${escapeHtml(settings.subathon_label || "Waktu")}" required />
+      <p class="hint" style="margin-top:14px">Tiap donasi otomatis nambah waktu, proporsional ke aturan ini. Contoh: Rp10.000 = 5 menit berarti donasi Rp5.000 nambah 2.5 menit.</p>
       <div class="grid grid-2">
         <div>
           <label for="rateAmount">Setiap donasi Rp</label>
@@ -71,6 +73,12 @@ export async function handleHostSubathonRateUpdate(req, res) {
   const settings = req.donationSettings;
   const rateAmount = Math.max(1, Number(req.body.rateAmount) || 10000);
   const rateMinutes = Math.max(0.1, Number(req.body.rateMinutes) || 5);
-  await db.updateDonationSettings(settings.guild_id, { subathon_rate_amount: rateAmount, subathon_rate_minutes: rateMinutes });
+  const label = (req.body.label || "").trim().slice(0, 40) || "Waktu";
+  await db.updateDonationSettings(settings.guild_id, {
+    subathon_rate_amount: rateAmount,
+    subathon_rate_minutes: rateMinutes,
+    subathon_label: label,
+  });
+  broadcast(settings.overlay_token, "subathon-label", { label });
   res.redirect(`/host/${req.params.identifier}/subathon`);
 }
