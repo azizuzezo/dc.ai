@@ -38,12 +38,13 @@ const CHECKOUT_STYLE = `
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    /* Colors/font matched exactly against sociabuzz.com's own computed styles
-       (getComputedStyle on their live donate page): brand green #76cc11,
+    /* Layout/font matched against sociabuzz.com's own computed styles
+       (getComputedStyle on their live donate page); accent color instead
+       matches the Patungan "P" logo's blue gradient (#0e60fa - #2f9afd),
        "Open Sans", white page background, #e5e5e5 progress track. */
-    :root{--green:#76cc11;--green-light:#93dc3e;--green-deep:#5da80d;
-      --ink:#122e1e;--muted:#5b7267;--border:#d7ebdc;--track:#e5e5e5;--page-bg:#fff;
-      --rank-1:#76cc11;--rank-2:#93dc3e;--rank-3:#aced60;--rank-other:#dddddd;
+    :root{--green:#1e7dfb;--green-light:#4da3ff;--green-deep:#0b56d6;
+      --ink:#16243b;--muted:#5b6b82;--border:#d7e5fb;--track:#e5e5e5;--page-bg:#fff;
+      --rank-1:#1e7dfb;--rank-2:#4da3ff;--rank-3:#8ec4ff;--rank-other:#dddddd;
       --ease:cubic-bezier(.16,1,.3,1)}
     *{box-sizing:border-box}
     body{font-family:'Open Sans',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:var(--page-bg);color:var(--ink)}
@@ -57,7 +58,7 @@ const CHECKOUT_STYLE = `
       .section.section-wide{max-width:680px}
     }
     .card{background:#fff;border:1px solid var(--border);border-radius:16px;
-      box-shadow:0 1px 2px rgba(18,46,30,.04),0 12px 28px -16px rgba(18,46,30,.14);padding:22px}
+      box-shadow:0 1px 2px rgba(22,36,59,.04),0 12px 28px -16px rgba(22,36,59,.14);padding:22px}
     label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
     .required-mark{color:#dc2626;margin-left:2px}
     .social-links{display:flex;justify-content:center;gap:14px;margin-top:10px}
@@ -72,8 +73,8 @@ const CHECKOUT_STYLE = `
     textarea{resize:vertical}
     button{font:800 15px 'Open Sans',sans-serif;border:none;border-radius:999px;cursor:pointer}
     .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green);color:#fff;
-      box-shadow:0 1px 2px rgba(21,128,61,.15)}
-    .btn-primary:hover{background:var(--green-deep);transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(21,128,61,.45)}
+      box-shadow:0 1px 2px rgba(30,125,251,.15)}
+    .btn-primary:hover{background:var(--green-deep);transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(30,125,251,.45)}
     .pill{padding:9px 4px;background:#fff;color:var(--ink);font-size:14px;border:1px solid var(--border);border-radius:999px}
     .pill.active{background:var(--green);color:#fff;border-color:var(--green)}
     .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
@@ -93,7 +94,7 @@ const CHECKOUT_STYLE = `
     .wishlist-grid{display:grid;grid-template-columns:1fr;gap:14px}
     @media (min-width:480px){.wishlist-grid{grid-template-columns:1fr 1fr}}
     .wish-card{border:1px solid var(--border);border-radius:14px;padding:16px;background:#fff;
-      box-shadow:0 1px 2px rgba(18,46,30,.04)}
+      box-shadow:0 1px 2px rgba(22,36,59,.04)}
     .wish-card.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
     .wish-card .wish-title{font-weight:800;font-size:15px}
     .wish-target{font-size:12px;color:var(--muted);margin-top:4px}
@@ -126,7 +127,7 @@ const CHECKOUT_STYLE = `
       background:#fff;border:1px solid var(--border);border-radius:10px;font:600 14px 'Open Sans',sans-serif;
       color:var(--ink);cursor:pointer;text-align:left}
     .yt-toggle:hover{border-color:var(--green)}
-    .yt-toggle.expanded{border-color:var(--green);background:#f0fdf4}
+    .yt-toggle.expanded{border-color:var(--green);background:#eef5ff}
     .yt-toggle svg{flex:none}
     .yt-toggle:disabled{cursor:not-allowed;opacity:.55;background:#f6f7f8}
     .yt-toggle:disabled:hover{border-color:var(--border)}
@@ -143,7 +144,7 @@ const CHECKOUT_STYLE = `
        cards/buttons respond to touch. Kept subtle and one-time, not looping
        everywhere, so it stays readable instead of busy. */
     @keyframes avatar-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-    @keyframes avatar-glow{0%,100%{box-shadow:0 0 0 3px var(--green)}50%{box-shadow:0 0 0 7px rgba(21,128,61,.3)}}
+    @keyframes avatar-glow{0%,100%{box-shadow:0 0 0 3px var(--green)}50%{box-shadow:0 0 0 7px rgba(30,125,251,.3)}}
     @keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     #avatarCircle{animation:avatar-float 3.2s ease-in-out infinite, avatar-glow 3.2s ease-in-out infinite}
     .fade-in{opacity:0;animation:fade-up .6s var(--ease) forwards}
@@ -159,13 +160,19 @@ const CHECKOUT_STYLE = `
        uses transform. */
     .wish-card.reveal{transform:none}
     .wish-card{transition:opacity .6s var(--ease), transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease)}
-    .wish-card:hover{transform:translateY(-4px);box-shadow:0 14px 28px -12px rgba(21,128,61,.25);border-color:#bfe6cc}
+    .wish-card:hover{transform:translateY(-4px);box-shadow:0 14px 28px -12px rgba(30,125,251,.25);border-color:#bcd8fb}
     .pill:hover{border-color:var(--green)}
     .pill:active{transform:scale(.94)}
     @media (prefers-reduced-motion: reduce){
       #avatarCircle,.fade-in,.bar-fill,button,.wish-card,.view-enter,.reveal{animation:none !important;transition:none !important}
       .fade-in,.reveal{opacity:1 !important;transform:none !important}
     }
+
+    .site-footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);text-align:center}
+    .site-footer .brand{display:flex;align-items:center;justify-content:center}
+    .site-footer .brand img{height:17px;width:auto;margin-right:1px}
+    .site-footer .brand span{font-weight:800;font-size:15px;color:var(--ink)}
+    .site-footer .copyright{margin:6px 0 0;font-size:11px;color:var(--muted)}
   </style>`;
 
 export async function handleDonatePage(req, res) {
@@ -349,6 +356,10 @@ export async function handleDonatePage(req, res) {
         <button type="submit" class="btn-primary">Buat QRIS Sekarang</button>
       </form>
     </div>
+    <footer class="site-footer">
+      <div class="brand"><img src="/overlay/assets/patungan-mark.png" alt="P" /><span>atungan Yuk!</span></div>
+      <p class="copyright">&copy; ${new Date().getFullYear()} Patungan. All Rights Reserved.</p>
+    </footer>
     <script>
       const revealEls = document.querySelectorAll(".reveal");
       if ("IntersectionObserver" in window) {
@@ -896,8 +907,16 @@ export async function handleOverlayPage(req, res) {
         bellSound.play().catch(() => {});
       }
 
-      function showDonation(d) {
-        if (d.youtubeVideoId) return; // shown below the video widget instead
+      // Donations are queued, not shown as soon as they arrive: without this,
+      // a second donation landing while the first is still on screen (or
+      // still being narrated) would instantly cut the first one's card and
+      // audio off. Each queued item is fully shown + narrated before the
+      // next one starts.
+      const donationQueue = [];
+      const pendingTtsByAlertId = new Map(); // alertId -> audio url, for tts that arrives for a LATER queued item
+      let queueBusy = false;
+
+      function renderDonationCard(d) {
         const line1 = document.getElementById("line1");
         line1.innerHTML = "";
         const amountEl = document.createElement("span");
@@ -913,63 +932,124 @@ export async function handleOverlayPage(req, res) {
         stage.classList.add("show");
         if (d.tierEffect && d.tierEffect !== "none") applyTierEffect(d.tierEffect);
         if (d.sound) chime();
-        setTimeout(() => {
-          stage.classList.add("hide");
-          stage.classList.remove("show");
-        }, 8000); // gives the TTS narration (arrives separately, a few seconds later) room to finish
       }
+
+      function hideDonationCard() {
+        stage.classList.add("hide");
+        stage.classList.remove("show");
+      }
+
       // Narration is normally generated server-side (Gemini TTS) and arrives
       // a few seconds later as its own "tts" event. If that never shows up
       // (no API key configured, quota out, or generation failed), this falls
       // back to the viewer's own browser voice via the Web Speech API so the
-      // donation still gets read out loud one way or another.
-      let pendingNarration = null;
-      let narrationFallbackTimer = null;
+      // donation still gets read out loud one way or another. Both resolve
+      // their promise once playback actually finishes, so the queue can wait
+      // for the real narration length instead of a guessed fixed duration.
       function speakFallback(text) {
-        if (!text || !("speechSynthesis" in window)) return;
-        let spoken = false;
-        const doSpeak = () => {
-          if (spoken) return;
-          spoken = true;
+        return new Promise((resolve) => {
+          if (!text || !("speechSynthesis" in window)) return resolve();
+          let spoken = false;
+          const doSpeak = () => {
+            if (spoken) return;
+            spoken = true;
+            try {
+              const utter = new SpeechSynthesisUtterance(text);
+              const voices = window.speechSynthesis.getVoices();
+              const idVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("id"));
+              if (idVoice) utter.voice = idVoice;
+              utter.lang = idVoice ? idVoice.lang : "id-ID";
+              utter.onend = () => resolve();
+              utter.onerror = () => resolve();
+              window.speechSynthesis.speak(utter);
+            } catch {
+              resolve();
+            }
+          };
+          // Chrome sometimes hasn't loaded any voices yet on the very first
+          // call, and speak() then just silently does nothing — wait for
+          // voiceschanged once, with a timeout in case it never fires.
+          if (window.speechSynthesis.getVoices().length) {
+            doSpeak();
+          } else {
+            window.speechSynthesis.addEventListener("voiceschanged", doSpeak, { once: true });
+            setTimeout(doSpeak, 500);
+          }
+        });
+      }
+
+      function playAudioUrl(url) {
+        return new Promise((resolve) => {
           try {
-            const utter = new SpeechSynthesisUtterance(text);
-            const voices = window.speechSynthesis.getVoices();
-            const idVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("id"));
-            if (idVoice) utter.voice = idVoice;
-            utter.lang = idVoice ? idVoice.lang : "id-ID";
-            window.speechSynthesis.speak(utter);
-          } catch {}
-        };
-        // Chrome sometimes hasn't loaded any voices yet on the very first
-        // call, and speak() then just silently does nothing — wait for
-        // voiceschanged once, with a timeout in case it never fires.
-        if (window.speechSynthesis.getVoices().length) {
-          doSpeak();
-        } else {
-          window.speechSynthesis.addEventListener("voiceschanged", doSpeak, { once: true });
-          setTimeout(doSpeak, 500);
-        }
+            const audio = new Audio(url);
+            audio.addEventListener("ended", () => resolve());
+            audio.addEventListener("error", () => resolve());
+            audio.play().catch(() => resolve());
+          } catch {
+            resolve();
+          }
+        });
+      }
+
+      const MIN_SHOW_MS = 8000; // how long a donation with no narration at all stays up
+
+      function showAndNarrate(d) {
+        return new Promise((resolve) => {
+          if (d.youtubeVideoId) return resolve(); // shown below the video widget instead
+          renderDonationCard(d);
+
+          const finish = () => {
+            hideDonationCard();
+            setTimeout(resolve, 300); // matches the card's own fade-out transition
+          };
+
+          const already = d.alertId && pendingTtsByAlertId.get(d.alertId);
+          if (already) {
+            pendingTtsByAlertId.delete(d.alertId);
+            playAudioUrl(already).then(finish);
+            return;
+          }
+
+          let handled = false;
+          const ttsHandler = (e) => {
+            const payload = JSON.parse(e.data);
+            if (d.alertId && payload.alertId && payload.alertId !== d.alertId) {
+              // Belongs to a donation further down the queue — stash it for
+              // when the queue actually gets there.
+              pendingTtsByAlertId.set(payload.alertId, payload.url);
+              return;
+            }
+            handled = true;
+            events.removeEventListener("tts", ttsHandler);
+            playAudioUrl(payload.url).then(finish);
+          };
+          events.addEventListener("tts", ttsHandler);
+
+          setTimeout(() => {
+            if (handled) return;
+            events.removeEventListener("tts", ttsHandler);
+            if (d.narration) {
+              speakFallback(d.narration).then(finish);
+            } else {
+              setTimeout(finish, MIN_SHOW_MS);
+            }
+          }, 4000);
+        });
+      }
+
+      async function processQueue() {
+        if (queueBusy || !donationQueue.length) return;
+        queueBusy = true;
+        const d = donationQueue.shift();
+        await showAndNarrate(d);
+        queueBusy = false;
+        processQueue();
       }
 
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => {
-        const d = JSON.parse(e.data);
-        showDonation(d);
-        clearTimeout(narrationFallbackTimer);
-        pendingNarration = d.narration || null;
-        if (pendingNarration) {
-          narrationFallbackTimer = setTimeout(() => {
-            if (pendingNarration) speakFallback(pendingNarration);
-            pendingNarration = null;
-          }, 4000);
-        }
-      });
-      events.addEventListener("tts", (e) => {
-        clearTimeout(narrationFallbackTimer);
-        pendingNarration = null;
-        try {
-          new Audio(JSON.parse(e.data).url).play().catch(() => {});
-        } catch {}
+        donationQueue.push(JSON.parse(e.data));
+        processQueue();
       });
     </script>
   </body></html>`);

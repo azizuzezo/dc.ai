@@ -74,7 +74,14 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     logError(`Failed to resolve alert tier for guild ${donation.guild_id}:`, err);
   }
 
+  // Correlates this donation's "donation" and (later, async) "tts" broadcasts
+  // so the Alert widget can queue them properly instead of a second donation's
+  // card cutting off the first one's — falls back to a generated id for
+  // test/simulated donations, which don't have a real trx_id.
+  const alertId = donation.trx_id || `test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
   broadcast(settings.overlay_token, "donation", {
+    alertId,
     donorName: donation.donor_name,
     amount: donation.amount,
     message,
@@ -107,7 +114,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
   // Not awaited: letting this resolve on its own keeps the sweep loop (and
   // the admin dashboard's test/replay button) from sitting idle for ~5-7s.
   ttsPromise.then((audio) => {
-    if (audio) broadcast(settings.overlay_token, "tts", { url: `/overlay/audio/${storeAudio(audio)}` });
+    if (audio) broadcast(settings.overlay_token, "tts", { alertId, url: `/overlay/audio/${storeAudio(audio)}` });
   });
 }
 
