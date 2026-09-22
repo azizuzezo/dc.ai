@@ -46,13 +46,6 @@ export const env = {
   // Used only by /patungan to print a full link. Optional — without it, the
   // command points admins to the dashboard instead of guessing the domain.
   publicBaseUrl: process.env.PUBLIC_BASE_URL,
-
-  // Donation-alert TTS. Comma-separated so multiple free-tier keys can rotate
-  // when one hits its daily quota (see src/services/geminiTts.js).
-  geminiTtsApiKeys: (process.env.GEMINI_TTS_API_KEYS || "")
-    .split(",")
-    .map((k) => k.trim())
-    .filter(Boolean),
 };
 
 export function assertRequiredEnv() {
