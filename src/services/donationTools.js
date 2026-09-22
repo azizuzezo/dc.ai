@@ -29,23 +29,24 @@ export function spinWheel(token, wheelConfig) {
 
 // ---- Likeathon: real-time top-liker ranking with optional automatic reduction ----
 
-const likeathonState = new Map(); // token -> Map<user, count>
+const likeathonState = new Map(); // token -> Map<user, { count, avatarUrl }>
 const reductionIntervals = new Map(); // token -> interval handle
 
 function broadcastLikeathon(token) {
   const state = likeathonState.get(token);
   if (!state) return;
   const ranking = Array.from(state.entries())
-    .map(([user, count]) => ({ user, count }))
+    .map(([user, entry]) => ({ user, count: entry.count, avatarUrl: entry.avatarUrl }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
   broadcast(token, "likeathon", { ranking });
 }
 
-export function recordLikeathonLikes(token, user, count) {
+export function recordLikeathonLikes(token, user, count, avatarUrl) {
   if (!likeathonState.has(token)) likeathonState.set(token, new Map());
   const state = likeathonState.get(token);
-  state.set(user, (state.get(user) || 0) + count);
+  const existing = state.get(user);
+  state.set(user, { count: (existing?.count || 0) + count, avatarUrl: avatarUrl || existing?.avatarUrl || null });
   broadcastLikeathon(token);
 }
 
@@ -60,8 +61,8 @@ export function startLikeathonReduction(token, percent) {
   const handle = setInterval(() => {
     const state = likeathonState.get(token);
     if (!state) return;
-    for (const [user, count] of state.entries()) {
-      state.set(user, Math.floor(count * (1 - Number(percent) / 100)));
+    for (const [user, entry] of state.entries()) {
+      state.set(user, { ...entry, count: Math.floor(entry.count * (1 - Number(percent) / 100)) });
     }
     broadcastLikeathon(token);
   }, 10_000);

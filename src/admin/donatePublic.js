@@ -1764,10 +1764,12 @@ export async function handleLikeathonPage(req, res) {
       #card{width:260px;background:rgba(255,255,255,.97);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
       #card h3{margin:0 0 8px;color:#122e1e;font-size:15px;display:flex;align-items:center;gap:6px}
       #card h3::before{content:"❤️"}
-      .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;color:#122e1e;border-top:1px solid #eee}
+      .row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:#122e1e;border-top:1px solid #eee}
       .row:first-of-type{border-top:none}
       .rank{color:#76cc11;font-weight:800;width:1.4em;flex:none}
+      .avatar{width:22px;height:22px;border-radius:50%;flex:none;object-fit:cover;background:#e5e5e5}
       .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .val{flex:none;font-weight:700}
     </style></head><body>
     <div id="card"><h3>Likeathon</h3><div id="rows"></div></div>
     <script>
@@ -1779,7 +1781,11 @@ export async function handleLikeathonPage(req, res) {
         data.ranking.forEach((r, i) => {
           const row = document.createElement("div");
           row.className = "row";
-          row.innerHTML = '<span class="rank">#' + (i + 1) + '</span><span class="name"></span><span class="val"></span>';
+          row.innerHTML = '<span class="rank">#' + (i + 1) + '</span><img class="avatar" alt="" /><span class="name"></span><span class="val"></span>';
+          const avatar = row.querySelector(".avatar");
+          avatar.src = r.avatarUrl || "";
+          avatar.onerror = () => { avatar.style.display = "none"; };
+          if (!r.avatarUrl) avatar.style.display = "none";
           row.querySelector(".name").textContent = r.user;
           row.querySelector(".val").textContent = r.count;
           rowsEl.appendChild(row);

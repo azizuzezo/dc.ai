@@ -77,10 +77,11 @@ function attachListeners(connection, token, counts, guildId, settings) {
   });
   connection.on(WebcastEvent.LIKE, (data) => {
     const user = data.user?.nickname || data.user?.displayId || "Seseorang";
+    const avatarUrl = data.user?.avatarThumb?.urlList?.[0] || null;
     const count = data.count || 0;
     counts.likes += count;
     broadcast(token, "likes", { total: counts.likes });
-    recordLikeathonLikes(token, user, count);
+    recordLikeathonLikes(token, user, count, avatarUrl);
     evaluateEvent(token, guildId, "likes", { total: counts.likes });
   });
   connection.on(WebcastEvent.FOLLOW, (data) => {
