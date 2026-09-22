@@ -916,6 +916,9 @@ export async function ensureDonationSettings(guildId) {
     media_volume: 100,
     chat_bubble_style: {},
     dashboard_theme: {},
+    subathon_end_at: null,
+    subathon_rate_amount: 10000,
+    subathon_rate_minutes: 5,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);

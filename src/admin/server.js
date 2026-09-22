@@ -59,6 +59,7 @@ import {
   handlePointsDropPage,
   handleLinkPreviewPage,
   handleMediaServe,
+  handleSubathonPage,
 } from "./donatePublic.js";
 import { requireHostAuth, handleHostLoginPage, handleHostLogin, handleHostLogout } from "./hostAuth.js";
 import {
@@ -92,6 +93,12 @@ import {
   handleHostAlertTierDelete,
   handleHostAlertTierSimulate,
 } from "./hostAlertAppearance.js";
+import {
+  handleHostSubathonPage,
+  handleHostSubathonStart,
+  handleHostSubathonStop,
+  handleHostSubathonRateUpdate,
+} from "./hostSubathon.js";
 import {
   handleHostToolsPage,
   handleHostToolsCommandsUpdate,
@@ -238,6 +245,7 @@ export function startAdminServer() {
   app.get("/overlay/:token/followers", handleFollowersPage);
   app.get("/overlay/:token/share", handleSharePage);
   app.get("/overlay/:token/jar", handleJarPage);
+  app.get("/overlay/:token/subathon", handleSubathonPage);
   app.get("/overlay/:token/live-events", handleLiveEvents);
   // TikFinity-style feature widgets — Points, Sound Alerts, Actions & Events,
   // Wheel of Fortune, Likeathon, Command Response, Points Drop.
@@ -320,6 +328,11 @@ export function startAdminServer() {
   app.post("/host/:identifier/tampilan-alert/tiers", requireHostAuth, mediaUpload.single("imageFile"), handleHostAlertTierAdd);
   app.post("/host/:identifier/tampilan-alert/tiers/:id/delete", requireHostAuth, handleHostAlertTierDelete);
   app.post("/host/:identifier/tampilan-alert/simulate-donation", requireHostAuth, handleHostAlertTierSimulate);
+
+  app.get("/host/:identifier/subathon", requireHostAuth, (req, res) => handleHostSubathonPage(req, res));
+  app.post("/host/:identifier/subathon/start", requireHostAuth, handleHostSubathonStart);
+  app.post("/host/:identifier/subathon/stop", requireHostAuth, handleHostSubathonStop);
+  app.post("/host/:identifier/subathon/rate", requireHostAuth, handleHostSubathonRateUpdate);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every

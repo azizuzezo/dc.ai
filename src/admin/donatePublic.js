@@ -1629,6 +1629,66 @@ export async function handleJarPage(req, res) {
   </body></html>`);
 }
 
+export async function handleSubathonPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #wrap{display:inline-block;text-align:center;padding:10px 22px;border-radius:16px;
+        background:rgba(0,0,0,.55);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+      #label{color:rgba(255,255,255,.75);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+      #clock{color:#fff;font-size:52px;font-weight:800;letter-spacing:.02em;text-shadow:0 2px 10px rgba(0,0,0,.5);
+        font-variant-numeric:tabular-nums;transition:transform .25s ease}
+      #clock.bump{animation:bump .4s ease}
+      #clock.ended{color:#f87171}
+      @keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.12)}100%{transform:scale(1)}}
+      @media (prefers-reduced-motion: reduce){#clock.bump{animation:none}}
+    </style></head><body>
+    <div id="wrap">
+      <div id="label">Subathon</div>
+      <div id="clock">--:--:--</div>
+    </div>
+    <script>
+      let endAt = ${settings.subathon_end_at ? `new Date(${JSON.stringify(settings.subathon_end_at)}).getTime()` : "null"};
+      const clockEl = document.getElementById("clock");
+
+      function render() {
+        if (!endAt) { clockEl.textContent = "--:--:--"; clockEl.classList.remove("ended"); return; }
+        const remainingMs = endAt - Date.now();
+        if (remainingMs <= 0) {
+          clockEl.textContent = "00:00:00";
+          clockEl.classList.add("ended");
+          return;
+        }
+        clockEl.classList.remove("ended");
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        const pad = (n) => String(n).padStart(2, "0");
+        clockEl.textContent = (h > 0 ? pad(h) + ":" : "") + pad(m) + ":" + pad(s);
+      }
+      render();
+      setInterval(render, 1000);
+
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      events.addEventListener("subathon", (e) => {
+        const d = JSON.parse(e.data);
+        endAt = d.endAt ? new Date(d.endAt).getTime() : null;
+        clockEl.classList.remove("bump");
+        void clockEl.offsetWidth;
+        clockEl.classList.add("bump");
+        render();
+      });
+    </script>
+  </body></html>`);
+}
+
 // ---- TikFinity-style feature widgets: Points, Sound Alerts, Actions & Events,
 // Wheel of Fortune, Likeathon, Command Response, Points Drop ----
 

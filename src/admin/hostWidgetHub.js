@@ -15,6 +15,7 @@ function buildWidgetGroups(baseUrl, token) {
         { name: "Leaderboard", desc: "Papan peringkat donatur terbesar.", url: url("/leaderboard"), w: 280, h: 360 },
         { name: "Wishlist", desc: "Progress milestone wishlist yang lagi dikejar.", url: url("/wishlist"), w: 320, h: 160 },
         { name: "Video", desc: "Muterin klip YouTube yang di-request lewat donasi.", url: url("/video"), w: 640, h: 480 },
+        { name: "Subathon", desc: "Timer countdown yang otomatis nambah tiap ada donasi — atur durasi/aturan di Subathon.", url: url("/subathon"), w: 320, h: 140 },
       ],
     },
     {

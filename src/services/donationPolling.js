@@ -98,6 +98,25 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     logError(`Failed to refresh wishlist progress for guild ${donation.guild_id}:`, err);
   }
 
+  // Subathon timer: only ticks once the host has actually started one (see
+  // hostSubathon.js). Extends proportionally to subathon_rate_amount/minutes,
+  // and if the timer had already hit zero, extends from now rather than from
+  // that stale past end time — otherwise a donation after expiry could add
+  // time that's still in the past and never visibly revive the countdown.
+  if (settings.subathon_end_at) {
+    try {
+      const rateAmount = Number(settings.subathon_rate_amount) || 10000;
+      const rateMinutes = Number(settings.subathon_rate_minutes) || 0;
+      const addedMs = (Number(donation.amount) / rateAmount) * rateMinutes * 60000;
+      const currentEndMs = new Date(settings.subathon_end_at).getTime();
+      const newEndAt = new Date(Math.max(currentEndMs, Date.now()) + addedMs);
+      await db.updateDonationSettings(donation.guild_id, { subathon_end_at: newEndAt.toISOString() });
+      broadcast(settings.overlay_token, "subathon", { endAt: newEndAt.toISOString() });
+    } catch (err) {
+      logError(`Failed to extend subathon timer for guild ${donation.guild_id}:`, err);
+    }
+  }
+
   // Not awaited: letting this resolve on its own keeps the sweep loop (and
   // the admin dashboard's test/replay button) from sitting idle for ~5-7s.
   ttsPromise.then((audio) => {

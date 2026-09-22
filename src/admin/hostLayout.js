@@ -224,6 +224,7 @@ function icon(name) {
     shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     palette: '<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-4.4-4-8-10-8z"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
   };
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
 }
@@ -235,6 +236,7 @@ const NAV = [
   { key: "pesan", label: "Pesan", icon: "message", href: (id) => `/host/${id}/pesan` },
   { key: "poin", label: "Poin", icon: "coins", href: (id) => `/host/${id}/poin` },
   { key: "aksi", label: "Aksi & Event", icon: "zap", href: (id) => `/host/${id}/aksi` },
+  { key: "subathon", label: "Subathon", icon: "clock", href: (id) => `/host/${id}/subathon` },
   { key: "suara", label: "Efek Suara", icon: "volume", href: (id) => `/host/${id}/suara` },
   { key: "tools", label: "Tools", icon: "wrench", href: (id) => `/host/${id}/tools` },
   { key: "moderasi", label: "Moderasi", icon: "shield", href: (id) => `/host/${id}/moderasi` },
