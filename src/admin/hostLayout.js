@@ -147,6 +147,10 @@ function icon(name) {
       '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     "log-out": '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
     "external-link": '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
+    coins: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="M16.71 13.88l.7.71-2.82 2.82"/>',
+    zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+    volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
   };
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
 }
@@ -155,6 +159,10 @@ const NAV = [
   { key: "beranda", label: "Beranda", icon: "home", href: (id) => `/host/${id}` },
   { key: "wishlist", label: "Wishlist", icon: "target", href: (id) => `/host/${id}/wishlist` },
   { key: "pesan", label: "Pesan", icon: "message", href: (id) => `/host/${id}/pesan` },
+  { key: "poin", label: "Poin", icon: "coins", href: (id) => `/host/${id}/poin` },
+  { key: "aksi", label: "Aksi & Event", icon: "zap", href: (id) => `/host/${id}/aksi` },
+  { key: "suara", label: "Efek Suara", icon: "volume", href: (id) => `/host/${id}/suara` },
+  { key: "tools", label: "Tools", icon: "wrench", href: (id) => `/host/${id}/tools` },
   { key: "tampilan", label: "Tampilan", icon: "brush", href: (id) => `/host/${id}/tampilan` },
   { key: "pengaturan", label: "Pengaturan", icon: "settings", href: (id) => `/host/${id}/pengaturan` },
 ];
@@ -163,6 +171,7 @@ const NAV = [
 export function hostLayout(body, { active, identifier, title, avatarUrl }) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${escapeHtml(title || "Patungan")} · Dashboard</title>
+    <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
     ${HOST_STYLE}
     </head><body>
     <div id="shell">

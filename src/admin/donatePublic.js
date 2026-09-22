@@ -1182,7 +1182,7 @@ export async function handleLiveEvents(req, res) {
   }
 
   subscribe(token, res);
-  acquireLiveConnection(token, settings.tiktok_url);
+  acquireLiveConnection(token, settings);
   res.on("close", () => releaseLiveConnection(token));
 }
 
@@ -1247,6 +1247,42 @@ export async function handleFollowersPage(req, res) {
   </body></html>`);
 }
 
+export async function handleSharePage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.97);color:#122e1e;
+        font-size:20px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+        transition:background .2s ease}
+      #tag.flash{background:#eaffd6}
+    </style></head><body>
+    <div id="tag">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76cc11" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/>
+      </svg>
+      <span id="count">0</span><span>share</span>
+    </div>
+    <script>
+      const tag = document.getElementById("tag");
+      let flashTimer = null;
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("share", (e) => {
+        document.getElementById("count").textContent = Number(JSON.parse(e.data).total).toLocaleString("id-ID");
+        tag.classList.add("flash");
+        clearTimeout(flashTimer);
+        flashTimer = setTimeout(() => tag.classList.remove("flash"), 600);
+      });
+    </script>
+  </body></html>`);
+}
+
 export async function handleJarPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
@@ -1294,6 +1330,299 @@ export async function handleJarPage(req, res) {
         const h = pct * (JAR_BOTTOM - JAR_TOP);
         fill.setAttribute("height", h);
         fill.setAttribute("y", JAR_BOTTOM - h);
+      });
+    </script>
+  </body></html>`);
+}
+
+// ---- TikFinity-style feature widgets: Points, Sound Alerts, Actions & Events,
+// Wheel of Fortune, Likeathon, Command Response, Points Drop ----
+
+export async function handlePointsLeaderboardData(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).json({ leaderboard: [] });
+  const rows = await db.listDonationPoints(settings.guild_id, { limit: 10 });
+  res.json({ leaderboard: rows, currencyName: settings.points_currency_name });
+}
+
+export async function handlePointsLeaderboardPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #card{width:260px;background:rgba(255,255,255,.97);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      #card h3{margin:0 0 8px;color:#122e1e;font-size:15px}
+      .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;color:#122e1e;border-top:1px solid #eee}
+      .row:first-of-type{border-top:none}
+      .rank{color:#76cc11;font-weight:800;width:1.4em;flex:none}
+      .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .val{font-weight:700}
+      #empty{color:#5b7267;font-size:12px}
+    </style></head><body>
+    <div id="card"><h3>Papan Poin</h3><div id="rows"><p id="empty">Belum ada data.</p></div></div>
+    <script>
+      async function refresh() {
+        try {
+          const res = await fetch(${JSON.stringify(`/overlay/${token}/points-leaderboard/data`)});
+          const data = await res.json();
+          const rowsEl = document.getElementById("rows");
+          rowsEl.innerHTML = "";
+          if (!data.leaderboard.length) { rowsEl.innerHTML = '<p id="empty">Belum ada data.</p>'; return; }
+          data.leaderboard.forEach((r, i) => {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML = '<span class="rank">#' + (i + 1) + '</span><span class="name"></span><span class="val"></span>';
+            row.querySelector(".name").textContent = r.tiktok_user;
+            row.querySelector(".val").textContent = Math.round(r.points) + " " + (data.currencyName || "Poin");
+            rowsEl.appendChild(row);
+          });
+        } catch {}
+      }
+      refresh();
+      setInterval(refresh, 5000);
+    </script>
+  </body></html>`);
+}
+
+export async function handleSoundAlertPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+  const map = settings.sound_alert_map || {};
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}
+    #dot{width:10px;height:10px;border-radius:50%;background:#76cc11;opacity:.5}</style></head><body>
+    <div id="dot" title="Sound Alert aktif"></div>
+    <script>
+      const map = ${JSON.stringify(map)};
+      function play(key) {
+        const cfg = map[key];
+        if (!cfg || !cfg.enabled) return;
+        const audio = new Audio(cfg.soundUrl || "/overlay/assets/bell.wav");
+        audio.play().catch(() => {});
+      }
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("gift", () => play("gift"));
+      events.addEventListener("follow", () => play("follow"));
+      events.addEventListener("share", () => play("share"));
+    </script>
+  </body></html>`);
+}
+
+export async function handleActionsScreenPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+  const screen = Number(req.query.screen) || 1;
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <style>
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Open Sans',sans-serif}
+      #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        opacity:0;transition:opacity .25s ease}
+      #stage.show{opacity:1}
+      #stage img,#stage video{max-width:90vw;max-height:90vh}
+      #stage .name{position:absolute;bottom:8%;color:#fff;font-size:22px;font-weight:800;
+        text-shadow:0 2px 8px rgba(0,0,0,.6)}
+    </style></head><body>
+    <div id="stage"><div class="media"></div><div class="name"></div></div>
+    <script>
+      const SCREEN = ${JSON.stringify(screen)};
+      const stage = document.getElementById("stage");
+      const mediaBox = stage.querySelector(".media");
+      const nameBox = stage.querySelector(".name");
+      let queue = [];
+      let playing = false;
+
+      function playNext() {
+        if (playing || !queue.length) return;
+        playing = true;
+        const action = queue.shift();
+        mediaBox.innerHTML = "";
+        if (action.mediaUrl) {
+          const el = document.createElement(action.mediaType === "video" ? "video" : "img");
+          el.src = action.mediaUrl;
+          if (action.mediaType === "video") { el.autoplay = true; el.muted = true; }
+          mediaBox.appendChild(el);
+        }
+        nameBox.textContent = action.name || "";
+        if (action.soundUrl) new Audio(action.soundUrl).play().catch(() => {});
+        stage.classList.add("show");
+        setTimeout(() => {
+          stage.classList.remove("show");
+          setTimeout(() => { playing = false; playNext(); }, 300);
+        }, action.durationMs || 4000);
+      }
+
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("action", (e) => {
+        const action = JSON.parse(e.data);
+        if (Number(action.screen) !== SCREEN) return;
+        queue.push(action);
+        playNext();
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handleWheelPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+  const options = (settings.wheel_config || []).filter((o) => o?.label);
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #wrap{position:relative;width:260px;height:260px}
+      #wheel{width:100%;height:100%;border-radius:50%;border:6px solid #fff;box-shadow:0 4px 20px rgba(0,0,0,.25);
+        transition:transform 4s cubic-bezier(.17,.67,.32,1.02)}
+      #pointer{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;
+        border-left:14px solid transparent;border-right:14px solid transparent;border-top:22px solid #dc2626}
+      #result{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.97);
+        color:#122e1e;font-weight:800;padding:6px 14px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+        white-space:nowrap;opacity:0;transition:opacity .3s ease}
+      #result.show{opacity:1}
+    </style></head><body>
+    <div id="wrap">
+      <div id="pointer"></div>
+      <div id="wheel"></div>
+      <div id="result"></div>
+    </div>
+    <script>
+      const OPTIONS = ${JSON.stringify(options.map((o) => o.label))};
+      const COLORS = ["#76cc11", "#5da80d", "#aced60", "#93dc3e"];
+      const wheel = document.getElementById("wheel");
+      let rotation = 0;
+      function paintWheel() {
+        if (!OPTIONS.length) return;
+        const slice = 360 / OPTIONS.length;
+        const stops = OPTIONS.map((_, i) => COLORS[i % COLORS.length] + " " + (i * slice) + "deg " + ((i + 1) * slice) + "deg").join(",");
+        wheel.style.background = "conic-gradient(" + stops + ")";
+      }
+      paintWheel();
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("wheel", (e) => {
+        const data = JSON.parse(e.data);
+        const idx = Math.max(0, data.options.indexOf(data.result));
+        const slice = 360 / (data.options.length || 1);
+        const target = 360 * 4 - (idx * slice + slice / 2);
+        rotation = target;
+        wheel.style.transform = "rotate(" + rotation + "deg)";
+        const resultEl = document.getElementById("result");
+        setTimeout(() => {
+          resultEl.textContent = data.result;
+          resultEl.classList.add("show");
+          setTimeout(() => resultEl.classList.remove("show"), 4000);
+        }, 4000);
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handleLikeathonPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #card{width:260px;background:rgba(255,255,255,.97);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      #card h3{margin:0 0 8px;color:#122e1e;font-size:15px;display:flex;align-items:center;gap:6px}
+      #card h3::before{content:"❤️"}
+      .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;color:#122e1e;border-top:1px solid #eee}
+      .row:first-of-type{border-top:none}
+      .rank{color:#76cc11;font-weight:800;width:1.4em;flex:none}
+      .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    </style></head><body>
+    <div id="card"><h3>Likeathon</h3><div id="rows"></div></div>
+    <script>
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("likeathon", (e) => {
+        const data = JSON.parse(e.data);
+        const rowsEl = document.getElementById("rows");
+        rowsEl.innerHTML = "";
+        data.ranking.forEach((r, i) => {
+          const row = document.createElement("div");
+          row.className = "row";
+          row.innerHTML = '<span class="rank">#' + (i + 1) + '</span><span class="name"></span><span class="val"></span>';
+          row.querySelector(".name").textContent = r.user;
+          row.querySelector(".val").textContent = r.count;
+          rowsEl.appendChild(row);
+        });
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handleCommandResponsePage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #toast{max-width:420px;background:rgba(255,255,255,.97);color:#122e1e;font-size:14px;font-weight:700;
+        padding:10px 16px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+        opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease}
+      #toast.show{opacity:1;transform:translateY(0)}
+    </style></head><body>
+    <div id="toast"></div>
+    <script>
+      const toast = document.getElementById("toast");
+      let hideTimer = null;
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("command-response", (e) => {
+        const data = JSON.parse(e.data);
+        toast.textContent = data.text;
+        toast.classList.add("show");
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => toast.classList.remove("show"), 4000);
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handlePointsDropPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #banner{background:#76cc11;color:#fff;font-weight:800;font-size:16px;padding:10px 18px;border-radius:12px;
+        box-shadow:0 4px 20px rgba(0,0,0,.15);opacity:0;transform:translateY(-8px);transition:opacity .25s ease,transform .25s ease}
+      #banner.show{opacity:1;transform:translateY(0)}
+    </style></head><body>
+    <div id="banner"></div>
+    <script>
+      const banner = document.getElementById("banner");
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("points-drop", (e) => {
+        const data = JSON.parse(e.data);
+        if (data.active) {
+          banner.textContent = "Points Drop aktif! Ketik !get sekarang (+" + data.bonus + ")";
+          banner.classList.add("show");
+        } else {
+          banner.classList.remove("show");
+        }
       });
     </script>
   </body></html>`);

@@ -5,6 +5,7 @@ import { escapeHtml } from "./htmlEscape.js";
 const loginPage = (title, error) =>
   `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Masuk · ${escapeHtml(title)}</title>
+  <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -45,6 +46,7 @@ const loginPage = (title, error) =>
 const notSetUpPage = (title) =>
   `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(title)}</title>
+  <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
   <style>body{font-family:system-ui,sans-serif;max-width:440px;margin:80px auto;padding:0 16px;color:#012641;text-align:center}</style>
   </head><body>
     <h1>Dashboard belum diaktifkan</h1>

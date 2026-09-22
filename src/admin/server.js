@@ -47,7 +47,16 @@ import {
   handleLiveEvents,
   handleLikesPage,
   handleFollowersPage,
+  handleSharePage,
   handleJarPage,
+  handlePointsLeaderboardPage,
+  handlePointsLeaderboardData,
+  handleSoundAlertPage,
+  handleActionsScreenPage,
+  handleWheelPage,
+  handleLikeathonPage,
+  handleCommandResponsePage,
+  handlePointsDropPage,
 } from "./donatePublic.js";
 import { requireHostAuth, handleHostLoginPage, handleHostLogin, handleHostLogout } from "./hostAuth.js";
 import {
@@ -68,6 +77,30 @@ import {
   handleHostTiktokFollowers,
   handleHostTestLiveEvent,
 } from "./hostDashboard.js";
+import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsAdjust, handleHostPointsHalving } from "./hostPoints.js";
+import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate } from "./hostSoundAlerts.js";
+import {
+  handleHostToolsPage,
+  handleHostToolsCommandsUpdate,
+  handleHostToolsWheelUpdate,
+  handleHostToolsWheelSpin,
+  handleHostToolsLikeathonUpdate,
+  handleHostToolsLikeathonReset,
+  handleHostToolsPointsDropUpdate,
+  handleHostToolsPointsDropTrigger,
+  handleHostToolsEventApiRegenerate,
+} from "./hostTools.js";
+import {
+  handleHostActionsPage,
+  handleHostActionAdd,
+  handleHostActionDelete,
+  handleHostEventAdd,
+  handleHostEventDelete,
+  handleHostTimerAdd,
+  handleHostTimerDelete,
+  handleHostActionsSimulate,
+} from "./hostActions.js";
+import { handleEventApiTrigger } from "./eventApi.js";
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
@@ -80,6 +113,7 @@ export function startAdminServer() {
   // build shareable patungan/overlay links.
   app.set("trust proxy", 1);
   app.use(express.urlencoded({ extended: false }));
+  app.use(express.json());
   app.use("/overlay/assets", express.static(join(__dirname, "assets")));
 
   // Postgres-backed session store so admin/host logins survive a process
@@ -159,8 +193,20 @@ export function startAdminServer() {
   app.get("/overlay/:token/gift", handleGiftPage);
   app.get("/overlay/:token/likes", handleLikesPage);
   app.get("/overlay/:token/followers", handleFollowersPage);
+  app.get("/overlay/:token/share", handleSharePage);
   app.get("/overlay/:token/jar", handleJarPage);
   app.get("/overlay/:token/live-events", handleLiveEvents);
+  // TikFinity-style feature widgets — Points, Sound Alerts, Actions & Events,
+  // Wheel of Fortune, Likeathon, Command Response, Points Drop.
+  app.get("/overlay/:token/points-leaderboard", handlePointsLeaderboardPage);
+  app.get("/overlay/:token/points-leaderboard/data", handlePointsLeaderboardData);
+  app.get("/overlay/:token/sound-alerts", handleSoundAlertPage);
+  app.get("/overlay/:token/actions", handleActionsScreenPage);
+  app.get("/overlay/:token/wheel", handleWheelPage);
+  app.get("/overlay/:token/likeathon", handleLikeathonPage);
+  app.get("/overlay/:token/commands", handleCommandResponsePage);
+  app.get("/overlay/:token/points-drop", handlePointsDropPage);
+  app.post("/event-api/:token/trigger", handleEventApiTrigger);
 
   // Self-service host dashboard — separate login from the bot-owner admin panel above,
   // scoped per guild via username/password set by the admin on the Patungan settings page.
@@ -187,6 +233,33 @@ export function startAdminServer() {
   app.post("/host/:identifier/pengaturan", requireHostAuth, handleHostSettingsUpdate);
   app.post("/host/:identifier/pengaturan/regenerate-token", requireHostAuth, handleHostRegenerateToken);
   app.post("/host/:identifier/pengaturan/password", requireHostAuth, handleHostPasswordUpdate);
+
+  app.get("/host/:identifier/poin", requireHostAuth, (req, res) => handleHostPointsPage(req, res));
+  app.post("/host/:identifier/poin/pengaturan", requireHostAuth, handleHostPointsSettingsUpdate);
+  app.post("/host/:identifier/poin/adjust", requireHostAuth, handleHostPointsAdjust);
+  app.post("/host/:identifier/poin/halving", requireHostAuth, handleHostPointsHalving);
+
+  app.get("/host/:identifier/suara", requireHostAuth, (req, res) => handleHostSoundAlertsPage(req, res));
+  app.post("/host/:identifier/suara", requireHostAuth, handleHostSoundAlertsUpdate);
+
+  app.get("/host/:identifier/tools", requireHostAuth, (req, res) => handleHostToolsPage(req, res));
+  app.post("/host/:identifier/tools/perintah", requireHostAuth, handleHostToolsCommandsUpdate);
+  app.post("/host/:identifier/tools/wheel", requireHostAuth, handleHostToolsWheelUpdate);
+  app.post("/host/:identifier/tools/wheel/spin", requireHostAuth, handleHostToolsWheelSpin);
+  app.post("/host/:identifier/tools/likeathon", requireHostAuth, handleHostToolsLikeathonUpdate);
+  app.post("/host/:identifier/tools/likeathon/reset", requireHostAuth, handleHostToolsLikeathonReset);
+  app.post("/host/:identifier/tools/points-drop", requireHostAuth, handleHostToolsPointsDropUpdate);
+  app.post("/host/:identifier/tools/points-drop/trigger", requireHostAuth, handleHostToolsPointsDropTrigger);
+  app.post("/host/:identifier/tools/event-api/regenerate", requireHostAuth, handleHostToolsEventApiRegenerate);
+
+  app.get("/host/:identifier/aksi", requireHostAuth, (req, res) => handleHostActionsPage(req, res));
+  app.post("/host/:identifier/aksi/actions", requireHostAuth, handleHostActionAdd);
+  app.post("/host/:identifier/aksi/actions/:id/delete", requireHostAuth, handleHostActionDelete);
+  app.post("/host/:identifier/aksi/events", requireHostAuth, handleHostEventAdd);
+  app.post("/host/:identifier/aksi/events/:id/delete", requireHostAuth, handleHostEventDelete);
+  app.post("/host/:identifier/aksi/timers", requireHostAuth, handleHostTimerAdd);
+  app.post("/host/:identifier/aksi/timers/:id/delete", requireHostAuth, handleHostTimerDelete);
+  app.post("/host/:identifier/aksi/simulate", requireHostAuth, handleHostActionsSimulate);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every

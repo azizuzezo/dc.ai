@@ -303,6 +303,7 @@ export async function handleHostSettingsPage(req, res, notice) {
   const giftWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/gift`;
   const likesWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/likes`;
   const followersWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/followers`;
+  const shareWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/share`;
   const jarWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/jar`;
 
   const body = `
@@ -332,6 +333,7 @@ export async function handleHostSettingsPage(req, res, notice) {
         { label: "Gift", desc: "Popup tiap ada yang ngirim gift TikTok, nama pengirim + jenis hadiahnya.", url: giftWidgetUrl, testType: "gift", w: 420, h: 100 },
         { label: "Like Counter", desc: "Jumlah like real-time selama live, langsung dari TikTok LIVE.", url: likesWidgetUrl, testType: "likes", w: 220, h: 80 },
         { label: "Follower Count", desc: "Jumlah follower baru yang masuk selama live berlangsung.", url: followersWidgetUrl, testType: "follow", w: 260, h: 80 },
+        { label: "Share Count", desc: "Jumlah share live kamu selama live berlangsung.", url: shareWidgetUrl, testType: "share", w: 220, h: 80 },
         { label: "Coin Jar", desc: "Toples visual yang keisi tiap ada gift masuk selama live.", url: jarWidgetUrl, testType: "gift", w: 140, h: 190 },
       ]
         .map(
@@ -353,7 +355,7 @@ export async function handleHostSettingsPage(req, res, notice) {
         .join("")}
       <div class="widget-card" style="border-color:var(--rule-strong)">
         <h3 style="color:var(--ink)">Mode Demo</h3>
-        <p class="hint" style="margin:-.4rem 0 .75rem">Kirim chat, gift, like, dan follower palsu terus-menerus tiap beberapa detik — buka widget Chat/Gift/Like Counter/Follower Count di OBS dulu, terus nyalain ini buat lihat semuanya hidup pas ngatur posisi/gaya di scene.</p>
+        <p class="hint" style="margin:-.4rem 0 .75rem">Kirim chat, gift, like, follower, dan share palsu terus-menerus tiap beberapa detik — buka widget Chat/Gift/Like Counter/Follower Count/Share Count di OBS dulu, terus nyalain ini buat lihat semuanya hidup pas ngatur posisi/gaya di scene.</p>
         <button type="button" class="btn btn-primary btn-sm" id="demoToggle" onclick="toggleDemoMode(this)">Mulai Demo Live</button>
         <p class="hint" id="demoStatus" style="margin-top:.6rem"></p>
       </div>
@@ -401,16 +403,16 @@ export async function handleHostSettingsPage(req, res, notice) {
         }, 1200);
       }
 
-      // Fires a random chat/gift/likes/follow event every few seconds so the
+      // Fires a random chat/gift/likes/follow/share event every few seconds so the
       // widgets already added as OBS browser sources look "alive" while
       // arranging the scene — no real TikTok LIVE needed. Stops itself if the
       // tab is closed; toggled off manually otherwise.
       let demoTimer = null;
       let demoIdx = 0;
-      // Round-robin, not random — random 25%-per-type meant Gift/Like Counter
+      // Round-robin, not random — random 20%-per-type meant Gift/Like Counter
       // could sit unrolled for a while (and Gift's popup auto-hides after 5s,
-      // easy to miss). This guarantees every type fires once per ~10s cycle.
-      const DEMO_TYPES = ["chat", "gift", "likes", "follow"];
+      // easy to miss). This guarantees every type fires once per cycle.
+      const DEMO_TYPES = ["chat", "gift", "likes", "follow", "share"];
       function sendDemoEvent() {
         const type = DEMO_TYPES[demoIdx % DEMO_TYPES.length];
         demoIdx++;
@@ -529,6 +531,8 @@ function randomTestPayload(type) {
       return { total: Math.floor(Math.random() * 5000) + 100 };
     case "follow":
       return { total: Math.floor(Math.random() * 20) + 1, user };
+    case "share":
+      return { total: Math.floor(Math.random() * 10) + 1, user };
     default:
       return null;
   }

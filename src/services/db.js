@@ -37,8 +37,15 @@ const memLevels = new Map(); // `${guildId}:${userId}` -> { guild_id, user_id, x
 const memDonationSettings = new Map(); // guildId -> { guild_id, gateway_url, gateway_api_key, alert_channel_id, overlay_token, min_amount, tts_enabled, sound_enabled, leaderboard_enabled }
 const memDonations = []; // [{ id, guild_id, trx_id, donor_name, message, amount, status, expires_at, paid_at, wishlist_item_id }]
 const memWishlistItems = []; // [{ id, guild_id, title, target_amount }]
+const memDonationPoints = new Map(); // `${guildId}:${tiktokUser}` -> { guild_id, tiktok_user, points, first_seen_at, last_seen_at }
+const memDonationActions = []; // [{ id, guild_id, name, media_url, media_type, gift_icon_key, sound_url, duration_ms, created_at }]
+const memDonationEvents = []; // [{ id, guild_id, action_id, trigger_type, trigger_value, screen, active, created_at }]
+const memDonationTimers = []; // [{ id, guild_id, action_id, interval_minutes, screen, active, last_fired_at, created_at }]
 let memDonationIdSeq = 1;
 let memWishlistItemIdSeq = 1;
+let memDonationActionIdSeq = 1;
+let memDonationEventIdSeq = 1;
+let memDonationTimerIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -827,6 +834,21 @@ export async function ensureDonationSettings(guildId) {
     twitter_url: null,
     host_username: null,
     host_password_hash: null,
+    points_enabled: false,
+    points_currency_name: "Poin",
+    points_per_coin: 1,
+    points_per_chat_message: 0,
+    points_per_follow: 0,
+    points_per_share: 0,
+    sound_alert_map: {},
+    chat_commands_enabled: false,
+    chat_commands_config: {},
+    wheel_config: [],
+    likeathon_reduction_enabled: false,
+    likeathon_reduction_percent: 10,
+    points_drop_bonus: 50,
+    points_drop_duration_seconds: 30,
+    event_api_key: randomBytes(16).toString("hex"),
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
@@ -1109,4 +1131,270 @@ export async function listWishlistItemsWithProgress(guildId) {
   return Promise.all(
     items.map(async (item) => ({ ...item, ...(await getWishlistProgress(item.id)) }))
   );
+}
+
+// ---- TikTok viewer points (separate from bot_levels' Discord chat XP — TikTok
+// LIVE viewers have no Discord account link anywhere in this codebase, so
+// they're tracked here by guild + TikTok nickname instead). ----
+
+export async function getDonationPoints(guildId, tiktokUser) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_points")
+      .select("points")
+      .eq("guild_id", guildId)
+      .eq("tiktok_user", tiktokUser)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.points ?? 0;
+  }
+  return memDonationPoints.get(`${guildId}:${tiktokUser}`)?.points ?? 0;
+}
+
+/** Adds (or subtracts, if delta is negative) points for a viewer, creating the row if needed. Returns the new total. */
+export async function awardDonationPoints(guildId, tiktokUser, delta) {
+  const now = new Date().toISOString();
+  if (supabase) {
+    const { data: existing, error: selectError } = await supabase
+      .from("bot_donation_points")
+      .select("points")
+      .eq("guild_id", guildId)
+      .eq("tiktok_user", tiktokUser)
+      .maybeSingle();
+    if (selectError) throw selectError;
+    const nextPoints = Math.max(0, (existing?.points ?? 0) + delta);
+    const { error } = await supabase.from("bot_donation_points").upsert(
+      {
+        guild_id: guildId,
+        tiktok_user: tiktokUser,
+        points: nextPoints,
+        last_seen_at: now,
+        ...(existing ? {} : { first_seen_at: now }),
+      },
+      { onConflict: "guild_id,tiktok_user" }
+    );
+    if (error) throw error;
+    return nextPoints;
+  }
+  const key = `${guildId}:${tiktokUser}`;
+  const existing = memDonationPoints.get(key);
+  const nextPoints = Math.max(0, (existing?.points ?? 0) + delta);
+  memDonationPoints.set(key, {
+    guild_id: guildId,
+    tiktok_user: tiktokUser,
+    points: nextPoints,
+    first_seen_at: existing?.first_seen_at ?? now,
+    last_seen_at: now,
+  });
+  return nextPoints;
+}
+
+/** guild's viewer point standings, highest first. `search` filters by a case-insensitive substring of the username. */
+export async function listDonationPoints(guildId, { search = "", limit = 50 } = {}) {
+  let rows;
+  if (supabase) {
+    let query = supabase
+      .from("bot_donation_points")
+      .select("tiktok_user, points, first_seen_at, last_seen_at")
+      .eq("guild_id", guildId)
+      .order("points", { ascending: false })
+      .limit(limit);
+    if (search) query = query.ilike("tiktok_user", `%${search}%`);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows = data || [];
+  } else {
+    rows = Array.from(memDonationPoints.values())
+      .filter((r) => r.guild_id === guildId && (!search || r.tiktok_user.toLowerCase().includes(search.toLowerCase())))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, limit);
+  }
+  return rows;
+}
+
+/** Moves points from one viewer to another (chat "!send" command). Returns { ok, reason }. */
+export async function transferDonationPoints(guildId, fromUser, toUser, amount) {
+  if (!(amount > 0)) return { ok: false, reason: "invalid_amount" };
+  const fromPoints = await getDonationPoints(guildId, fromUser);
+  if (fromPoints < amount) return { ok: false, reason: "insufficient_points" };
+  await awardDonationPoints(guildId, fromUser, -amount);
+  await awardDonationPoints(guildId, toUser, amount);
+  return { ok: true };
+}
+
+/** Tools > Halving — halves every tracked viewer's point balance for the guild. */
+export async function halveDonationPoints(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_points").select("tiktok_user, points").eq("guild_id", guildId);
+    if (error) throw error;
+    for (const row of data || []) {
+      const { error: updateError } = await supabase
+        .from("bot_donation_points")
+        .update({ points: Math.floor(row.points / 2) })
+        .eq("guild_id", guildId)
+        .eq("tiktok_user", row.tiktok_user);
+      if (updateError) throw updateError;
+    }
+    return;
+  }
+  for (const row of memDonationPoints.values()) {
+    if (row.guild_id === guildId) row.points = Math.floor(row.points / 2);
+  }
+}
+
+// ---- Actions & Events (custom trigger -> media/sound overlay alerts) ----
+
+export async function listDonationActions(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_actions")
+      .select("id, name, media_url, media_type, gift_icon_key, sound_url, duration_ms, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  return memDonationActions.filter((a) => a.guild_id === guildId);
+}
+
+export async function getDonationAction(guildId, id) {
+  const actions = await listDonationActions(guildId);
+  return actions.find((a) => a.id === Number(id)) || null;
+}
+
+export async function addDonationAction(guildId, fields) {
+  const row = {
+    guild_id: guildId,
+    name: fields.name,
+    media_url: fields.mediaUrl || null,
+    media_type: fields.mediaType || "image",
+    gift_icon_key: fields.giftIconKey || null,
+    sound_url: fields.soundUrl || null,
+    duration_ms: fields.durationMs || 4000,
+  };
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_actions").insert(row).select("id").single();
+    if (error) throw error;
+    return data.id;
+  }
+  const id = memDonationActionIdSeq++;
+  memDonationActions.push({ id, ...row, created_at: new Date().toISOString() });
+  return id;
+}
+
+export async function deleteDonationAction(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_actions").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memDonationActions.findIndex((a) => a.guild_id === guildId && a.id === Number(id));
+  if (idx !== -1) memDonationActions.splice(idx, 1);
+  // Cascade to events/timers referencing it, mirroring the FK's `on delete cascade`.
+  for (let i = memDonationEvents.length - 1; i >= 0; i--) {
+    if (memDonationEvents[i].action_id === Number(id)) memDonationEvents.splice(i, 1);
+  }
+  for (let i = memDonationTimers.length - 1; i >= 0; i--) {
+    if (memDonationTimers[i].action_id === Number(id)) memDonationTimers.splice(i, 1);
+  }
+}
+
+export async function listDonationEvents(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_events")
+      .select("id, action_id, trigger_type, trigger_value, screen, active, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  return memDonationEvents.filter((e) => e.guild_id === guildId);
+}
+
+export async function addDonationEvent(guildId, fields) {
+  const row = {
+    guild_id: guildId,
+    action_id: Number(fields.actionId),
+    trigger_type: fields.triggerType,
+    trigger_value: fields.triggerValue || null,
+    screen: Number(fields.screen) || 1,
+    active: fields.active !== false,
+  };
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_events").insert(row).select("id").single();
+    if (error) throw error;
+    return data.id;
+  }
+  const id = memDonationEventIdSeq++;
+  memDonationEvents.push({ id, ...row, created_at: new Date().toISOString() });
+  return id;
+}
+
+export async function deleteDonationEvent(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_events").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memDonationEvents.findIndex((e) => e.guild_id === guildId && e.id === Number(id));
+  if (idx !== -1) memDonationEvents.splice(idx, 1);
+}
+
+export async function listDonationTimers(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_timers")
+      .select("id, action_id, interval_minutes, screen, active, last_fired_at, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  return memDonationTimers.filter((t) => t.guild_id === guildId);
+}
+
+export async function addDonationTimer(guildId, fields) {
+  const row = {
+    guild_id: guildId,
+    action_id: Number(fields.actionId),
+    interval_minutes: Number(fields.intervalMinutes) || 10,
+    screen: Number(fields.screen) || 1,
+    active: fields.active !== false,
+    last_fired_at: null,
+  };
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_timers").insert(row).select("id").single();
+    if (error) throw error;
+    return data.id;
+  }
+  const id = memDonationTimerIdSeq++;
+  memDonationTimers.push({ id, ...row, created_at: new Date().toISOString() });
+  return id;
+}
+
+export async function deleteDonationTimer(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_timers").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memDonationTimers.findIndex((t) => t.guild_id === guildId && t.id === Number(id));
+  if (idx !== -1) memDonationTimers.splice(idx, 1);
+}
+
+export async function markDonationTimerFired(id, whenIso) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_timers").update({ last_fired_at: whenIso }).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const row = memDonationTimers.find((t) => t.id === Number(id));
+  if (row) row.last_fired_at = whenIso;
+}
+
+export async function regenerateEventApiKey(guildId) {
+  const key = randomBytes(16).toString("hex");
+  await updateDonationSettings(guildId, { event_api_key: key });
+  return key;
 }
