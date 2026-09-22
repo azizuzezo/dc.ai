@@ -1,48 +1,47 @@
 import { escapeHtml } from "./htmlEscape.js";
 
-/** Dark dashboard tokens ported from tikfinity.zerody.one's compiled Tailwind theme
- * (exact hex values pulled from its own /css/app.css, see docs/design-references/tikfinity/TOKENS.md):
- * near-black page background, charcoal card surfaces, crimson brand accent, warm gold/yellow
- * secondary accents, green live/enabled state. */
+/** Light green/white dashboard tokens matched exactly against sociabuzz.com's own
+ * computed styles (getComputedStyle on their live donate/tribe page, see
+ * docs/design-references — brand green #76cc11, rank-tier greens #93dc3e/#aced60,
+ * "Open Sans", white page background, #e5e5e5 neutral track/border). */
 const HOST_STYLE = `
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --paper:#1d1c1c;--paper-2:#212121;--paper-3:#2a2a2a;
-      --surface:#2a2a2a;--ink:#fff;--ink-2:#f2f2f2;--muted:#9a9a9a;
-      --rule:#3c3c3c;--rule-strong:#4e4e4e;
-      --brand:#d43555;--brand-strong:#86152c;--brand-soft:#d4355533;
-      --accent-2:#f6c669;--accent-ink:#1d1c1c;
-      --success:#19cb54;--warning:#ffbd00;--error:#fc4141;
+      --paper:#fff;--paper-2:#f7f9f5;--paper-3:#eef4e8;
+      --surface:#fff;--ink:#122e1e;--ink-2:#1e3a2a;--muted:#5b7267;
+      --rule:#e5e5e5;--rule-strong:#c8d6c0;
+      --brand:#76cc11;--brand-strong:#5da80d;--brand-soft:#eaffd6;
+      --accent-2:#aced60;--accent-ink:#1a3d0a;
+      --success:#22c55e;--warning:#f59e0b;--error:#dc2626;
       --radius-sm:0.25rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-pill:999px;
       --shadow-brutal:0 20px 25px -5px #0000001a,0 8px 10px -6px #0000001a;
       --shadow-brutal-sm:0 4px 6px -1px #0000001a,0 2px 4px -2px #0000001a;
       --ease-out:cubic-bezier(0.16,1,0.3,1)
     }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--paper);color:var(--ink-2);font-family:'Outfit',ui-sans-serif,sans-serif;
+    body{margin:0;background:var(--paper);color:var(--ink-2);font-family:'Open Sans',ui-sans-serif,sans-serif;
       font-size:16px;font-weight:500;line-height:1.55}
-    h1,h2,h3{color:var(--ink);font-family:'Outfit',ui-sans-serif,sans-serif;letter-spacing:-.03em;
+    h1,h2,h3{color:var(--ink);font-family:'Open Sans',ui-sans-serif,sans-serif;letter-spacing:-.03em;
       line-height:1.08;margin:0;font-weight:800}
     a{color:inherit}
     .mono{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
-    button,.btn{font:700 14px/1 'Outfit',sans-serif;cursor:pointer}
+    button,.btn{font:700 14px/1 'Open Sans',sans-serif;cursor:pointer}
 
     #shell{display:flex;min-height:100vh}
-    #rail{width:17rem;flex:none;background:var(--paper-2);color:var(--ink);padding:1.5rem 1.25rem;
-      border-right:1px solid var(--rule);
+    #rail{width:17rem;flex:none;background:var(--brand);color:#fff;padding:1.5rem 1.25rem;
       display:flex;flex-direction:column;gap:.25rem;position:sticky;top:0;height:100vh;overflow-y:auto}
     .rail-brand{font-weight:800;font-size:1.05rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem}
     .rail-brand img{width:28px;height:28px;border-radius:50%;object-fit:cover}
     .rail-group-label{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-      color:var(--muted);margin:1rem 0 .4rem}
+      color:#eaffd6;margin:1rem 0 .4rem}
     .rail-link{display:flex;align-items:center;gap:.65rem;padding:.65rem .8rem;border-radius:var(--radius-md);
-      color:var(--ink-2);text-decoration:none;font-weight:600;font-size:.92rem;transition:background .15s var(--ease-out)}
-    .rail-link:hover{background:var(--paper-3)}
-    .rail-link.active{background:var(--brand);color:#fff;box-shadow:var(--shadow-brutal-sm)}
+      color:#fff;text-decoration:none;font-weight:600;font-size:.92rem;transition:background .15s var(--ease-out)}
+    .rail-link:hover{background:#5da80d}
+    .rail-link.active{background:#fff;color:var(--brand-strong);box-shadow:var(--shadow-brutal-sm)}
     .rail-link svg{flex:none}
-    .rail-footer{margin-top:auto;padding-top:1rem;border-top:1px solid var(--rule);display:flex;flex-direction:column;gap:.25rem}
+    .rail-footer{margin-top:auto;padding-top:1rem;border-top:1px solid #5da80d;display:flex;flex-direction:column;gap:.25rem}
 
     #main{flex:1;min-width:0;padding:2rem 2.5rem 3rem}
     .topbar{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.75rem}
@@ -60,7 +59,7 @@ const HOST_STYLE = `
     .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--shadow-brutal-sm)}
     .btn-primary:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
     .btn-danger{background:var(--surface);border-color:var(--error);color:var(--error)}
-    .btn-danger:hover{background:#fc414133}
+    .btn-danger:hover{background:#dc262633}
     .btn-sm{padding:.45rem .8rem;font-size:.8rem}
     .btn-block{width:100%;justify-content:center}
 
@@ -68,7 +67,7 @@ const HOST_STYLE = `
     label:first-of-type{margin-top:0}
     input[type=text],input[type=number],input[type=email],input[type=password],input[type=url],textarea,select{
       width:100%;padding:.7rem .8rem;border-radius:var(--radius-sm);border:1px solid var(--rule-strong);
-      background:var(--paper-3);color:var(--ink-2);font:500 .95rem 'Outfit',sans-serif}
+      background:var(--paper-3);color:var(--ink-2);font:500 .95rem 'Open Sans',sans-serif}
     input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{
       outline:2px solid var(--brand);outline-offset:2px}
     .hint{font-size:.8rem;color:var(--muted);margin-top:.3rem}
@@ -108,23 +107,23 @@ const HOST_STYLE = `
     th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
     .empty{color:var(--muted);font-size:.88rem;padding:1rem 0}
 
-    /* Widget/goal cards — ported from tikfinity.zerody.one's Goal Overlays screen (exact colors
-       pulled from its live DOM: card border #932a3f, field chrome #2a2a2a/#4d4d4d, heading blue #4895be). */
-    .widget-card{background:var(--paper-2);border:1px solid #932a3f;border-radius:.625rem;padding:1.25rem;
+    /* Widget/goal cards — same layout as before, recolored to the light green/white
+       palette (was dark-theme hex literals ported from a different reference). */
+    .widget-card{background:var(--paper-2);border:1px solid var(--rule-strong);border-radius:.625rem;padding:1.25rem;
       margin-top:1rem}
     .widget-card:first-of-type{margin-top:1rem}
-    .widget-card h3{color:#4895be;font-size:1.05rem;margin:0 0 .75rem}
+    .widget-card h3{color:var(--brand-strong);font-size:1.05rem;margin:0 0 .75rem}
     .widget-url-row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch}
-    .url-box{flex:1 1 16rem;min-width:0;background:#2a2a2a;border:1px dashed #4d4d4d;border-radius:.25rem;
-      padding:.55rem .65rem;color:#dedede;font-family:'Geist Mono',ui-monospace,monospace;font-size:.82rem;
+    .url-box{flex:1 1 16rem;min-width:0;background:var(--paper-3);border:1px dashed var(--rule-strong);border-radius:.25rem;
+      padding:.55rem .65rem;color:var(--ink-2);font-family:'Geist Mono',ui-monospace,monospace;font-size:.82rem;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .widget-btn{background:#2a2a2a;border:1px solid #4d4d4d;border-radius:.25rem;color:#dedede;
+    .widget-btn{background:var(--paper-3);border:1px solid var(--rule-strong);border-radius:.25rem;color:var(--ink-2);
       padding:.55rem .8rem;font-size:.82rem;font-weight:600;cursor:pointer;display:inline-flex;
       align-items:center;gap:.4rem;text-decoration:none}
-    .widget-btn:hover{background:var(--paper-3)}
+    .widget-btn:hover{background:var(--brand-soft)}
     .widget-btn.copied{color:var(--success);border-color:var(--success)}
 
-    .progress-track{background:#2a2a2a;border:1px solid var(--rule-strong);border-radius:var(--radius-pill);
+    .progress-track{background:var(--rule);border:1px solid var(--rule-strong);border-radius:var(--radius-pill);
       height:.6rem;overflow:hidden;margin-top:.6rem}
     .progress-fill{background:var(--brand);height:100%;border-radius:var(--radius-pill);transition:width .3s var(--ease-out)}
     .progress-label{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-top:.4rem}

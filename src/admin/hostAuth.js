@@ -6,26 +6,26 @@ const loginPage = (title, error) =>
   `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Masuk · ${escapeHtml(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--paper:oklch(98.5% 0.006 240);--ink:#012641;--ink-2:oklch(30% 0.05 235);--muted:oklch(48% 0.03 230);
-      --rule-strong:oklch(72% 0.03 230);--brand:#ee005a;--brand-strong:oklch(40% 0.2 0);--error:oklch(57% 0.21 28)}
+    :root{--paper:#f7f9f5;--ink:#122e1e;--ink-2:#1e3a2a;--muted:#5b7267;
+      --rule-strong:#c8d6c0;--brand:#76cc11;--brand-strong:#5da80d;--error:#dc2626}
     *{box-sizing:border-box}
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--paper);
-      color:var(--ink-2);font-family:'Source Sans 3',ui-sans-serif,sans-serif;padding:16px}
-    .card{width:100%;max-width:360px;background:#fff;border:1.5px solid var(--ink);border-radius:1.25rem;
-      padding:28px;box-shadow:0 10px 24px rgba(1,38,65,.14)}
+      color:var(--ink-2);font-family:'Open Sans',ui-sans-serif,sans-serif;padding:16px}
+    .card{width:100%;max-width:360px;background:#fff;border:1px solid var(--rule-strong);border-radius:1.25rem;
+      padding:28px;box-shadow:0 10px 24px rgba(18,46,30,.1)}
     h1{margin:0 0 6px;color:var(--ink);font-size:1.4rem}
     p.lede{margin:0 0 18px;color:var(--muted);font-size:.9rem}
     label{display:block;font-size:.82rem;font-weight:700;color:var(--ink);margin:14px 0 6px}
     label:first-of-type{margin-top:0}
     input{width:100%;padding:.7rem .8rem;border-radius:.6rem;border:1.5px solid var(--rule-strong);
-      background:var(--paper);color:var(--ink-2);font:500 .95rem 'Source Sans 3',sans-serif}
+      background:var(--paper);color:var(--ink-2);font:500 .95rem 'Open Sans',sans-serif}
     input:focus-visible,button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
     button{width:100%;margin-top:18px;padding:.75rem;border-radius:999px;border:1.5px solid var(--brand);
-      background:var(--brand);color:#fff;font:700 .95rem 'Source Sans 3',sans-serif;cursor:pointer}
+      background:var(--brand);color:#fff;font:700 .95rem 'Open Sans',sans-serif;cursor:pointer}
     button:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
-    .error{background:oklch(93% 0.05 28);border:1.5px solid var(--error);color:var(--error);
+    .error{background:#fee2e2;border:1.5px solid var(--error);color:var(--error);
       border-radius:.6rem;padding:9px 12px;font-size:13px;margin-bottom:16px}
   </style></head><body>
   <div class="card">

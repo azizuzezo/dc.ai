@@ -144,7 +144,11 @@ export function startAdminServer() {
 
   // Self-service host dashboard — separate login from the bot-owner admin panel above,
   // scoped per guild via username/password set by the admin on the Patungan settings page.
-  app.get("/host/:identifier/login", handleHostLoginPage);
+  // Wrapped for the same reason as handleDonationSettingsPage above — Express
+  // always passes a 3rd "next" argument, which would otherwise leak into
+  // handleHostLoginPage's optional error-message param and get rendered as
+  // next()'s own source code in the error box.
+  app.get("/host/:identifier/login", (req, res) => handleHostLoginPage(req, res));
   app.post("/host/:identifier/login", handleHostLogin);
   app.post("/host/:identifier/logout", handleHostLogout);
   app.get("/host/:identifier", requireHostAuth, handleHostHomePage);
