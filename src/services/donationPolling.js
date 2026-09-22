@@ -3,6 +3,7 @@ import * as db from "./db.js";
 import { checkPayment } from "./gopayGateway.js";
 import { broadcast } from "./donationOverlay.js";
 import { synthesizeSpeech } from "./geminiTts.js";
+import { synthesizeSpeechLocal } from "./piperTts.js";
 import { storeAudio } from "./ttsCache.js";
 import { logError } from "./logger.js";
 
@@ -25,14 +26,19 @@ export async function announceDonation(client, settings, donation, { toDiscord =
 
   // Started first, not awaited yet, so its ~5-7s round trip to Gemini overlaps
   // with the Discord post + leaderboard query below instead of adding to them.
+  // Gemini gives the warmest read when its quota is available; if it's out (or
+  // fails for any other reason), this falls back to the locally-bundled Piper
+  // voice, which has no quota and no dependency on the viewer's browser.
   const ttsPromise = settings.tts_enabled
     ? synthesizeSpeech(
         "Bacakan dengan nada hangat, lembut, dan penuh kasih sayang seperti sedang menyapa penonton live streaming: " +
           narration
-      ).catch((err) => {
-        logError(`TTS generation failed for guild ${donation.guild_id}:`, err);
-        return null;
-      })
+      )
+        .catch((err) => {
+          logError(`Gemini TTS failed for guild ${donation.guild_id}:`, err);
+          return null;
+        })
+        .then((audio) => audio || synthesizeSpeechLocal(narration))
     : Promise.resolve(null);
 
   if (toDiscord && client && settings.alert_channel_id) {

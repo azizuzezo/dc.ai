@@ -31,18 +31,27 @@ Go to `/guilds` → pick your server → **Patungan**, and fill in:
   get posted (right-click a channel → Copy Channel ID)
 - Minimum donation amount, and toggles for TTS / sound / leaderboard
 
-TTS is generated server-side via the Gemini API, so it needs
-`GEMINI_TTS_API_KEYS` set in this bot's own `.env`/Railway variables (a
-comma-separated list, rotated on quota errors, see `.env.example`). This is
-deliberate: the browser's built-in speech synthesis is instant but depends
-on the viewer's OS having TTS voices installed, which is unreliable
-(confirmed silent on a real setup: Linux + Brave with no active
-speech-dispatcher daemon), and OBS/TikTok Live Studio's embedded browser is
-a different environment again with its own unknowns. Server-side TTS always
-works the same everywhere (it's just an audio file), at the cost of the
-narration arriving a few seconds after the visual alert instead of
-instantly. Without `GEMINI_TTS_API_KEYS`, the alert still shows and chimes,
-it just won't narrate the message.
+TTS narration tries three tiers, in order, so it never depends on the
+viewer's browser having any voices installed:
+1. **Gemini** (`src/services/geminiTts.js`) — best quality, warm/expressive
+   read, needs `GEMINI_TTS_API_KEYS` set (comma-separated, rotated on quota
+   errors, see `.env.example`) and costs API quota per donation.
+2. **Local Piper** (`src/services/piperTts.js`) — an offline neural TTS
+   engine + its Indonesian voice (`id_ID-news_tts-medium`), both baked
+   straight into the Docker image at build time (see `Dockerfile`). Kicks in
+   automatically whenever Gemini is unset, out of quota, or fails for any
+   other reason. No API key, no quota, no internet call at request time —
+   it's a ~90MB one-time image size cost for narration that always works.
+3. **The viewer's own browser** (Web Speech API, in `handleOverlayPage`'s
+   client script) — last-resort safety net if somehow both server-side
+   tiers fail. This is the unreliable one (confirmed silent on a real setup:
+   Linux + Brave with no active speech-dispatcher daemon), which is exactly
+   why tiers 1-2 exist; it should rarely if ever actually fire.
+
+Sound/chime and the visual alert never wait on any of this — narration just
+arrives a few seconds later as its own `tts` event once whichever tier
+produced it finishes. With TTS disabled entirely (or every tier somehow
+unavailable), the alert still shows and chimes, it just won't narrate.
 
 Saving generates several links shown on that page:
 - **Patungan link** (`/<guildId>`, at the domain root) — share this in your

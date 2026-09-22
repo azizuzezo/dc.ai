@@ -14,6 +14,24 @@ RUN apt-get update \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
+# Piper (offline neural TTS) + its Indonesian voice, baked in so donation
+# narration never depends on Gemini's quota or the viewer's browser having
+# any TTS voices installed (see src/services/piperTts.js).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -sL -o /tmp/piper.tar.gz \
+       https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz \
+    && tar -xzf /tmp/piper.tar.gz -C /opt \
+    && rm /tmp/piper.tar.gz \
+    && mkdir -p /opt/piper-voices/id_ID \
+    && curl -sL -o /opt/piper-voices/id_ID/id_ID-news_tts-medium.onnx \
+       https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx \
+    && curl -sL -o /opt/piper-voices/id_ID/id_ID-news_tts-medium.onnx.json \
+       https://huggingface.co/rhasspy/piper-voices/resolve/main/id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx.json \
+    && apt-get purge -y curl \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
