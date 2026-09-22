@@ -124,6 +124,33 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export function startAdminServer() {
   const app = express();
+
+  // Express 4 doesn't catch a rejected promise returned by an async route
+  // handler — it becomes an unhandled rejection, and Node 22 terminates the
+  // whole process on those by default. That took the entire bot (not just
+  // the admin dashboard) down whenever a single request hit a DB error, e.g.
+  // deleting a wishlist item still referenced by a donation. Wrapping every
+  // get/post handler here forwards that rejection to Express's error handler
+  // (a 500 response) instead of crashing the process.
+  for (const method of ["get", "post"]) {
+    const original = app[method].bind(app);
+    app[method] = (path, ...handlers) =>
+      original(
+        path,
+        ...handlers.map((h) =>
+          typeof h !== "function"
+            ? h
+            : (req, res, next) => {
+                try {
+                  Promise.resolve(h(req, res, next)).catch(next);
+                } catch (err) {
+                  next(err);
+                }
+              }
+        )
+      );
+  }
+
   // Railway sits in front as a reverse proxy — trust its X-Forwarded-* headers
   // so req.protocol/req.get("host") reflect the public https:// URL, used to
   // build shareable patungan/overlay links.

@@ -1181,6 +1181,16 @@ export async function updateWishlistItem(guildId, id, { title, targetAmount }) {
 
 export async function deleteWishlistItem(guildId, id) {
   if (supabase) {
+    // Donations already made toward this item reference it by id — deleting
+    // the item outright would hit that foreign key and fail. Detach them
+    // first (they keep counting toward the donor's total/leaderboard, just
+    // without a wishlist attribution) so the delete always succeeds.
+    const { error: unlinkError } = await supabase
+      .from("bot_donations")
+      .update({ wishlist_item_id: null })
+      .eq("guild_id", guildId)
+      .eq("wishlist_item_id", id);
+    if (unlinkError) throw unlinkError;
     const { error } = await supabase
       .from("bot_donation_wishlist_items")
       .delete()
