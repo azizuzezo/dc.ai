@@ -70,6 +70,15 @@ const HOST_STYLE = `
       background:var(--paper-3);color:var(--ink-2);font:500 .95rem 'Open Sans',sans-serif}
     input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{
       outline:2px solid var(--brand);outline-offset:2px}
+    input[type=file]{width:100%;padding:.5rem;border-radius:var(--radius-sm);border:1px dashed var(--rule-strong);
+      background:var(--paper-3);color:var(--muted);font:500 .85rem 'Open Sans',sans-serif}
+    input[type=file]::file-selector-button{
+      margin-right:.75rem;border:none;border-radius:var(--radius-pill);padding:.55rem 1.1rem;
+      background:var(--brand);color:#fff;font:700 .82rem 'Open Sans',sans-serif;cursor:pointer;
+      transition:background .15s var(--ease-out)}
+    input[type=file]::file-selector-button:hover{background:var(--brand-strong)}
+    input[type=color]{width:100%;height:2.6rem;padding:.3rem;border-radius:var(--radius-sm);
+      border:1px solid var(--rule-strong);background:var(--paper-3);cursor:pointer}
     .hint{font-size:.8rem;color:var(--muted);margin-top:.3rem}
     .checkbox-row{display:flex;align-items:center;gap:.5rem;font-size:.85rem;font-weight:600;margin-top:.85rem}
     .checkbox-row input{width:16px;height:16px;accent-color:var(--brand)}

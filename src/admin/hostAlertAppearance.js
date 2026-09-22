@@ -28,7 +28,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const settings = req.donationSettings;
   const identifier = req.params.identifier;
   const style = { ...CHAT_BUBBLE_DEFAULTS, ...(settings.chat_bubble_style || {}) };
-  const [tiers, media] = await Promise.all([db.listAlertTiers(settings.guild_id), db.listDonationMedia(settings.guild_id)]);
+  const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
     <div class="topbar"><div><h1>Tampilan Alert</h1><p>Kustomisasi bubble chat TikTok LIVE dan tampilan widget Alert donasi berdasarkan nominal.</p></div></div>
@@ -87,13 +87,12 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
           : `<p class="empty">Belum ada tingkatan alert. Alert default (tanpa gambar/efek khusus) yang dipakai.</p>`
       }
     </div>
-    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/tiers" style="margin-top:1.25rem">
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/tiers" enctype="multipart/form-data" style="margin-top:1.25rem">
       <h2>Tambah Tingkatan</h2>
       <label for="minAmount">Minimal nominal (Rp)</label>
       <input id="minAmount" type="number" name="minAmount" min="0" step="1000" required />
-      <label for="imageUrl">URL gambar (opsional — bisa tempel dari Media Library di halaman Aksi &amp; Event)</label>
-      <input id="imageUrl" type="text" name="imageUrl" placeholder="https://... atau /overlay/TOKEN/media/ID" />
-      ${media.length ? `<p class="hint">Media library kamu: ${media.map((m) => escapeHtml(m.filename)).join(", ")} — buka halaman Aksi &amp; Event buat copy URL-nya.</p>` : ""}
+      <label for="imageFile">Gambar (opsional, maks 8MB)</label>
+      <input id="imageFile" type="file" name="imageFile" accept="image/*" />
       <label for="effect">Efek</label>
       <select id="effect" name="effect">
         ${Object.entries(EFFECT_LABELS).map(([k, label]) => `<option value="${k}">${label}</option>`).join("")}
@@ -131,9 +130,22 @@ export async function handleHostChatBubbleUpdate(req, res) {
 export async function handleHostAlertTierAdd(req, res) {
   const settings = req.donationSettings;
   if (req.body.minAmount) {
+    let imageUrl = null;
+    if (req.file) {
+      // Stored in the same media library the Actions & Events media picker
+      // uses (Postgres, not disk, so it survives redeploys), just reached
+      // through a direct upload here instead of a separate "copy URL" step.
+      const mediaId = await db.addDonationMedia(settings.guild_id, {
+        filename: req.file.originalname.slice(0, 100),
+        mimeType: req.file.mimetype,
+        data: req.file.buffer.toString("base64"),
+        sizeBytes: req.file.size,
+      });
+      imageUrl = `/overlay/${settings.overlay_token}/media/${mediaId}`;
+    }
     await db.addAlertTier(settings.guild_id, {
       minAmount: req.body.minAmount,
-      imageUrl: req.body.imageUrl?.trim() || null,
+      imageUrl,
       effect: req.body.effect,
     });
   }

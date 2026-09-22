@@ -61,6 +61,13 @@ const STYLE = `<style>
     background:var(--bg);color:var(--text);font:inherit;font-size:14px}
   input:focus-visible,textarea:focus-visible,select:focus-visible,
   a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  input[type=file]{width:100%;padding:7px;border-radius:8px;border:1px dashed var(--border);
+    background:var(--bg);color:var(--text-muted);font:inherit;font-size:13px}
+  input[type=file]::file-selector-button{
+    margin-right:10px;border:none;border-radius:999px;padding:8px 16px;
+    background:var(--accent);color:var(--accent-ink);font:600 13px 'Fira Sans',sans-serif;cursor:pointer;
+    transition:background-color 150ms}
+  input[type=file]::file-selector-button:hover{background:var(--accent-hover)}
   textarea{resize:vertical}
   .checkbox-row{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:400;margin:10px 0}
   .checkbox-row input{width:16px;height:16px}
