@@ -1,10 +1,12 @@
 import express from "express";
 import session from "express-session";
+import pgSession from "connect-pg-simple";
+import { Pool } from "pg";
 import multer from "multer";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { env } from "../config/env.js";
-import { logInfo } from "../services/logger.js";
+import { logInfo, logWarn } from "../services/logger.js";
 import { requireAuth, handleLoginPage, handleLogin, handleLogout } from "./auth.js";
 import { handleGuildsPage } from "./guilds.js";
 import { handleSettingsPage, handleSettingsUpdate } from "./settings.js";
@@ -79,8 +81,25 @@ export function startAdminServer() {
   app.set("trust proxy", 1);
   app.use(express.urlencoded({ extended: false }));
   app.use("/overlay/assets", express.static(join(__dirname, "assets")));
+
+  // Postgres-backed session store so admin/host logins survive a process
+  // restart (redeploy, crash, dev reload) instead of the default in-memory
+  // store, which silently drops every logged-in session when the process dies.
+  let sessionStore;
+  if (env.supabaseDbUrl) {
+    const PgSessionStore = pgSession(session);
+    sessionStore = new PgSessionStore({
+      pool: new Pool({ connectionString: env.supabaseDbUrl }),
+      tableName: "session",
+      createTableIfMissing: true,
+    });
+  } else {
+    logWarn("SUPABASE_DB_URL not set — falling back to in-memory sessions, which won't survive a restart.");
+  }
+
   app.use(
     session({
+      store: sessionStore,
       secret: env.sessionSecret,
       resave: false,
       saveUninitialized: false,
