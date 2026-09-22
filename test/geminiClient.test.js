@@ -8,7 +8,7 @@ test("buildChatRequestBody produces the expected shape", () => {
     model: "gemini-3.6-flash",
     messages: [{ role: "user", content: "hi" }],
     temperature: 0.7,
-    max_tokens: 1200,
+    max_tokens: 500,
   });
 });
 

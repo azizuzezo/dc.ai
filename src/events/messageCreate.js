@@ -44,6 +44,7 @@ export async function execute(message) {
       channelId: message.channelId,
       guildId: message.guildId,
       userMessage,
+      userName: message.member?.displayName || message.author.username,
     });
     await sendChunkedReply(message, reply);
   } catch (err) {

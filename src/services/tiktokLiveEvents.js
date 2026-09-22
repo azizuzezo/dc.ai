@@ -18,6 +18,8 @@ import { resolveGiftIconUrl } from "./giftIcons.js";
 import { handleChatCommand } from "./chatCommands.js";
 import { evaluateEvent, startTimers, stopTimers } from "./actionsEngine.js";
 import { recordLikeathonLikes, resetLikeathon, startLikeathonReduction, clearLikeathonState } from "./donationTools.js";
+import { moderateChatMessage, clearModerationState } from "./chatModeration.js";
+import { fetchLinkPreview } from "./linkPreview.js";
 
 const active = new Map(); // token -> { connection, refCount, disconnectTimer, guildId }
 const DISCONNECT_GRACE_MS = 30_000;
@@ -32,11 +34,27 @@ function awardPointsIfEnabled(settings, guildId, user, amount) {
 function attachListeners(connection, token, counts, guildId, settings) {
   connection.on(WebcastEvent.CHAT, (data) => {
     const user = data.user?.nickname || data.user?.displayId || "Seseorang";
-    const payload = { user, message: data.content || "" };
+    const message = data.content || "";
+
+    const flagReason = moderateChatMessage(token, settings, message);
+    if (flagReason) {
+      db.addFlaggedChat(guildId, user, message, flagReason).catch((err) =>
+        logError(`Failed to log flagged chat message in guild ${guildId}:`, err)
+      );
+      return;
+    }
+
+    const payload = { user, message };
     broadcast(token, "chat", payload);
     awardPointsIfEnabled(settings, guildId, user, settings.points_per_chat_message);
     evaluateEvent(token, guildId, "chat", payload);
     handleChatCommand(token, guildId, settings, payload);
+
+    if (settings.link_preview_enabled) {
+      fetchLinkPreview(message).then((preview) => {
+        if (preview) broadcast(token, "link-preview", { ...preview, user });
+      });
+    }
   });
   connection.on(WebcastEvent.GIFT, (data) => {
     // repeatEnd is 0 while a combo (e.g. spamming Rose x1) is still stacking —
@@ -45,14 +63,15 @@ function attachListeners(connection, token, counts, guildId, settings) {
     const user = data.user?.nickname || data.user?.displayId || "Seseorang";
     const giftName = data.gift?.name || "hadiah";
     const repeatCount = data.repeatCount || 1;
+    const diamonds = (data.gift?.diamondCount || 0) * repeatCount;
     const payload = {
       user,
       giftName,
       giftImage: data.gift?.image?.urlList?.[0] || data.gift?.icon?.urlList?.[0] || resolveGiftIconUrl(giftName),
       repeatCount,
+      diamonds,
     };
     broadcast(token, "gift", payload);
-    const diamonds = (data.gift?.diamondCount || 0) * repeatCount;
     awardPointsIfEnabled(settings, guildId, user, settings.points_per_coin * diamonds);
     evaluateEvent(token, guildId, "gift", payload);
   });
@@ -84,6 +103,7 @@ function attachListeners(connection, token, counts, guildId, settings) {
     active.delete(token);
     stopTimers(token);
     clearLikeathonState(token);
+    clearModerationState(token);
   });
   connection.on("error", (err) => logError(`TikTok LIVE connection error (token ${token}):`, err));
 }
@@ -149,6 +169,7 @@ export function releaseLiveConnection(token) {
       active.delete(token);
       stopTimers(token);
       clearLikeathonState(token);
+      clearModerationState(token);
     }
   }, DISCONNECT_GRACE_MS);
 }

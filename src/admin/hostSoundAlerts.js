@@ -1,4 +1,5 @@
 import * as db from "../services/db.js";
+import { broadcast } from "../services/donationOverlay.js";
 import { SOUND_LIBRARY } from "../services/soundLibrary.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
@@ -19,7 +20,16 @@ export async function handleHostSoundAlertsPage(req, res, notice) {
     ${notice ? `<p class="hint" style="color:var(--success)">${escapeHtml(notice)}</p>` : ""}
     ${!settings.tiktok_url ? `<p class="hint" style="color:var(--warning)">Butuh username TikTok — isi dulu di halaman <a href="/host/${identifier}/tampilan" style="color:inherit">Tampilan</a>.</p>` : ""}
 
-    <form class="panel" method="post" action="/host/${identifier}/suara">
+    <form class="panel" method="post" action="/host/${identifier}/suara/volume">
+      <h2>Volume media</h2>
+      <p class="hint">Ngatur volume Sound Alert &amp; media Aksi &amp; Event — langsung ngaruh ke widget yang lagi kebuka di OBS, gak perlu reload.</p>
+      <input type="range" name="volume" min="0" max="100" value="${settings.media_volume ?? 100}" style="width:100%"
+        oninput="document.getElementById('volumeLabel').textContent = this.value + '%'" />
+      <div class="hint" id="volumeLabel" style="text-align:right;font-weight:700;color:var(--ink)">${settings.media_volume ?? 100}%</div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Terapkan</button>
+    </form>
+
+    <form class="panel" method="post" action="/host/${identifier}/suara" style="margin-top:1.25rem">
       <h2>Trigger</h2>
       ${TRIGGERS.map((t) => {
         const cfg = map[t.key] || {};
@@ -49,6 +59,14 @@ export async function handleHostSoundAlertsPage(req, res, notice) {
     </div>`;
 
   res.send(hostLayout(body, { active: "suara", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+}
+
+export async function handleHostVolumeUpdate(req, res) {
+  const settings = req.donationSettings;
+  const volume = Math.min(100, Math.max(0, Number(req.body.volume) || 0));
+  await db.updateDonationSettings(settings.guild_id, { media_volume: volume });
+  broadcast(settings.overlay_token, "volume-change", { volume });
+  res.redirect(`/host/${req.params.identifier}/suara`);
 }
 
 export async function handleHostSoundAlertsUpdate(req, res) {

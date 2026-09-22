@@ -46,10 +46,10 @@ export async function announceDonation(client, settings, donation, { toDiscord =
       const channel = await client.channels.fetch(settings.alert_channel_id);
       if (channel?.isTextBased()) {
         const embed = new EmbedBuilder()
-          .setTitle("💸 Donasi baru!")
+          .setTitle("🎉 Ada yang patungan nih!")
           .setDescription(
-            `**${donation.donor_name}** mengirim **${amountText}**` +
-              (wishlistItem ? ` (patungan ke wishlist **${wishlistItem.title}**)` : "") +
+            `**${amountText}** dari **${donation.donor_name}**` +
+              (wishlistItem ? ` (buat wishlist **${wishlistItem.title}**)` : "") +
               (donation.message ? `\n> ${donation.message}` : "")
           )
           .setColor(0x00c896)

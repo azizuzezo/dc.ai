@@ -41,11 +41,15 @@ const memDonationPoints = new Map(); // `${guildId}:${tiktokUser}` -> { guild_id
 const memDonationActions = []; // [{ id, guild_id, name, media_url, media_type, gift_icon_key, sound_url, duration_ms, created_at }]
 const memDonationEvents = []; // [{ id, guild_id, action_id, trigger_type, trigger_value, screen, active, created_at }]
 const memDonationTimers = []; // [{ id, guild_id, action_id, interval_minutes, screen, active, last_fired_at, created_at }]
+const memFlaggedChat = []; // [{ id, guild_id, tiktok_user, message, reason, created_at }]
+const memDonationMedia = []; // [{ id, guild_id, filename, mime_type, data, size_bytes, created_at }]
 let memDonationIdSeq = 1;
 let memWishlistItemIdSeq = 1;
 let memDonationActionIdSeq = 1;
 let memDonationEventIdSeq = 1;
 let memDonationTimerIdSeq = 1;
+let memFlaggedChatIdSeq = 1;
+let memDonationMediaIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -849,6 +853,12 @@ export async function ensureDonationSettings(guildId) {
     points_drop_bonus: 50,
     points_drop_duration_seconds: 30,
     event_api_key: randomBytes(16).toString("hex"),
+    moderation_enabled: false,
+    moderation_badwords_enabled: true,
+    moderation_judol_enabled: true,
+    moderation_duplicate_enabled: true,
+    link_preview_enabled: false,
+    media_volume: 100,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
@@ -1248,7 +1258,7 @@ export async function listDonationActions(guildId) {
   if (supabase) {
     const { data, error } = await supabase
       .from("bot_donation_actions")
-      .select("id, name, media_url, media_type, gift_icon_key, sound_url, duration_ms, created_at")
+      .select("id, name, description, media_url, media_type, gift_icon_key, sound_url, duration_ms, created_at")
       .eq("guild_id", guildId)
       .order("created_at", { ascending: true });
     if (error) throw error;
@@ -1266,6 +1276,7 @@ export async function addDonationAction(guildId, fields) {
   const row = {
     guild_id: guildId,
     name: fields.name,
+    description: fields.description || null,
     media_url: fields.mediaUrl || null,
     media_type: fields.mediaType || "image",
     gift_icon_key: fields.giftIconKey || null,
@@ -1397,4 +1408,96 @@ export async function regenerateEventApiKey(guildId) {
   const key = randomBytes(16).toString("hex");
   await updateDonationSettings(guildId, { event_api_key: key });
   return key;
+}
+
+// ---- Chat moderation log (flagged messages — see services/chatModeration.js) ----
+
+export async function addFlaggedChat(guildId, tiktokUser, message, reason) {
+  if (supabase) {
+    const { error } = await supabase
+      .from("bot_donation_flagged_chat")
+      .insert({ guild_id: guildId, tiktok_user: tiktokUser, message, reason });
+    if (error) throw error;
+    return;
+  }
+  memFlaggedChat.push({
+    id: memFlaggedChatIdSeq++,
+    guild_id: guildId,
+    tiktok_user: tiktokUser,
+    message,
+    reason,
+    created_at: new Date().toISOString(),
+  });
+}
+
+export async function listFlaggedChat(guildId, limit = 50) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_flagged_chat")
+      .select("id, tiktok_user, message, reason, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
+  return memFlaggedChat
+    .filter((f) => f.guild_id === guildId)
+    .slice()
+    .reverse()
+    .slice(0, limit);
+}
+
+// ---- Media library (uploaded images/gifs/videos for Actions & Events) ----
+
+export async function listDonationMedia(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_media")
+      .select("id, filename, mime_type, size_bytes, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  return memDonationMedia
+    .filter((m) => m.guild_id === guildId)
+    .map(({ data, ...rest }) => rest);
+}
+
+/** Includes the base64 `data` field — only fetched when actually serving the file, not for the library listing. */
+export async function getDonationMedia(guildId, id) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_media")
+      .select("id, filename, mime_type, data, size_bytes")
+      .eq("guild_id", guildId)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return memDonationMedia.find((m) => m.guild_id === guildId && m.id === Number(id)) || null;
+}
+
+export async function addDonationMedia(guildId, { filename, mimeType, data, sizeBytes }) {
+  const row = { guild_id: guildId, filename, mime_type: mimeType, data, size_bytes: sizeBytes };
+  if (supabase) {
+    const { data: inserted, error } = await supabase.from("bot_donation_media").insert(row).select("id").single();
+    if (error) throw error;
+    return inserted.id;
+  }
+  const id = memDonationMediaIdSeq++;
+  memDonationMedia.push({ id, ...row, created_at: new Date().toISOString() });
+  return id;
+}
+
+export async function deleteDonationMedia(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_media").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memDonationMedia.findIndex((m) => m.guild_id === guildId && m.id === Number(id));
+  if (idx !== -1) memDonationMedia.splice(idx, 1);
 }

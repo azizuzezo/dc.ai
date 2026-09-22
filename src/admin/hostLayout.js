@@ -151,6 +151,7 @@ function icon(name) {
     zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
     volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
     wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   };
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
 }
@@ -163,6 +164,7 @@ const NAV = [
   { key: "aksi", label: "Aksi & Event", icon: "zap", href: (id) => `/host/${id}/aksi` },
   { key: "suara", label: "Efek Suara", icon: "volume", href: (id) => `/host/${id}/suara` },
   { key: "tools", label: "Tools", icon: "wrench", href: (id) => `/host/${id}/tools` },
+  { key: "moderasi", label: "Moderasi", icon: "shield", href: (id) => `/host/${id}/moderasi` },
   { key: "tampilan", label: "Tampilan", icon: "brush", href: (id) => `/host/${id}/tampilan` },
   { key: "pengaturan", label: "Pengaturan", icon: "settings", href: (id) => `/host/${id}/pengaturan` },
 ];

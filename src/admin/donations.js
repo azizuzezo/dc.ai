@@ -1,5 +1,6 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
+import { getDiscordClient } from "../services/discordClient.js";
 import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { hashPassword } from "../services/password.js";
 import { layout, guildTabs, crumbs } from "./layout.js";
@@ -285,7 +286,7 @@ export async function handleTestAlert(req, res) {
   const { guildId } = req.params;
   const settings = await db.ensureDonationSettings(guildId);
   await announceDonation(
-    null,
+    getDiscordClient(),
     settings,
     {
       guild_id: guildId,
@@ -297,7 +298,7 @@ export async function handleTestAlert(req, res) {
       youtube_start_seconds: parseTimeToSeconds(req.body.youtubeStart),
       youtube_end_seconds: parseTimeToSeconds(req.body.youtubeEnd),
     },
-    { toDiscord: false }
+    { toDiscord: true }
   );
   res.redirect(`/guilds/${guildId}/donations`);
 }

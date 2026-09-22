@@ -36,6 +36,7 @@ function resolveActionPayload(action) {
   const mediaUrl = action.media_type === "gift_icon" ? resolveGiftIconUrlByKey(action.gift_icon_key) || action.media_url : action.media_url;
   return {
     name: action.name,
+    description: action.description || null,
     mediaUrl,
     mediaType: action.media_type,
     soundUrl: action.sound_url,
@@ -66,6 +67,9 @@ export async function evaluateEvent(token, guildId, eventName, payload) {
         matched = true;
       } else if (eventName === "gift" && evt.trigger_type === "specific_gift") {
         matched = (evt.trigger_value || "").toLowerCase() === (payload.giftName || "").toLowerCase();
+      } else if (eventName === "gift" && evt.trigger_type === "gift_value_threshold") {
+        const threshold = Number(evt.trigger_value);
+        matched = Number.isFinite(threshold) && Number(payload.diamonds || 0) >= threshold;
       } else if (eventName === "follow" && evt.trigger_type === "follow") {
         matched = true;
       } else if (eventName === "share" && evt.trigger_type === "share") {

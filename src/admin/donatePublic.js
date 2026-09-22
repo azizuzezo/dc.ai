@@ -1401,16 +1401,32 @@ export async function handleSoundAlertPage(req, res) {
     <div id="dot" title="Sound Alert aktif"></div>
     <script>
       const map = ${JSON.stringify(map)};
+      let volume = ${Number(settings.media_volume ?? 100)} / 100;
+      // Plays one sound at a time — without this, a fast gift/follow/share
+      // burst would fire several overlapping Audio() plays on top of each
+      // other instead of a clean sequence.
+      const queue = [];
+      let playing = false;
+      function playNext() {
+        if (playing || !queue.length) return;
+        playing = true;
+        const url = queue.shift();
+        const audio = new Audio(url);
+        audio.volume = volume;
+        audio.addEventListener("ended", () => { playing = false; playNext(); });
+        audio.play().catch(() => { playing = false; playNext(); });
+      }
       function play(key) {
         const cfg = map[key];
         if (!cfg || !cfg.enabled) return;
-        const audio = new Audio(cfg.soundUrl || "/overlay/assets/bell.wav");
-        audio.play().catch(() => {});
+        queue.push(cfg.soundUrl || "/overlay/assets/bell.wav");
+        playNext();
       }
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("gift", () => play("gift"));
       events.addEventListener("follow", () => play("follow"));
       events.addEventListener("share", () => play("share"));
+      events.addEventListener("volume-change", (e) => { volume = JSON.parse(e.data).volume / 100; });
     </script>
   </body></html>`);
 }
@@ -1422,21 +1438,26 @@ export async function handleActionsScreenPage(req, res) {
   const screen = Number(req.query.screen) || 1;
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
       html,body{margin:0;background:transparent;overflow:hidden;font-family:'Open Sans',sans-serif}
       #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
         opacity:0;transition:opacity .25s ease}
       #stage.show{opacity:1}
       #stage img,#stage video{max-width:90vw;max-height:90vh}
-      #stage .name{position:absolute;bottom:8%;color:#fff;font-size:22px;font-weight:800;
-        text-shadow:0 2px 8px rgba(0,0,0,.6)}
+      #stage .caption{position:absolute;bottom:6%;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.6);color:#fff}
+      #stage .name{font-size:22px;font-weight:800}
+      #stage .desc{font-size:15px;font-weight:400;margin-top:.2rem}
     </style></head><body>
-    <div id="stage"><div class="media"></div><div class="name"></div></div>
+    <div id="stage"><div class="media"></div><div class="caption"><div class="name"></div><div class="desc"></div></div></div>
     <script>
       const SCREEN = ${JSON.stringify(screen)};
+      let volume = ${Number(settings.media_volume ?? 100)} / 100;
       const stage = document.getElementById("stage");
       const mediaBox = stage.querySelector(".media");
       const nameBox = stage.querySelector(".name");
+      const descBox = stage.querySelector(".desc");
       let queue = [];
       let playing = false;
 
@@ -1448,11 +1469,12 @@ export async function handleActionsScreenPage(req, res) {
         if (action.mediaUrl) {
           const el = document.createElement(action.mediaType === "video" ? "video" : "img");
           el.src = action.mediaUrl;
-          if (action.mediaType === "video") { el.autoplay = true; el.muted = true; }
+          if (action.mediaType === "video") { el.autoplay = true; el.volume = volume; }
           mediaBox.appendChild(el);
         }
         nameBox.textContent = action.name || "";
-        if (action.soundUrl) new Audio(action.soundUrl).play().catch(() => {});
+        descBox.textContent = action.description || "";
+        if (action.soundUrl) { const a = new Audio(action.soundUrl); a.volume = volume; a.play().catch(() => {}); }
         stage.classList.add("show");
         setTimeout(() => {
           stage.classList.remove("show");
@@ -1467,6 +1489,7 @@ export async function handleActionsScreenPage(req, res) {
         queue.push(action);
         playNext();
       });
+      events.addEventListener("volume-change", (e) => { volume = JSON.parse(e.data).volume / 100; });
     </script>
   </body></html>`);
 }
@@ -1626,4 +1649,61 @@ export async function handlePointsDropPage(req, res) {
       });
     </script>
   </body></html>`);
+}
+
+export async function handleLinkPreviewPage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      #card{width:340px;background:rgba(255,255,255,.97);border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.15);
+        opacity:0;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease}
+      #card.show{opacity:1;transform:translateY(0)}
+      #card img{width:100%;height:140px;object-fit:cover;display:none;background:#e5e5e5}
+      #card .body{padding:12px 14px}
+      #card .user{font-size:11px;color:#76cc11;font-weight:800;text-transform:uppercase}
+      #card .title{font-size:14px;font-weight:800;color:#122e1e;margin-top:2px}
+      #card .desc{font-size:12px;color:#5b7267;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    </style></head><body>
+    <div id="card">
+      <img id="cardImg" src="" alt="" onerror="this.style.display='none'" />
+      <div class="body">
+        <div class="user" id="cardUser"></div>
+        <div class="title" id="cardTitle"></div>
+        <div class="desc" id="cardDesc"></div>
+      </div>
+    </div>
+    <script>
+      const card = document.getElementById("card");
+      let hideTimer = null;
+      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      events.addEventListener("link-preview", (e) => {
+        const data = JSON.parse(e.data);
+        const img = document.getElementById("cardImg");
+        if (data.image) { img.src = data.image; img.style.display = "block"; } else { img.style.display = "none"; }
+        document.getElementById("cardUser").textContent = data.user + " membagikan link";
+        document.getElementById("cardTitle").textContent = data.title || data.url;
+        document.getElementById("cardDesc").textContent = data.description || "";
+        clearTimeout(hideTimer);
+        card.classList.add("show");
+        hideTimer = setTimeout(() => card.classList.remove("show"), 8000);
+      });
+    </script>
+  </body></html>`);
+}
+
+export async function handleMediaServe(req, res) {
+  const { token, id } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).end();
+  const media = await db.getDonationMedia(settings.guild_id, id);
+  if (!media) return res.status(404).end();
+  res.set("Content-Type", media.mime_type);
+  res.set("Cache-Control", "public, max-age=31536000, immutable");
+  res.send(Buffer.from(media.data, "base64"));
 }

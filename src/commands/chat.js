@@ -36,6 +36,7 @@ export async function execute(interaction) {
       channelId: interaction.channelId,
       guildId: interaction.guildId,
       userMessage,
+      userName: interaction.member?.displayName || interaction.user.username,
     });
     await replyChunked(interaction, reply);
   } catch (err) {

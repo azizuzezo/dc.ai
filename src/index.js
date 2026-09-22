@@ -8,6 +8,7 @@ import { forceIpv4Fetch } from "./config/network.js";
 import { logError, logWarn } from "./services/logger.js";
 import { startAdminServer } from "./admin/server.js";
 import { initLavalink } from "./services/lavalink.js";
+import { setDiscordClient } from "./services/discordClient.js";
 
 assertRequiredEnv();
 forceIpv4Fetch();
@@ -25,6 +26,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+setDiscordClient(client);
 
 async function loadCommands() {
   const dir = join(__dirname, "commands");

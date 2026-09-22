@@ -9,6 +9,7 @@ import { escapeHtml } from "./htmlEscape.js";
 const TRIGGER_LABELS = {
   any_gift: "Gift apa aja",
   specific_gift: "Gift tertentu",
+  gift_value_threshold: "Minimal jumlah koin gift",
   follow: "Follow baru",
   share: "Share",
   like_milestone: "Milestone like",
@@ -18,10 +19,11 @@ const TRIGGER_LABELS = {
 export async function handleHostActionsPage(req, res, notice) {
   const settings = req.donationSettings;
   const identifier = req.params.identifier;
-  const [actions, events, timers] = await Promise.all([
+  const [actions, events, timers, media] = await Promise.all([
     db.listDonationActions(settings.guild_id),
     db.listDonationEvents(settings.guild_id),
     db.listDonationTimers(settings.guild_id),
+    db.listDonationMedia(settings.guild_id),
   ]);
   const actionsById = new Map(actions.map((a) => [a.id, a]));
   const giftIcons = listGiftIcons();
@@ -49,10 +51,48 @@ export async function handleHostActionsPage(req, res, notice) {
           : `<p class="empty">Belum ada Aksi.</p>`
       }
     </div>
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Media Library (${media.length})</h2>
+      <p class="hint">Upload gambar/gif/video sekali, terus pakai URL-nya berkali-kali di form Aksi di bawah — gak perlu hosting eksternal.</p>
+      ${
+        media.length
+          ? media
+              .map(
+                (m) => `<div class="widget-card">
+          <h3 style="font-size:.95rem">${escapeHtml(m.filename)}</h3>
+          <p class="hint" style="margin:-.4rem 0 .5rem">${escapeHtml(m.mime_type)} · ${(m.size_bytes / 1024).toFixed(0)} KB</p>
+          <div class="widget-url-row">
+            <input class="url-box" type="text" readonly value="${escapeHtml(`${req.protocol}://${req.get("host")}/overlay/${settings.overlay_token}/media/${m.id}`)}" onclick="this.select()" />
+            <button type="button" class="widget-btn" onclick="copyMediaUrl(this)" data-url="${escapeHtml(`${req.protocol}://${req.get("host")}/overlay/${settings.overlay_token}/media/${m.id}`)}">Copy URL</button>
+            <form method="post" action="/host/${identifier}/aksi/media/${m.id}/delete" style="display:inline"><button type="submit" class="widget-btn" style="color:var(--error)">Hapus</button></form>
+          </div>
+        </div>`
+              )
+              .join("")
+          : `<p class="empty">Belum ada media diupload.</p>`
+      }
+      <form method="post" action="/host/${identifier}/aksi/media" enctype="multipart/form-data" style="margin-top:1rem">
+        <label for="mediaFile">Upload file baru (gambar/gif/video, maks 8MB)</label>
+        <input id="mediaFile" type="file" name="mediaFile" accept="image/*,video/*" required />
+        <button type="submit" class="btn btn-primary" style="margin-top:12px">Upload</button>
+      </form>
+    </div>
+    <script>
+      function copyMediaUrl(btn) {
+        navigator.clipboard.writeText(btn.dataset.url).then(() => {
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        });
+      }
+    </script>
+
     <form class="panel" method="post" action="/host/${identifier}/aksi/actions" style="margin-top:1.25rem">
       <h2>Tambah Aksi</h2>
-      <label for="actionName">Nama</label>
+      <label for="actionName">Nama (judul)</label>
       <input id="actionName" type="text" name="name" required maxlength="60" />
+      <label for="actionDescription">Deskripsi (opsional)</label>
+      <input id="actionDescription" type="text" name="description" maxlength="150" placeholder="Contoh: Makasih banyak yaa!" />
       <label for="mediaType">Jenis media</label>
       <select id="mediaType" name="mediaType" onchange="document.getElementById('giftIconRow').style.display=this.value==='gift_icon'?'block':'none';document.getElementById('mediaUrlRow').style.display=this.value==='gift_icon'?'none':'block'">
         <option value="image">Gambar</option>
@@ -62,7 +102,7 @@ export async function handleHostActionsPage(req, res, notice) {
       </select>
       <div id="mediaUrlRow">
         <label for="mediaUrl">URL media</label>
-        <input id="mediaUrl" type="text" name="mediaUrl" placeholder="https://..." />
+        <input id="mediaUrl" type="text" name="mediaUrl" placeholder="Tempel URL dari Media Library di atas, atau URL luar" />
       </div>
       <div id="giftIconRow" style="display:none">
         <label for="giftIconKey">Pilih ikon gift</label>
@@ -113,7 +153,7 @@ export async function handleHostActionsPage(req, res, notice) {
       <select id="triggerType" name="triggerType">
         ${Object.entries(TRIGGER_LABELS).map(([k, label]) => `<option value="${k}">${label}</option>`).join("")}
       </select>
-      <label for="triggerValue">Nilai trigger (nama gift persis / angka milestone like / kata kunci chat — kosongkan buat "Gift apa aja"/"Follow"/"Share")</label>
+      <label for="triggerValue">Nilai trigger (nama gift persis / jumlah koin minimal / angka milestone like / kata kunci chat — kosongkan buat "Gift apa aja"/"Follow"/"Share")</label>
       <input id="triggerValue" type="text" name="triggerValue" />
       <label for="eventScreen">Layar overlay (1, 2, 3, dst — biar bisa pisah beberapa Browser Source)</label>
       <input id="eventScreen" type="number" name="screen" value="1" min="1" />
@@ -176,6 +216,7 @@ export async function handleHostActionsPage(req, res, notice) {
       <form method="post" action="/host/${identifier}/aksi/simulate" style="margin-top:.75rem;display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap">
         <input type="hidden" name="type" value="gift" />
         <div style="flex:1;min-width:12rem"><label for="simGift">Nama gift</label><input id="simGift" type="text" name="value" placeholder="Rose" /></div>
+        <div style="flex:1;min-width:8rem"><label for="simGiftCoins">Jumlah koin</label><input id="simGiftCoins" type="number" name="coins" placeholder="200" min="0" /></div>
         <button type="submit" class="btn btn-sm">Simulasi Gift</button>
       </form>
       <form method="post" action="/host/${identifier}/aksi/simulate" style="margin-top:.75rem;display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap">
@@ -194,6 +235,7 @@ export async function handleHostActionAdd(req, res) {
   if (name) {
     await db.addDonationAction(settings.guild_id, {
       name,
+      description: req.body.description?.trim().slice(0, 150) || null,
       mediaType: req.body.mediaType,
       mediaUrl: req.body.mediaUrl?.trim() || null,
       giftIconKey: req.body.giftIconKey || null,
@@ -275,7 +317,13 @@ export async function handleHostActionsSimulate(req, res) {
   } else if (type === "gift") {
     const giftName = value || "Rose";
     eventName = "gift";
-    payload = { user: "TestUser", giftName, giftImage: resolveGiftIconUrl(giftName), repeatCount: 1 };
+    payload = {
+      user: "TestUser",
+      giftName,
+      giftImage: resolveGiftIconUrl(giftName),
+      repeatCount: 1,
+      diamonds: Number(req.body.coins) || 0,
+    };
   } else if (type === "chat") {
     eventName = "chat";
     payload = { user: "TestUser", message: value || "halo kak" };
@@ -285,5 +333,24 @@ export async function handleHostActionsSimulate(req, res) {
     broadcast(token, eventName, payload);
     await evaluateEvent(token, guildId, eventName, payload);
   }
+  res.redirect(`/host/${req.params.identifier}/aksi`);
+}
+
+export async function handleHostMediaUpload(req, res) {
+  const settings = req.donationSettings;
+  if (req.file) {
+    await db.addDonationMedia(settings.guild_id, {
+      filename: req.file.originalname.slice(0, 100),
+      mimeType: req.file.mimetype,
+      data: req.file.buffer.toString("base64"),
+      sizeBytes: req.file.size,
+    });
+  }
+  res.redirect(`/host/${req.params.identifier}/aksi`);
+}
+
+export async function handleHostMediaDelete(req, res) {
+  const settings = req.donationSettings;
+  await db.deleteDonationMedia(settings.guild_id, req.params.id);
   res.redirect(`/host/${req.params.identifier}/aksi`);
 }

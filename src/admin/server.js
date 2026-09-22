@@ -57,6 +57,8 @@ import {
   handleLikeathonPage,
   handleCommandResponsePage,
   handlePointsDropPage,
+  handleLinkPreviewPage,
+  handleMediaServe,
 } from "./donatePublic.js";
 import { requireHostAuth, handleHostLoginPage, handleHostLogin, handleHostLogout } from "./hostAuth.js";
 import {
@@ -78,7 +80,8 @@ import {
   handleHostTestLiveEvent,
 } from "./hostDashboard.js";
 import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsAdjust, handleHostPointsHalving } from "./hostPoints.js";
-import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate } from "./hostSoundAlerts.js";
+import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate, handleHostVolumeUpdate } from "./hostSoundAlerts.js";
+import { handleHostModerationPage, handleHostModerationUpdate } from "./hostModeration.js";
 import {
   handleHostToolsPage,
   handleHostToolsCommandsUpdate,
@@ -99,10 +102,13 @@ import {
   handleHostTimerAdd,
   handleHostTimerDelete,
   handleHostActionsSimulate,
+  handleHostMediaUpload,
+  handleHostMediaDelete,
 } from "./hostActions.js";
 import { handleEventApiTrigger } from "./eventApi.js";
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+const mediaUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -206,6 +212,8 @@ export function startAdminServer() {
   app.get("/overlay/:token/likeathon", handleLikeathonPage);
   app.get("/overlay/:token/commands", handleCommandResponsePage);
   app.get("/overlay/:token/points-drop", handlePointsDropPage);
+  app.get("/overlay/:token/link-preview", handleLinkPreviewPage);
+  app.get("/overlay/:token/media/:id", handleMediaServe);
   app.post("/event-api/:token/trigger", handleEventApiTrigger);
 
   // Self-service host dashboard — separate login from the bot-owner admin panel above,
@@ -241,6 +249,7 @@ export function startAdminServer() {
 
   app.get("/host/:identifier/suara", requireHostAuth, (req, res) => handleHostSoundAlertsPage(req, res));
   app.post("/host/:identifier/suara", requireHostAuth, handleHostSoundAlertsUpdate);
+  app.post("/host/:identifier/suara/volume", requireHostAuth, handleHostVolumeUpdate);
 
   app.get("/host/:identifier/tools", requireHostAuth, (req, res) => handleHostToolsPage(req, res));
   app.post("/host/:identifier/tools/perintah", requireHostAuth, handleHostToolsCommandsUpdate);
@@ -260,6 +269,11 @@ export function startAdminServer() {
   app.post("/host/:identifier/aksi/timers", requireHostAuth, handleHostTimerAdd);
   app.post("/host/:identifier/aksi/timers/:id/delete", requireHostAuth, handleHostTimerDelete);
   app.post("/host/:identifier/aksi/simulate", requireHostAuth, handleHostActionsSimulate);
+  app.post("/host/:identifier/aksi/media", requireHostAuth, mediaUpload.single("mediaFile"), handleHostMediaUpload);
+  app.post("/host/:identifier/aksi/media/:id/delete", requireHostAuth, handleHostMediaDelete);
+
+  app.get("/host/:identifier/moderasi", requireHostAuth, (req, res) => handleHostModerationPage(req, res));
+  app.post("/host/:identifier/moderasi", requireHostAuth, handleHostModerationUpdate);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every
