@@ -86,3 +86,12 @@ export function moderateChatMessage(token, settings, message) {
   if (settings.moderation_duplicate_enabled && isDuplicateFlood(token, message)) return "spam pesan berulang";
   return null;
 }
+
+/** For a donor's own message (a real paid donation, so it's always announced —
+ * unlike TikTok chat, there's nothing to hide it behind), this stars out any
+ * profanity instead: "anjing keren" -> "*** keren". No-op if moderation or the
+ * badwords check is off, or the message has none. */
+export function censorMessage(settings, message) {
+  if (!message || !settings.moderation_enabled || !settings.moderation_badwords_enabled) return message;
+  return badwords.censor(message);
+}

@@ -5,6 +5,7 @@ import { broadcast } from "./donationOverlay.js";
 import { synthesizeSpeech } from "./geminiTts.js";
 import { synthesizeSpeechLocal } from "./piperTts.js";
 import { storeAudio } from "./ttsCache.js";
+import { censorMessage } from "./chatModeration.js";
 import { logError } from "./logger.js";
 
 /** Pushes a donation to the overlay (+ Discord, unless toDiscord is false). Used by the real payment sweep and by the admin dashboard's test/replay button. */
@@ -18,11 +19,16 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     }
   }
 
+  // A donation is a real payment — unlike TikTok chat there's nothing to hide it
+  // behind, so profanity in the donor's own message gets starred out instead
+  // (see services/chatModeration.js) rather than blocking the announcement.
+  const message = censorMessage(settings, donation.message);
+
   const amountText = `Rp${Number(donation.amount).toLocaleString("id-ID")}`;
   const narration = wishlistItem
     ? `${amountText} dari ${donation.donor_name}, patungan ke wishlist ${wishlistItem.title}.` +
-      (donation.message ? ` Kata ${donation.donor_name}, ${donation.message}` : "")
-    : `${amountText} dari ${donation.donor_name}` + (donation.message ? `. ${donation.message}` : "");
+      (message ? ` Kata ${donation.donor_name}, ${message}` : "")
+    : `${amountText} dari ${donation.donor_name}` + (message ? `. ${message}` : "");
 
   // Started first, not awaited yet, so its ~5-7s round trip to Gemini overlaps
   // with the Discord post + leaderboard query below instead of adding to them.
@@ -50,7 +56,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
           .setDescription(
             `**${amountText}** dari **${donation.donor_name}**` +
               (wishlistItem ? ` (buat wishlist **${wishlistItem.title}**)` : "") +
-              (donation.message ? `\n> ${donation.message}` : "")
+              (message ? `\n> ${message}` : "")
           )
           .setColor(0x00c896)
           .setTimestamp();
@@ -71,7 +77,7 @@ export async function announceDonation(client, settings, donation, { toDiscord =
   broadcast(settings.overlay_token, "donation", {
     donorName: donation.donor_name,
     amount: donation.amount,
-    message: donation.message,
+    message,
     wishlistTitle: wishlistItem?.title || null,
     youtubeVideoId: donation.youtube_video_id || null,
     youtubeStart: donation.youtube_start_seconds ?? null,
