@@ -587,11 +587,28 @@ export async function handleOverlayPage(req, res) {
       let narrationFallbackTimer = null;
       function speakFallback(text) {
         if (!text || !("speechSynthesis" in window)) return;
-        try {
-          const utter = new SpeechSynthesisUtterance(text);
-          utter.lang = "id-ID";
-          window.speechSynthesis.speak(utter);
-        } catch {}
+        let spoken = false;
+        const doSpeak = () => {
+          if (spoken) return;
+          spoken = true;
+          try {
+            const utter = new SpeechSynthesisUtterance(text);
+            const voices = window.speechSynthesis.getVoices();
+            const idVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("id"));
+            if (idVoice) utter.voice = idVoice;
+            utter.lang = idVoice ? idVoice.lang : "id-ID";
+            window.speechSynthesis.speak(utter);
+          } catch {}
+        };
+        // Chrome sometimes hasn't loaded any voices yet on the very first
+        // call, and speak() then just silently does nothing — wait for
+        // voiceschanged once, with a timeout in case it never fires.
+        if (window.speechSynthesis.getVoices().length) {
+          doSpeak();
+        } else {
+          window.speechSynthesis.addEventListener("voiceschanged", doSpeak, { once: true });
+          setTimeout(doSpeak, 500);
+        }
       }
 
       const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
