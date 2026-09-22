@@ -26,7 +26,8 @@ const CHECKOUT_STYLE = `
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--track:#eef2f0}
+    :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--track:#eef2f0;
+      --ease:cubic-bezier(.16,1,.3,1)}
     *{box-sizing:border-box}
     body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:#fff;color:var(--ink)}
     /* On a real desktop viewport (not just a resized phone view), give the
@@ -43,7 +44,7 @@ const CHECKOUT_STYLE = `
     .required-mark{color:#dc2626;margin-left:2px}
     .social-links{display:flex;justify-content:center;gap:14px;margin-top:10px}
     .social-links a{display:flex;align-items:center;justify-content:center;width:34px;height:34px;
-      border-radius:50%;background:var(--track);color:var(--ink);transition:transform .15s ease,background .15s ease}
+      border-radius:50%;background:var(--track);color:var(--ink);transition:transform .25s var(--ease),background .25s var(--ease)}
     .social-links a:hover{background:var(--border);transform:translateY(-2px)}
     input[type=text],input[type=number],input[type=email],textarea{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--border);
       background:#fff;color:var(--ink);font:500 15px 'Inter',sans-serif;transition:border-color .15s ease}
@@ -52,8 +53,9 @@ const CHECKOUT_STYLE = `
     input:invalid:not(:placeholder-shown){border-color:#dc2626}
     textarea{resize:vertical}
     button{font:700 15px 'Inter',sans-serif;border:none;border-radius:999px;cursor:pointer}
-    .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green-deep);color:#fff}
-    .btn-primary:hover{background:var(--green)}
+    .btn-primary{width:100%;padding:14px;margin-top:18px;background:var(--green-deep);color:#fff;
+      box-shadow:0 1px 2px rgba(21,128,61,.15)}
+    .btn-primary:hover{background:var(--green);transform:translateY(-1px);box-shadow:0 10px 24px -8px rgba(21,128,61,.45)}
     .pill{padding:9px 4px;background:#fff;color:var(--ink);font-size:14px;border:1px solid var(--border);border-radius:999px}
     .pill.active{background:var(--green);color:#fff;border-color:var(--green)}
     .pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
@@ -120,19 +122,25 @@ const CHECKOUT_STYLE = `
     @keyframes avatar-glow{0%,100%{box-shadow:0 0 0 3px var(--green)}50%{box-shadow:0 0 0 7px rgba(21,128,61,.3)}}
     @keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     #avatarCircle{animation:avatar-float 3.2s ease-in-out infinite, avatar-glow 3.2s ease-in-out infinite}
-    .fade-in{opacity:0;animation:fade-up .6s cubic-bezier(.22,1,.36,1) forwards}
-    .bar-fill{transition:width 1s cubic-bezier(.22,1,.36,1)}
-    button{transition:transform .15s ease, box-shadow .15s ease}
+    .fade-in{opacity:0;animation:fade-up .6s var(--ease) forwards}
+    .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+    .reveal.in-view{opacity:1;transform:translateY(0)}
+    .bar-fill{transition:width 1s var(--ease)}
+    button{transition:transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease)}
     .btn-primary:active{transform:scale(.96)}
     .wish-pick:active{transform:scale(.96)}
-    .wish-card{transition:transform .2s ease, box-shadow .2s ease}
-    .wish-card:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(0,0,0,.08)}
-    .pill{transition:transform .15s ease, border-color .15s ease}
+    /* Cards also need a fast hover-lift transform, which would otherwise fight
+       the slower reveal-on-scroll transform on the same property — so the
+       card's own entrance is a plain fade (no translateY), and only hover
+       uses transform. */
+    .wish-card.reveal{transform:none}
+    .wish-card{transition:opacity .6s var(--ease), transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease)}
+    .wish-card:hover{transform:translateY(-4px);box-shadow:0 14px 28px -12px rgba(21,128,61,.25);border-color:#bfe6cc}
     .pill:hover{border-color:var(--green)}
     .pill:active{transform:scale(.94)}
     @media (prefers-reduced-motion: reduce){
-      #avatarCircle,.fade-in,.bar-fill,button,.wish-card,.view-enter{animation:none !important;transition:none !important}
-      .fade-in{opacity:1 !important;transform:none !important}
+      #avatarCircle,.fade-in,.bar-fill,button,.wish-card,.view-enter,.reveal{animation:none !important;transition:none !important}
+      .fade-in,.reveal{opacity:1 !important;transform:none !important}
     }
   </style>`;
 
@@ -174,18 +182,18 @@ export async function handleDonatePage(req, res) {
 
   const wishlistSectionHtml = wishlistItems.length
     ? `<hr class="divider" />
-       <div class="section section-wide fade-in" style="animation-delay:.1s">
+       <div class="section section-wide reveal">
          <h2 class="section-title">Wishlist</h2>
          <div class="wishlist-grid">
            ${wishlistItems
-             .map((w) => {
+             .map((w, i) => {
                const pct = Math.min(100, Math.round((w.total / w.target_amount) * 100));
                const active = hasPreselected && w.id === preselectedWishlistId;
                const contributors = w.contributors || [];
                const fmt = (c) => `${escapeHtml(c.donorName)} (Rp${Number(c.total).toLocaleString("id-ID")})`;
                const preview = contributors.slice(0, 3).map(fmt).join(", ");
                const rest = contributors.slice(3).map(fmt).join(", ");
-               return `<div class="wish-card${active ? " active" : ""}">
+               return `<div class="wish-card reveal${active ? " active" : ""}" style="transition-delay:${Math.min(i, 6) * 70}ms">
                  <div class="wish-title">${escapeHtml(w.title)}</div>
                  <div class="wish-target">Target Rp${Number(w.target_amount).toLocaleString("id-ID")}</div>
                  <div class="wish-current">Rp${w.total.toLocaleString("id-ID")} (${pct}%)</div>
@@ -207,7 +215,7 @@ export async function handleDonatePage(req, res) {
   const leaderboard = await db.getDonationLeaderboard(settings.guild_id, 25);
   const topSupportersHtml = leaderboard.length
     ? `<hr class="divider" />
-       <div class="section fade-in" style="animation-delay:.2s">
+       <div class="section reveal">
          <h2 class="section-title">Top Supporters</h2>
          <select id="supportersRange" class="range-select">
            <option value="all">Sejak awal</option>
@@ -232,7 +240,7 @@ export async function handleDonatePage(req, res) {
   const messages = recentDonations.filter((d) => d.message);
   const pesanHtml = messages.length
     ? `<hr class="divider" />
-       <div class="section fade-in" style="animation-delay:.3s">
+       <div class="section reveal">
          <button type="button" class="btn-primary main-cta" style="margin-top:0;margin-bottom:20px">Berikan Patungan</button>
          <h2 class="section-title">Pesan</h2>
          ${messages
@@ -317,6 +325,24 @@ export async function handleDonatePage(req, res) {
       </form>
     </div>
     <script>
+      const revealEls = document.querySelectorAll(".reveal");
+      if ("IntersectionObserver" in window) {
+        const revealObserver = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("in-view");
+                revealObserver.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.15, rootMargin: "0px 0px -40px 0px" }
+        );
+        revealEls.forEach((el) => revealObserver.observe(el));
+      } else {
+        revealEls.forEach((el) => el.classList.add("in-view"));
+      }
+
       const amountInput = document.getElementById("amount");
       document.querySelectorAll(".pill").forEach((btn) => {
         btn.addEventListener("click", () => {
