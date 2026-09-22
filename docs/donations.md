@@ -21,7 +21,7 @@ project on its own (see its own README), note its public URL and the
 
 Go to `/guilds` → pick your server → **Patungan**, and fill in:
 - **Custom link** (optional) — a vanity slug so the patungan page is
-  `/patungan/your-name` instead of `/patungan/<guildId>`. Letters/numbers/hyphens,
+  `/your-name` instead of `/<guildId>`. Letters/numbers/hyphens,
   3-32 chars, must be unique across all servers using this bot.
 - **Page title / description** (optional) — shown at the top of the patungan
   page (e.g. "Dukung DuaCincin Live" + a short bio line).
@@ -45,8 +45,8 @@ instantly. Without `GEMINI_TTS_API_KEYS`, the alert still shows and chimes,
 it just won't narrate the message.
 
 Saving generates several links shown on that page:
-- **Patungan link** (`/patungan/<guildId>`) — share this in your TikTok/
-  Instagram bio for viewers to send support
+- **Patungan link** (`/<guildId>`, at the domain root) — share this in your
+  TikTok/Instagram bio for viewers to send support
 - **Overlay link** (`/overlay/<token>`) — add as a Browser Source in OBS or
   TikTok Live Studio (transparent background; e.g. 380×260, positioned
   wherever you want the alert to pop up)

@@ -41,7 +41,7 @@ export async function execute(interaction) {
       return;
     }
 
-    const patunganUrl = `${env.publicBaseUrl}/patungan/${interaction.guildId}`;
+    const patunganUrl = `${env.publicBaseUrl}/${interaction.guildId}`;
     const wishlistItems = (await db.listWishlistItemsWithProgress(interaction.guildId)).slice(0, MAX_WISHLIST_BUTTONS);
 
     const embed = new EmbedBuilder()

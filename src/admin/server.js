@@ -96,13 +96,7 @@ export function startAdminServer() {
   app.post("/guilds/:guildId/donations/avatar", requireAuth, avatarUpload.single("avatar"), handleAvatarUpload);
   app.post("/guilds/:guildId/donations/avatar/delete", requireAuth, handleAvatarDelete);
 
-  // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
-  // :identifier is either a custom slug or a raw guild ID (see db.getDonationSettingsByIdentifier).
-  app.get("/patungan/:identifier", handleDonatePage);
-  app.post("/patungan/:identifier", handleDonateCreate);
-  app.get("/patungan/status/:trxId", handleDonateStatus);
-  app.get("/patungan/:identifier/avatar", handleDonateAvatar);
-  app.get("/patungan/:identifier/supporters", handleDonateSupporters);
+  // Public — no auth. OBS/TikTok Live Studio overlay sources.
   app.get("/overlay/:token", handleOverlayPage);
   app.get("/overlay/:token/events", handleOverlayEvents);
   app.get("/overlay/audio/:id", handleOverlayAudio);
@@ -112,6 +106,17 @@ export function startAdminServer() {
   app.get("/overlay/:token/wishlist", handleWishlistPage);
   app.get("/overlay/:token/wishlist/data", handleWishlistData);
   app.get("/overlay/:token/video", handleVideoPage);
+
+  // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
+  // now that the domain itself carries the "patungan" name — registered last so every
+  // reserved word above (login, guilds, settings, scan-operators, overlay, status) always
+  // wins first; :identifier is either a custom slug or a raw guild ID (see
+  // db.getDonationSettingsByIdentifier, and RESERVED_SLUGS in admin/donations.js).
+  app.get("/status/:trxId", handleDonateStatus);
+  app.get("/:identifier/avatar", handleDonateAvatar);
+  app.get("/:identifier/supporters", handleDonateSupporters);
+  app.get("/:identifier", handleDonatePage);
+  app.post("/:identifier", handleDonateCreate);
 
   app.listen(env.adminPort, () => {
     logInfo(`Admin dashboard listening on port ${env.adminPort}`);

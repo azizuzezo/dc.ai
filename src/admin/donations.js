@@ -5,7 +5,10 @@ import { layout, guildTabs, crumbs } from "./layout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]{3,32}$/;
-const RESERVED_SLUGS = new Set(["status"]);
+// Now that donor-facing pages live at the domain root (patungan.my.id/:identifier)
+// instead of under /patungan/, a custom slug can't shadow any of the admin app's
+// own top-level routes.
+const RESERVED_SLUGS = new Set(["status", "login", "logout", "guilds", "settings", "scan-operators", "overlay"]);
 
 function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
@@ -14,7 +17,7 @@ function baseUrl(req) {
 export async function handleDonationSettingsPage(req, res, error) {
   const { guildId } = req.params;
   const settings = await db.ensureDonationSettings(guildId);
-  const donateUrl = `${baseUrl(req)}/patungan/${settings.slug || guildId}`;
+  const donateUrl = `${baseUrl(req)}/${settings.slug || guildId}`;
   const overlayUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}`;
   const leaderboardUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/leaderboard`;
   const wishlistWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/wishlist`;

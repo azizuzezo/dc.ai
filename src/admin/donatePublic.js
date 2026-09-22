@@ -158,7 +158,7 @@ export async function handleDonatePage(req, res) {
   const title = escapeHtml(settings.display_name || "Dukung Kami");
   const initial = escapeHtml(title.trim().charAt(0).toUpperCase() || "?");
   const avatarHtml = settings.avatar_data
-    ? `<img src="/patungan/${identifier}/avatar" alt="" style="width:100%;height:100%;object-fit:cover" />`
+    ? `<img src="/${identifier}/avatar" alt="" style="width:100%;height:100%;object-fit:cover" />`
     : initial;
   const socialLinks = [
     { url: settings.tiktok_url, label: "TikTok", icon: SOCIAL_ICONS.tiktok },
@@ -280,7 +280,7 @@ export async function handleDonatePage(req, res) {
     </div>
     <div id="step2" class="${hasPreselected ? "" : "hidden"}">
       <button type="button" class="back-btn" id="backBtn">&larr; Kembali</button>
-      <form class="card" id="donateForm" method="post" action="/patungan/${identifier}">
+      <form class="card" id="donateForm" method="post" action="/${identifier}">
         <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
         <label><span id="amountLabelText">Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</span><span class="required-mark">*</span></label>
         <div class="pills">
@@ -461,7 +461,7 @@ export async function handleDonatePage(req, res) {
       }
       document.getElementById("supportersRange")?.addEventListener("change", async (e) => {
         try {
-          const res = await fetch(${JSON.stringify(`/patungan/${identifier}/supporters`)} + "?range=" + e.target.value);
+          const res = await fetch(${JSON.stringify(`/${identifier}/supporters`)} + "?range=" + e.target.value);
           const data = await res.json();
           renderSupporters(data.leaderboard || []);
         } catch {}
@@ -558,7 +558,7 @@ export async function handleDonateCreate(req, res) {
       async function poll() {
         if (done) return;
         try {
-          const res = await fetch("/patungan/status/" + trxId);
+          const res = await fetch("/status/" + trxId);
           const data = await res.json();
           if (data.status === "paid") {
             done = true;
