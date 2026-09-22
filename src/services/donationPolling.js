@@ -61,6 +61,13 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     }
   }
 
+  let alertTier = null;
+  try {
+    alertTier = await db.resolveAlertTier(donation.guild_id, donation.amount);
+  } catch (err) {
+    logError(`Failed to resolve alert tier for guild ${donation.guild_id}:`, err);
+  }
+
   broadcast(settings.overlay_token, "donation", {
     donorName: donation.donor_name,
     amount: donation.amount,
@@ -71,6 +78,8 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     youtubeEnd: donation.youtube_end_seconds ?? null,
     sound: settings.sound_enabled,
     narration: settings.tts_enabled ? narration : null,
+    tierImage: alertTier?.image_url || null,
+    tierEffect: alertTier?.effect || "none",
   });
 
   if (settings.leaderboard_enabled) {

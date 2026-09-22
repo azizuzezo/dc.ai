@@ -83,6 +83,13 @@ import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsA
 import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate, handleHostVolumeUpdate } from "./hostSoundAlerts.js";
 import { handleHostModerationPage, handleHostModerationUpdate } from "./hostModeration.js";
 import {
+  handleHostAlertAppearancePage,
+  handleHostChatBubbleUpdate,
+  handleHostAlertTierAdd,
+  handleHostAlertTierDelete,
+  handleHostAlertTierSimulate,
+} from "./hostAlertAppearance.js";
+import {
   handleHostToolsPage,
   handleHostToolsCommandsUpdate,
   handleHostToolsWheelUpdate,
@@ -274,6 +281,12 @@ export function startAdminServer() {
 
   app.get("/host/:identifier/moderasi", requireHostAuth, (req, res) => handleHostModerationPage(req, res));
   app.post("/host/:identifier/moderasi", requireHostAuth, handleHostModerationUpdate);
+
+  app.get("/host/:identifier/tampilan-alert", requireHostAuth, (req, res) => handleHostAlertAppearancePage(req, res));
+  app.post("/host/:identifier/tampilan-alert/chat-bubble", requireHostAuth, handleHostChatBubbleUpdate);
+  app.post("/host/:identifier/tampilan-alert/tiers", requireHostAuth, handleHostAlertTierAdd);
+  app.post("/host/:identifier/tampilan-alert/tiers/:id/delete", requireHostAuth, handleHostAlertTierDelete);
+  app.post("/host/:identifier/tampilan-alert/simulate-donation", requireHostAuth, handleHostAlertTierSimulate);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every

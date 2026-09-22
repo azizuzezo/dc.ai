@@ -7,6 +7,16 @@ import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
 import { escapeHtml } from "./htmlEscape.js";
 
+/** "#rrggbb" + 0-100 opacity -> "rgba(r,g,b,a)", for customizable overlay widget colors. */
+function hexToRgba(hex, opacityPercent) {
+  const clean = /^#?[0-9a-f]{6}$/i.test(hex) ? hex.replace("#", "") : "ffffff";
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const a = Math.min(100, Math.max(0, Number(opacityPercent) || 0)) / 100;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 /** Attaching a YouTube clip requires a bigger donation than the guild's own minimum. */
 const VIDEO_MIN_AMOUNT = 25000;
 
@@ -683,8 +693,30 @@ export async function handleOverlayPage(req, res) {
       #line1 .name{color:#86efac}
       #line2{margin-top:4px;font-size:14px;font-weight:500;color:rgba(255,255,255,.92);
         text-shadow:0 1px 4px rgba(0,0,0,.55);max-width:300px}
+
+      #tier-image{display:none;width:180px;max-height:140px;object-fit:contain;margin-bottom:10px;
+        filter:drop-shadow(0 4px 14px rgba(0,0,0,.4))}
+
+      /* Amount-tier effects — see bot_donation_alert_tiers / Tampilan Alert dashboard page. */
+      #stage.fx-shake{animation:fx-shake .5s ease}
+      @keyframes fx-shake{10%,90%{transform:translate(-50%,0) translateX(-2px)}20%,80%{transform:translate(-50%,0) translateX(3px)}
+        30%,50%,70%{transform:translate(-50%,0) translateX(-5px)}40%,60%{transform:translate(-50%,0) translateX(5px)}}
+      #stage.fx-glow #avatar{animation:fx-glow 1.2s ease-in-out infinite}
+      @keyframes fx-glow{0%,100%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 rgba(255,215,0,.6)}
+        50%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 32px 10px rgba(255,215,0,.75)}}
+      #effect-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+      .particle{position:absolute;top:-20px;border-radius:2px;animation:fx-fall linear forwards}
+      @keyframes fx-fall{to{transform:translateY(110vh) rotate(540deg);opacity:.2}}
+      .spark{position:fixed;border-radius:50%;pointer-events:none;animation:fx-spark .8s ease-out forwards}
+      @keyframes fx-spark{to{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+      @media (prefers-reduced-motion: reduce){
+        #stage.fx-shake{animation:none}#stage.fx-glow #avatar{animation:none}
+        .particle,.spark{display:none}
+      }
     </style></head><body>
+    <div id="effect-layer"></div>
     <div id="stage">
+      <img id="tier-image" src="" alt="" onerror="this.style.display='none'" />
       <div id="avatar-wrap">
         <div id="avatar">${settings.avatar_data ? `<img src="/overlay/${token}/avatar" alt="" />` : "🙏"}</div>
         <span class="deco d1">💛</span>
@@ -695,6 +727,62 @@ export async function handleOverlayPage(req, res) {
       <p id="line2"></p>
     </div>
     <script>
+      const CONFETTI_COLORS = ["#76cc11", "#5da80d", "#aced60", "#fbbf24", "#f472b6", "#60a5fa"];
+      function runConfetti() {
+        const layer = document.getElementById("effect-layer");
+        for (let i = 0; i < 40; i++) {
+          const p = document.createElement("div");
+          p.className = "particle";
+          const size = 6 + Math.random() * 6;
+          p.style.width = size + "px";
+          p.style.height = size * 0.4 + "px";
+          p.style.left = Math.random() * 100 + "vw";
+          p.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+          p.style.animationDuration = 2 + Math.random() * 1.5 + "s";
+          p.style.animationDelay = Math.random() * 0.4 + "s";
+          layer.appendChild(p);
+          setTimeout(() => p.remove(), 4000);
+        }
+      }
+      function runFireworks() {
+        const layer = document.getElementById("effect-layer");
+        const bursts = 3;
+        for (let b = 0; b < bursts; b++) {
+          setTimeout(() => {
+            const cx = 20 + Math.random() * 60;
+            const cy = 20 + Math.random() * 40;
+            const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+            for (let i = 0; i < 24; i++) {
+              const angle = (Math.PI * 2 * i) / 24;
+              const dist = 60 + Math.random() * 40;
+              const spark = document.createElement("div");
+              spark.className = "spark";
+              spark.style.left = cx + "vw";
+              spark.style.top = cy + "vh";
+              spark.style.width = spark.style.height = 5 + Math.random() * 4 + "px";
+              spark.style.background = color;
+              spark.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+              spark.style.setProperty("--dy", Math.sin(angle) * dist + "px");
+              layer.appendChild(spark);
+              setTimeout(() => spark.remove(), 900);
+            }
+          }, b * 350);
+        }
+      }
+      function applyTierEffect(effect) {
+        stage.classList.remove("fx-shake", "fx-glow");
+        if (effect === "shake") {
+          // restart the animation even if it was already applied recently
+          void stage.offsetWidth;
+          stage.classList.add("fx-shake");
+        } else if (effect === "glow") {
+          stage.classList.add("fx-glow");
+        } else if (effect === "confetti") {
+          runConfetti();
+        } else if (effect === "fireworks") {
+          runFireworks();
+        }
+      }
       const stage = document.getElementById("stage");
       const bellSound = new Audio("/overlay/assets/bell.wav");
       let audioUnlocked = false;
@@ -729,8 +817,11 @@ export async function handleOverlayPage(req, res) {
         nameEl.textContent = d.donorName;
         line1.append(amountEl, nameEl);
         document.getElementById("line2").textContent = d.message || "";
+        const tierImg = document.getElementById("tier-image");
+        if (d.tierImage) { tierImg.src = d.tierImage; tierImg.style.display = "block"; } else { tierImg.style.display = "none"; }
         stage.classList.remove("hide");
         stage.classList.add("show");
+        if (d.tierEffect && d.tierEffect !== "none") applyTierEffect(d.tierEffect);
         if (d.sound) chime();
         setTimeout(() => {
           stage.classList.add("hide");
@@ -1078,40 +1169,67 @@ export async function handleVideoPage(req, res) {
 
 // ---- Live chat & gift overlays (real TikTok LIVE events, not the donation pipeline) ----
 
+const CHAT_BUBBLE_DEFAULTS = {
+  bubbleColor: "#ffffff",
+  bubbleOpacity: 97,
+  textColor: "#122e1e",
+  usernameColor: "#76cc11",
+  showAvatar: true,
+  shape: "rounded", // "rounded" | "square" | "pill"
+};
+
 export async function handleChatPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...CHAT_BUBBLE_DEFAULTS, ...(settings.chat_bubble_style || {}) };
+  const radius = style.shape === "square" ? "4px" : style.shape === "pill" ? "999px" : "12px";
+  const bubbleRgba = hexToRgba(style.bubbleColor, style.bubbleOpacity);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-      /* Same white-card/green language as the Leaderboard/Wishlist overlays. */
+      /* Same white-card/green language as the Leaderboard/Wishlist overlays, customizable via
+         the "Tampilan Alert" dashboard page (settings.chat_bubble_style). */
       html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
       #feed{width:340px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;min-height:400px}
-      .msg{display:flex;align-items:baseline;gap:6px;background:rgba(255,255,255,.97);border-radius:12px;
+      .msg{display:flex;align-items:center;gap:8px;background:${bubbleRgba};border-radius:${radius};
         padding:7px 12px;box-shadow:0 2px 10px rgba(0,0,0,.12);
         opacity:0;transform:translateY(6px);animation:msgIn .25s ease forwards}
       @keyframes msgIn{to{opacity:1;transform:translateY(0)}}
       @media (prefers-reduced-motion: reduce){.msg{animation:none;opacity:1;transform:none}}
-      .msg .user{font-size:13px;font-weight:800;color:#76cc11;flex:none}
-      .msg .text{color:#122e1e;font-size:13px;font-weight:400;word-break:break-word}
+      .msg .avatar{width:22px;height:22px;border-radius:50%;flex:none;object-fit:cover;background:#e5e5e5}
+      .msg .body{display:flex;align-items:baseline;gap:6px;min-width:0}
+      .msg .user{font-size:13px;font-weight:800;color:${style.usernameColor};flex:none}
+      .msg .text{color:${style.textColor};font-size:13px;font-weight:400;word-break:break-word}
     </style></head><body>
     <div id="feed"></div>
     <script>
+      const SHOW_AVATAR = ${JSON.stringify(Boolean(style.showAvatar))};
       const feed = document.getElementById("feed");
       const MAX_MESSAGES = 8;
       function addMessage(m) {
         const row = document.createElement("div");
         row.className = "msg";
+        if (SHOW_AVATAR) {
+          const avatar = document.createElement("img");
+          avatar.className = "avatar";
+          avatar.src = m.avatarUrl || "";
+          avatar.onerror = () => { avatar.style.display = "none"; };
+          if (!m.avatarUrl) avatar.style.display = "none";
+          row.appendChild(avatar);
+        }
+        const body = document.createElement("div");
+        body.className = "body";
         const user = document.createElement("span");
         user.className = "user";
         user.textContent = m.user + ":";
         const text = document.createElement("span");
         text.className = "text";
         text.textContent = m.message;
-        row.append(user, text);
+        body.append(user, text);
+        row.appendChild(body);
         feed.appendChild(row);
         while (feed.children.length > MAX_MESSAGES) feed.removeChild(feed.firstChild);
       }

@@ -44,7 +44,7 @@ function attachListeners(connection, token, counts, guildId, settings) {
       return;
     }
 
-    const payload = { user, message };
+    const payload = { user, message, avatarUrl: data.user?.avatarThumb?.urlList?.[0] || null };
     broadcast(token, "chat", payload);
     awardPointsIfEnabled(settings, guildId, user, settings.points_per_chat_message);
     evaluateEvent(token, guildId, "chat", payload);

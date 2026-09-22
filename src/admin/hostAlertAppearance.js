@@ -1,0 +1,171 @@
+import * as db from "../services/db.js";
+import { announceDonation } from "../services/donationPolling.js";
+import { hostLayout } from "./hostLayout.js";
+import { escapeHtml } from "./htmlEscape.js";
+
+const CHAT_BUBBLE_DEFAULTS = {
+  bubbleColor: "#ffffff",
+  bubbleOpacity: 97,
+  textColor: "#122e1e",
+  usernameColor: "#76cc11",
+  showAvatar: true,
+  shape: "rounded",
+};
+
+const EFFECT_LABELS = {
+  none: "Tanpa efek",
+  shake: "Goyang (shake)",
+  glow: "Bersinar (glow)",
+  confetti: "Confetti",
+  fireworks: "Kembang api",
+};
+
+function rupiah(n) {
+  return "Rp" + Number(n || 0).toLocaleString("id-ID");
+}
+
+export async function handleHostAlertAppearancePage(req, res, notice) {
+  const settings = req.donationSettings;
+  const identifier = req.params.identifier;
+  const style = { ...CHAT_BUBBLE_DEFAULTS, ...(settings.chat_bubble_style || {}) };
+  const [tiers, media] = await Promise.all([db.listAlertTiers(settings.guild_id), db.listDonationMedia(settings.guild_id)]);
+
+  const body = `
+    <div class="topbar"><div><h1>Tampilan Alert</h1><p>Kustomisasi bubble chat TikTok LIVE dan tampilan widget Alert donasi berdasarkan nominal.</p></div></div>
+    ${notice ? `<p class="hint" style="color:var(--success)">${escapeHtml(notice)}</p>` : ""}
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/chat-bubble">
+      <h2>Bubble Chat</h2>
+      <p class="hint">Ngatur tampilan widget Chat Live (chat TikTok LIVE beneran).</p>
+      <div class="grid grid-2">
+        <div>
+          <label for="bubbleColor">Warna bubble</label>
+          <input id="bubbleColor" type="color" name="bubbleColor" value="${escapeHtml(style.bubbleColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="bubbleOpacity">Transparansi bubble (%)</label>
+          <input id="bubbleOpacity" type="number" name="bubbleOpacity" min="0" max="100" value="${style.bubbleOpacity}" />
+        </div>
+        <div>
+          <label for="textColor">Warna teks pesan</label>
+          <input id="textColor" type="color" name="textColor" value="${escapeHtml(style.textColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="usernameColor">Warna nama pengirim</label>
+          <input id="usernameColor" type="color" name="usernameColor" value="${escapeHtml(style.usernameColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="shape">Bentuk bubble</label>
+          <select id="shape" name="shape">
+            <option value="rounded" ${style.shape === "rounded" ? "selected" : ""}>Membulat</option>
+            <option value="pill" ${style.shape === "pill" ? "selected" : ""}>Pill (bulat penuh)</option>
+            <option value="square" ${style.shape === "square" ? "selected" : ""}>Kotak</option>
+          </select>
+        </div>
+      </div>
+      <label class="checkbox-row"><input type="checkbox" name="showAvatar" ${style.showAvatar ? "checked" : ""} /> Tampilin foto profil pengirim</label>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Alert Berdasarkan Nominal</h2>
+      <p class="hint">Widget Alert (donasi) bisa nampilin gambar &amp; efek beda-beda tergantung nominal donasi — dipilih otomatis dari tingkatan tertinggi yang nominalnya kepenuhin.</p>
+      ${
+        tiers.length
+          ? `<table><thead><tr><th>Minimal nominal</th><th>Gambar</th><th>Efek</th><th></th></tr></thead><tbody>
+          ${tiers
+            .map(
+              (t) => `<tr>
+            <td>${rupiah(t.min_amount)}</td>
+            <td>${t.image_url ? `<img src="${escapeHtml(t.image_url)}" alt="" style="height:32px;border-radius:4px" />` : "-"}</td>
+            <td>${EFFECT_LABELS[t.effect] || t.effect}</td>
+            <td><form method="post" action="/host/${identifier}/tampilan-alert/tiers/${t.id}/delete"><button type="submit" class="btn btn-danger btn-sm">Hapus</button></form></td>
+          </tr>`
+            )
+            .join("")}
+          </tbody></table>`
+          : `<p class="empty">Belum ada tingkatan alert. Alert default (tanpa gambar/efek khusus) yang dipakai.</p>`
+      }
+    </div>
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/tiers" style="margin-top:1.25rem">
+      <h2>Tambah Tingkatan</h2>
+      <label for="minAmount">Minimal nominal (Rp)</label>
+      <input id="minAmount" type="number" name="minAmount" min="0" step="1000" required />
+      <label for="imageUrl">URL gambar (opsional — bisa tempel dari Media Library di halaman Aksi &amp; Event)</label>
+      <input id="imageUrl" type="text" name="imageUrl" placeholder="https://... atau /overlay/TOKEN/media/ID" />
+      ${media.length ? `<p class="hint">Media library kamu: ${media.map((m) => escapeHtml(m.filename)).join(", ")} — buka halaman Aksi &amp; Event buat copy URL-nya.</p>` : ""}
+      <label for="effect">Efek</label>
+      <select id="effect" name="effect">
+        ${Object.entries(EFFECT_LABELS).map(([k, label]) => `<option value="${k}">${label}</option>`).join("")}
+      </select>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Tambah Tingkatan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Simulasi</h2>
+      <p class="hint">Buka widget Alert dulu, terus test kirim donasi dengan nominal tertentu buat lihat tingkatan mana yang kepakai.</p>
+      <form method="post" action="/host/${identifier}/tampilan-alert/simulate-donation" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:1;min-width:10rem"><label for="simAmount">Nominal (Rp)</label><input id="simAmount" type="number" name="amount" value="10000" min="1000" step="1000" /></div>
+        <button type="submit" class="btn btn-sm">Simulasi Donasi</button>
+      </form>
+    </div>`;
+
+  res.send(hostLayout(body, { active: "tampilan-alert", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+}
+
+export async function handleHostChatBubbleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    chat_bubble_style: {
+      bubbleColor: /^#[0-9a-f]{6}$/i.test(req.body.bubbleColor || "") ? req.body.bubbleColor : CHAT_BUBBLE_DEFAULTS.bubbleColor,
+      bubbleOpacity: Math.min(100, Math.max(0, Number(req.body.bubbleOpacity) || 0)),
+      textColor: /^#[0-9a-f]{6}$/i.test(req.body.textColor || "") ? req.body.textColor : CHAT_BUBBLE_DEFAULTS.textColor,
+      usernameColor: /^#[0-9a-f]{6}$/i.test(req.body.usernameColor || "") ? req.body.usernameColor : CHAT_BUBBLE_DEFAULTS.usernameColor,
+      showAvatar: req.body.showAvatar === "on",
+      shape: ["rounded", "pill", "square"].includes(req.body.shape) ? req.body.shape : "rounded",
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostAlertTierAdd(req, res) {
+  const settings = req.donationSettings;
+  if (req.body.minAmount) {
+    await db.addAlertTier(settings.guild_id, {
+      minAmount: req.body.minAmount,
+      imageUrl: req.body.imageUrl?.trim() || null,
+      effect: req.body.effect,
+    });
+  }
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostAlertTierDelete(req, res) {
+  const settings = req.donationSettings;
+  await db.deleteAlertTier(settings.guild_id, req.params.id);
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+/** Runs a fake donation through the real announceDonation path (so the resolved
+ * alert tier's image/effect actually shows) without posting to Discord or needing
+ * a real payment. */
+export async function handleHostAlertTierSimulate(req, res) {
+  const settings = req.donationSettings;
+  const amount = Number(req.body.amount) || 10000;
+  await announceDonation(
+    null,
+    settings,
+    {
+      guild_id: settings.guild_id,
+      donor_name: "Test Donatur",
+      amount,
+      message: "Simulasi tingkatan alert.",
+      wishlist_item_id: null,
+      youtube_video_id: null,
+      youtube_start_seconds: null,
+      youtube_end_seconds: null,
+    },
+    { toDiscord: false }
+  );
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}

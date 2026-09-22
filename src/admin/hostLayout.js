@@ -152,6 +152,7 @@ function icon(name) {
     volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
     wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
     shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    palette: '<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-4.4-4-8-10-8z"/>',
   };
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
 }
@@ -165,6 +166,7 @@ const NAV = [
   { key: "suara", label: "Efek Suara", icon: "volume", href: (id) => `/host/${id}/suara` },
   { key: "tools", label: "Tools", icon: "wrench", href: (id) => `/host/${id}/tools` },
   { key: "moderasi", label: "Moderasi", icon: "shield", href: (id) => `/host/${id}/moderasi` },
+  { key: "tampilan-alert", label: "Tampilan Alert", icon: "palette", href: (id) => `/host/${id}/tampilan-alert` },
   { key: "tampilan", label: "Tampilan", icon: "brush", href: (id) => `/host/${id}/tampilan` },
   { key: "pengaturan", label: "Pengaturan", icon: "settings", href: (id) => `/host/${id}/pengaturan` },
 ];

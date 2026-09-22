@@ -45,6 +45,7 @@ const memDonationEvents = []; // [{ id, guild_id, action_id, trigger_type, trigg
 const memDonationTimers = []; // [{ id, guild_id, action_id, interval_minutes, screen, active, last_fired_at, created_at }]
 const memFlaggedChat = []; // [{ id, guild_id, tiktok_user, message, reason, created_at }]
 const memDonationMedia = []; // [{ id, guild_id, filename, mime_type, data, size_bytes, created_at }]
+const memAlertTiers = []; // [{ id, guild_id, min_amount, image_url, effect, created_at }]
 let memDonationIdSeq = 1;
 let memWishlistItemIdSeq = 1;
 let memDonationActionIdSeq = 1;
@@ -52,6 +53,7 @@ let memDonationEventIdSeq = 1;
 let memDonationTimerIdSeq = 1;
 let memFlaggedChatIdSeq = 1;
 let memDonationMediaIdSeq = 1;
+let memAlertTierIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -912,6 +914,7 @@ export async function ensureDonationSettings(guildId) {
     moderation_duplicate_enabled: true,
     link_preview_enabled: false,
     media_volume: 100,
+    chat_bubble_style: {},
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
@@ -1553,4 +1556,50 @@ export async function deleteDonationMedia(guildId, id) {
   }
   const idx = memDonationMedia.findIndex((m) => m.guild_id === guildId && m.id === Number(id));
   if (idx !== -1) memDonationMedia.splice(idx, 1);
+}
+
+// ---- Donation Alert tiers (amount-based custom image/effect for the Alert widget) ----
+
+export async function listAlertTiers(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_alert_tiers")
+      .select("id, min_amount, image_url, effect, created_at")
+      .eq("guild_id", guildId)
+      .order("min_amount", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  return memAlertTiers
+    .filter((t) => t.guild_id === guildId)
+    .slice()
+    .sort((a, b) => b.min_amount - a.min_amount);
+}
+
+/** The highest tier whose min_amount the donation amount qualifies for, or null if none configured/matched. */
+export async function resolveAlertTier(guildId, amount) {
+  const tiers = await listAlertTiers(guildId);
+  return tiers.find((t) => Number(amount) >= t.min_amount) || null;
+}
+
+export async function addAlertTier(guildId, { minAmount, imageUrl, effect }) {
+  const row = { guild_id: guildId, min_amount: Number(minAmount) || 0, image_url: imageUrl || null, effect: effect || "none" };
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_alert_tiers").insert(row).select("id").single();
+    if (error) throw error;
+    return data.id;
+  }
+  const id = memAlertTierIdSeq++;
+  memAlertTiers.push({ id, ...row, created_at: new Date().toISOString() });
+  return id;
+}
+
+export async function deleteAlertTier(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_alert_tiers").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memAlertTiers.findIndex((t) => t.guild_id === guildId && t.id === Number(id));
+  if (idx !== -1) memAlertTiers.splice(idx, 1);
 }
