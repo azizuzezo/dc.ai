@@ -717,10 +717,7 @@ export async function handleOverlayPage(req, res) {
       #line2{margin-top:4px;font-size:14px;font-weight:500;color:rgba(255,255,255,.92);
         text-shadow:0 1px 4px rgba(0,0,0,.55);max-width:300px}
 
-      #tier-image{display:none;width:220px;max-height:180px;object-fit:contain;margin-bottom:12px;
-        filter:drop-shadow(0 6px 20px rgba(0,0,0,.5))}
-      #tier-image.fx-framed{padding:6px;border-radius:16px;background:linear-gradient(135deg,#ffd700,#fff6c8,#ffd700);
-        box-shadow:0 0 40px 6px rgba(255,215,0,.55)}
+      #avatar.fx-framed{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 4px #ffd700,0 0 40px 10px rgba(255,215,0,.55)}
 
       /* Amount-tier effects — see bot_donation_alert_tiers / Tampilan Alert dashboard page.
          Reworked to be a real screen-level "wow" moment, not a subtle accent: every effect
@@ -766,7 +763,6 @@ export async function handleOverlayPage(req, res) {
     <div id="screen-flash"></div>
     <div id="effect-layer"></div>
     <div id="stage">
-      <img id="tier-image" src="" alt="" onerror="this.style.display='none'" />
       <div id="avatar-wrap">
         <div id="avatar">${settings.avatar_data ? `<img src="/overlay/${token}/avatar" alt="" />` : "🙏"}</div>
         <span class="deco d1">💛</span>
@@ -867,12 +863,12 @@ export async function handleOverlayPage(req, res) {
       }
       function applyTierEffect(effect) {
         stage.classList.remove("fx-shake", "fx-glow", "fx-entrance");
-        document.getElementById("tier-image").classList.remove("fx-framed");
+        document.getElementById("avatar").classList.remove("fx-framed");
         if (effect === "none") return;
         // restart entrance/flash even if one just played a moment ago
         void stage.offsetWidth;
         stage.classList.add("fx-entrance");
-        document.getElementById("tier-image").classList.add("fx-framed");
+        document.getElementById("avatar").classList.add("fx-framed");
         flashScreen();
         if (effect === "shake") {
           stage.classList.add("fx-shake");
@@ -885,6 +881,8 @@ export async function handleOverlayPage(req, res) {
         }
       }
       const stage = document.getElementById("stage");
+      const avatarEl = document.getElementById("avatar");
+      const defaultAvatarHTML = avatarEl.innerHTML; // streamer's own avatar (or the 🙏 fallback), restored once a tiered donation's card hides
       const bellSound = new Audio("/overlay/assets/bell.wav");
       let audioUnlocked = false;
 
@@ -926,8 +924,16 @@ export async function handleOverlayPage(req, res) {
         nameEl.textContent = d.donorName;
         line1.append(amountEl, nameEl);
         document.getElementById("line2").textContent = d.message || "";
-        const tierImg = document.getElementById("tier-image");
-        if (d.tierImage) { tierImg.src = d.tierImage; tierImg.style.display = "block"; } else { tierImg.style.display = "none"; }
+        if (d.tierImage) {
+          avatarEl.innerHTML = "";
+          const img = document.createElement("img");
+          img.alt = "";
+          img.onerror = () => { avatarEl.innerHTML = defaultAvatarHTML; };
+          img.src = d.tierImage;
+          avatarEl.appendChild(img);
+        } else {
+          avatarEl.innerHTML = defaultAvatarHTML;
+        }
         stage.classList.remove("hide");
         stage.classList.add("show");
         if (d.tierEffect && d.tierEffect !== "none") applyTierEffect(d.tierEffect);
