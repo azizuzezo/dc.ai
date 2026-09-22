@@ -53,7 +53,7 @@ export async function handleHostModerationPage(req, res, notice) {
       }
     </div>`;
 
-  res.send(hostLayout(body, { active: "moderasi", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "moderasi", identifier, settings }));
 }
 
 export async function handleHostModerationUpdate(req, res) {

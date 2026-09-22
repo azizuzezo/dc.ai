@@ -226,7 +226,7 @@ export async function handleHostActionsPage(req, res, notice) {
       </form>
     </div>`;
 
-  res.send(hostLayout(body, { active: "aksi", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "aksi", identifier, settings }));
 }
 
 export async function handleHostActionAdd(req, res) {

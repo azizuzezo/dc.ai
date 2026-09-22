@@ -74,6 +74,7 @@ import {
   handleHostAvatarDelete,
   handleHostSettingsPage,
   handleHostSettingsUpdate,
+  handleHostThemeUpdate,
   handleHostRegenerateToken,
   handleHostPasswordUpdate,
   handleHostReplayDonation,
@@ -248,6 +249,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/tampilan/avatar/delete", requireHostAuth, handleHostAvatarDelete);
   app.get("/host/:identifier/pengaturan", requireHostAuth, (req, res) => handleHostSettingsPage(req, res));
   app.post("/host/:identifier/pengaturan", requireHostAuth, handleHostSettingsUpdate);
+  app.post("/host/:identifier/pengaturan/tema", requireHostAuth, handleHostThemeUpdate);
   app.post("/host/:identifier/pengaturan/regenerate-token", requireHostAuth, handleHostRegenerateToken);
   app.post("/host/:identifier/pengaturan/password", requireHostAuth, handleHostPasswordUpdate);
 

@@ -109,7 +109,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
       </form>
     </div>`;
 
-  res.send(hostLayout(body, { active: "tampilan-alert", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "tampilan-alert", identifier, settings }));
 }
 
 export async function handleHostChatBubbleUpdate(req, res) {

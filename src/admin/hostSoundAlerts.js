@@ -58,7 +58,7 @@ export async function handleHostSoundAlertsPage(req, res, notice) {
       </div>
     </div>`;
 
-  res.send(hostLayout(body, { active: "suara", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "suara", identifier, settings }));
 }
 
 export async function handleHostVolumeUpdate(req, res) {

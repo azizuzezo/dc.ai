@@ -114,7 +114,7 @@ export async function handleHostHomePage(req, res) {
       });
     </script>`;
 
-  res.send(hostLayout(body, { active: "beranda", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "beranda", identifier, settings }));
 }
 
 // ---- Wishlist ----
@@ -167,7 +167,7 @@ export async function handleHostWishlistPage(req, res, error) {
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Tambah wishlist</button>
     </form>`;
 
-  res.send(hostLayout(body, { active: "wishlist", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "wishlist", identifier, settings }));
 }
 
 export async function handleHostWishlistAdd(req, res) {
@@ -233,7 +233,7 @@ export async function handleHostMessagesPage(req, res) {
       }
     </div>`;
 
-  res.send(hostLayout(body, { active: "pesan", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "pesan", identifier, settings }));
 }
 
 // ---- Tampilan ----
@@ -282,7 +282,7 @@ export async function handleHostAppearancePage(req, res, error) {
       </form>
     </div>`;
 
-  res.send(hostLayout(body, { active: "tampilan", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "tampilan", identifier, settings }));
 }
 
 export async function handleHostAppearanceUpdate(req, res) {
@@ -343,6 +343,15 @@ export async function handleHostSettingsPage(req, res, notice) {
       <label class="checkbox-row"><input type="checkbox" name="soundEnabled" ${settings.sound_enabled ? "checked" : ""} /> Bunyi lonceng pas ada donasi masuk</label>
       <label class="checkbox-row"><input type="checkbox" name="leaderboardEnabled" ${settings.leaderboard_enabled ? "checked" : ""} /> Aktifin widget leaderboard</label>
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <form class="panel" method="post" action="/host/${identifier}/pengaturan/tema" style="margin-top:1.25rem">
+      <h2>Tema Dashboard</h2>
+      <p class="hint">Ganti warna aksen dan aktifin dark mode buat dashboard ini (halaman donate publik kamu gak kepengaruh).</p>
+      <label for="accentColor">Warna aksen</label>
+      <input id="accentColor" type="color" name="accentColor" value="${escapeHtml((settings.dashboard_theme || {}).accentColor || "#76cc11")}" />
+      <label class="checkbox-row"><input type="checkbox" name="darkMode" ${(settings.dashboard_theme || {}).darkMode ? "checked" : ""} /> Dark mode</label>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Terapkan</button>
     </form>
 
     <div class="panel" style="margin-top:1.25rem">
@@ -476,7 +485,7 @@ export async function handleHostSettingsPage(req, res, notice) {
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
     </form>`;
 
-  res.send(hostLayout(body, { active: "pengaturan", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "pengaturan", identifier, settings }));
 }
 
 export async function handleHostSettingsUpdate(req, res) {
@@ -486,6 +495,17 @@ export async function handleHostSettingsUpdate(req, res) {
     tts_enabled: req.body.ttsEnabled === "on",
     sound_enabled: req.body.soundEnabled === "on",
     leaderboard_enabled: req.body.leaderboardEnabled === "on",
+  });
+  res.redirect(`/host/${req.params.identifier}/pengaturan`);
+}
+
+export async function handleHostThemeUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    dashboard_theme: {
+      accentColor: /^#[0-9a-f]{6}$/i.test(req.body.accentColor || "") ? req.body.accentColor : "#76cc11",
+      darkMode: req.body.darkMode === "on",
+    },
   });
   res.redirect(`/host/${req.params.identifier}/pengaturan`);
 }

@@ -133,7 +133,7 @@ export async function handleHostToolsPage(req, res, notice) {
       </div>
     </div>`;
 
-  res.send(hostLayout(body, { active: "tools", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "tools", identifier, settings }));
 }
 
 export async function handleHostToolsCommandsUpdate(req, res) {

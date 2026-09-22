@@ -1,23 +1,85 @@
 import { escapeHtml } from "./htmlEscape.js";
 
-/** Light green/white dashboard tokens matched exactly against sociabuzz.com's own
- * computed styles (getComputedStyle on their live donate/tribe page, see
- * docs/design-references — brand green #76cc11, rank-tier greens #93dc3e/#aced60,
- * "Open Sans", white page background, #e5e5e5 neutral track/border). */
-const HOST_STYLE = `
+// ---- theme color math (accent color + dark/light mode are host-configurable, see
+// hostDashboard.js's "Tema Dashboard" panel and settings.dashboard_theme) ----
+
+function hexToRgb(hex) {
+  const clean = /^#?[0-9a-f]{6}$/i.test(hex || "") ? hex.replace("#", "") : "76cc11";
+  return [parseInt(clean.slice(0, 2), 16), parseInt(clean.slice(2, 4), 16), parseInt(clean.slice(4, 6), 16)];
+}
+function rgbToHex([r, g, b]) {
+  return "#" + [r, g, b].map((v) => Math.min(255, Math.max(0, Math.round(v))).toString(16).padStart(2, "0")).join("");
+}
+function mix(hex, targetHex, weight) {
+  const [r1, g1, b1] = hexToRgb(hex);
+  const [r2, g2, b2] = hexToRgb(targetHex);
+  return rgbToHex([r1 + (r2 - r1) * weight, g1 + (g2 - g1) * weight, b1 + (b2 - b1) * weight]);
+}
+function darken(hex, amount) {
+  return mix(hex, "#000000", amount);
+}
+function lighten(hex, amount) {
+  return mix(hex, "#ffffff", amount);
+}
+/** WCAG relative luminance, to pick readable text on top of an arbitrary accent color. */
+function luminance(hex) {
+  const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const [r, g, b] = hexToRgb(hex).map((v) => lin(v / 255));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+const DARK_TOKENS = {
+  paper: "#12161a",
+  paper2: "#181e23",
+  paper3: "#1f262c",
+  surface: "#181e23",
+  ink: "#f1f5f2",
+  ink2: "#d6ded9",
+  muted: "#8a9690",
+  rule: "#2a3238",
+  ruleStrong: "#3a444b",
+  error: "#f87171",
+};
+const LIGHT_TOKENS = {
+  paper: "#fff",
+  paper2: "#f7f9f5",
+  paper3: "#eef4e8",
+  surface: "#fff",
+  ink: "#122e1e",
+  ink2: "#1e3a2a",
+  muted: "#5b7267",
+  rule: "#e5e5e5",
+  ruleStrong: "#c8d6c0",
+  error: "#dc2626",
+};
+
+/** Builds the full <style> block from a host's chosen accent color + dark/light mode
+ * (defaults match the original fixed Sociabuzz-style green/white palette). */
+function buildHostStyle(theme = {}) {
+  const brand = /^#[0-9a-f]{6}$/i.test(theme.accentColor || "") ? theme.accentColor : "#76cc11";
+  const dark = Boolean(theme.darkMode);
+  const t = dark ? DARK_TOKENS : LIGHT_TOKENS;
+
+  const onBrand = luminance(brand) > 0.5 ? "#122e1e" : "#ffffff";
+  const brandStrong = darken(brand, 0.22);
+  const brandHover = darken(brand, 0.14);
+  const brandSoft = dark ? mix(brand, "#000000", 0.72) : lighten(brand, 0.92);
+  const railLabel = onBrand === "#ffffff" ? lighten(brand, 0.82) : darken(brand, 0.55);
+
+  return `
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --paper:#fff;--paper-2:#f7f9f5;--paper-3:#eef4e8;
-      --surface:#fff;--ink:#122e1e;--ink-2:#1e3a2a;--muted:#5b7267;
-      --rule:#e5e5e5;--rule-strong:#c8d6c0;
-      --brand:#76cc11;--brand-strong:#5da80d;--brand-soft:#eaffd6;
-      --accent-2:#aced60;--accent-ink:#1a3d0a;
-      --success:#22c55e;--warning:#f59e0b;--error:#dc2626;
+      --paper:${t.paper};--paper-2:${t.paper2};--paper-3:${t.paper3};
+      --surface:${t.surface};--ink:${t.ink};--ink-2:${t.ink2};--muted:${t.muted};
+      --rule:${t.rule};--rule-strong:${t.ruleStrong};
+      --brand:${brand};--brand-strong:${brandStrong};--brand-hover:${brandHover};--brand-soft:${brandSoft};
+      --on-brand:${onBrand};--rail-label:${railLabel};
+      --success:#22c55e;--warning:#f59e0b;--error:${t.error};
       --radius-sm:0.25rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-pill:999px;
-      --shadow-brutal:0 20px 25px -5px #0000001a,0 8px 10px -6px #0000001a;
-      --shadow-brutal-sm:0 4px 6px -1px #0000001a,0 2px 4px -2px #0000001a;
+      --shadow-brutal:0 20px 25px -5px #0000004d,0 8px 10px -6px #0000004d;
+      --shadow-brutal-sm:0 4px 6px -1px #0000004d,0 2px 4px -2px #0000004d;
       --ease-out:cubic-bezier(0.16,1,0.3,1)
     }
     *{box-sizing:border-box}
@@ -30,18 +92,18 @@ const HOST_STYLE = `
     button,.btn{font:700 14px/1 'Open Sans',sans-serif;cursor:pointer}
 
     #shell{display:flex;min-height:100vh}
-    #rail{width:17rem;flex:none;background:var(--brand);color:#fff;padding:1.5rem 1.25rem;
+    #rail{width:17rem;flex:none;background:var(--brand);color:var(--on-brand);padding:1.5rem 1.25rem;
       display:flex;flex-direction:column;gap:.25rem;position:sticky;top:0;height:100vh;overflow-y:auto}
     .rail-brand{font-weight:800;font-size:1.05rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:.5rem}
     .rail-brand img{width:28px;height:28px;border-radius:50%;object-fit:cover}
     .rail-group-label{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-      color:#eaffd6;margin:1rem 0 .4rem}
+      color:var(--rail-label);margin:1rem 0 .4rem}
     .rail-link{display:flex;align-items:center;gap:.65rem;padding:.65rem .8rem;border-radius:var(--radius-md);
-      color:#fff;text-decoration:none;font-weight:600;font-size:.92rem;transition:background .15s var(--ease-out)}
-    .rail-link:hover{background:#5da80d}
-    .rail-link.active{background:#fff;color:var(--brand-strong);box-shadow:var(--shadow-brutal-sm)}
+      color:var(--on-brand);text-decoration:none;font-weight:600;font-size:.92rem;transition:background .15s var(--ease-out)}
+    .rail-link:hover{background:var(--brand-hover)}
+    .rail-link.active{background:var(--surface);color:var(--brand-strong);box-shadow:var(--shadow-brutal-sm)}
     .rail-link svg{flex:none}
-    .rail-footer{margin-top:auto;padding-top:1rem;border-top:1px solid #5da80d;display:flex;flex-direction:column;gap:.25rem}
+    .rail-footer{margin-top:auto;padding-top:1rem;border-top:1px solid var(--brand-hover);display:flex;flex-direction:column;gap:.25rem}
 
     #main{flex:1;min-width:0;padding:2rem 2.5rem 3rem}
     .topbar{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.75rem}
@@ -56,7 +118,7 @@ const HOST_STYLE = `
     .btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--rule-strong);border-radius:var(--radius-pill);
       padding:.65rem 1.05rem;background:var(--paper-3);color:var(--ink);transition:background .15s var(--ease-out)}
     .btn:hover{background:var(--brand-soft)}
-    .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--shadow-brutal-sm)}
+    .btn-primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand);box-shadow:var(--shadow-brutal-sm)}
     .btn-primary:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
     .btn-danger{background:var(--surface);border-color:var(--error);color:var(--error)}
     .btn-danger:hover{background:#dc262633}
@@ -74,7 +136,7 @@ const HOST_STYLE = `
       background:var(--paper-3);color:var(--muted);font:500 .85rem 'Open Sans',sans-serif}
     input[type=file]::file-selector-button{
       margin-right:.75rem;border:none;border-radius:var(--radius-pill);padding:.55rem 1.1rem;
-      background:var(--brand);color:#fff;font:700 .82rem 'Open Sans',sans-serif;cursor:pointer;
+      background:var(--brand);color:var(--on-brand);font:700 .82rem 'Open Sans',sans-serif;cursor:pointer;
       transition:background .15s var(--ease-out)}
     input[type=file]::file-selector-button:hover{background:var(--brand-strong)}
     input[type=color]{width:100%;height:2.6rem;padding:.3rem;border-radius:var(--radius-sm);
@@ -94,7 +156,7 @@ const HOST_STYLE = `
     .tab-list{display:flex;gap:.4rem;flex-wrap:wrap}
     .tab-button{border:1px solid var(--rule-strong);border-radius:var(--radius-pill);padding:.4rem .9rem;
       background:var(--paper-3);color:var(--ink);font-size:.82rem;font-weight:700;cursor:pointer}
-    .tab-button.active{background:var(--brand);border-color:var(--brand);color:#fff}
+    .tab-button.active{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
 
     .chart{background:repeating-linear-gradient(to bottom,transparent 0,transparent calc(25% - 1px),
       var(--rule) calc(25% - 1px),var(--rule) 25%);border-block:1px solid var(--rule);display:flex;
@@ -116,8 +178,6 @@ const HOST_STYLE = `
     th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
     .empty{color:var(--muted);font-size:.88rem;padding:1rem 0}
 
-    /* Widget/goal cards — same layout as before, recolored to the light green/white
-       palette (was dark-theme hex literals ported from a different reference). */
     .widget-card{background:var(--paper-2);border:1px solid var(--rule-strong);border-radius:.625rem;padding:1.25rem;
       margin-top:1rem}
     .widget-card:first-of-type{margin-top:1rem}
@@ -145,6 +205,7 @@ const HOST_STYLE = `
       .mobile-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
     }
   </style>`;
+}
 
 function icon(name) {
   const paths = {
@@ -180,12 +241,16 @@ const NAV = [
   { key: "pengaturan", label: "Pengaturan", icon: "settings", href: (id) => `/host/${id}/pengaturan` },
 ];
 
-/** Shared shell for the self-service host dashboard: sidebar + topbar, styled after muter.my.id. */
-export function hostLayout(body, { active, identifier, title, avatarUrl }) {
+/** Shared shell for the self-service host dashboard: sidebar + topbar, styled after muter.my.id.
+ * `settings` is the guild's full bot_donation_settings row — display_name/avatar/overlay_token
+ * drive the header, and dashboard_theme ({accentColor, darkMode}) drives the whole color scheme. */
+export function hostLayout(body, { active, identifier, settings }) {
+  const title = settings.display_name;
+  const avatarUrl = settings.avatar_data ? `/${identifier}/avatar` : null;
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${escapeHtml(title || "Patungan")} · Dashboard</title>
     <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
-    ${HOST_STYLE}
+    ${buildHostStyle(settings.dashboard_theme)}
     </head><body>
     <div id="shell">
       <nav id="rail">

@@ -97,7 +97,7 @@ export async function handleHostPointsPage(req, res, notice) {
       <button type="submit" class="btn btn-danger" style="margin-top:12px">Halving semua poin sekarang</button>
     </form>`;
 
-  res.send(hostLayout(body, { active: "poin", identifier, title: settings.display_name, avatarUrl: settings.avatar_data ? `/${identifier}/avatar` : null }));
+  res.send(hostLayout(body, { active: "poin", identifier, settings }));
 }
 
 export async function handleHostPointsSettingsUpdate(req, res) {
