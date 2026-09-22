@@ -1,5 +1,6 @@
 import * as db from "../services/db.js";
 import { hashPassword } from "../services/password.js";
+import { announceDonation } from "../services/donationPolling.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -163,6 +164,9 @@ export async function handleHostMessagesPage(req, res) {
                   </div>
                   ${wishTitle ? `<div style="font-size:.82rem;color:var(--brand);margin-top:2px">Kontribusi ke wishlist: ${escapeHtml(wishTitle)}</div>` : ""}
                   <div style="margin-top:4px">&ldquo;${escapeHtml(d.message)}&rdquo;</div>
+                  <form method="post" action="/host/${identifier}/replay/${d.trx_id}" style="margin-top:8px">
+                    <button type="submit" class="btn btn-sm">Putar ulang di overlay</button>
+                  </form>
                 </div>`;
               })
               .join("")
@@ -332,4 +336,13 @@ export async function handleHostPasswordUpdate(req, res) {
   }
   await db.updateDonationSettings(settings.guild_id, fields);
   res.redirect(`/host/${identifier}/pengaturan`);
+}
+
+export async function handleHostReplayDonation(req, res) {
+  const settings = req.donationSettings;
+  const donation = await db.getDonationByTrxId(req.params.trxId);
+  if (donation && donation.guild_id === settings.guild_id) {
+    await announceDonation(null, settings, donation, { toDiscord: false });
+  }
+  res.redirect(`/host/${req.params.identifier}/pesan`);
 }

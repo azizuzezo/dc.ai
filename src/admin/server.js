@@ -56,6 +56,7 @@ import {
   handleHostSettingsUpdate,
   handleHostRegenerateToken,
   handleHostPasswordUpdate,
+  handleHostReplayDonation,
 } from "./hostDashboard.js";
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
@@ -135,6 +136,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/wishlist", requireHostAuth, handleHostWishlistAdd);
   app.post("/host/:identifier/wishlist/:id/delete", requireHostAuth, handleHostWishlistDelete);
   app.get("/host/:identifier/pesan", requireHostAuth, handleHostMessagesPage);
+  app.post("/host/:identifier/replay/:trxId", requireHostAuth, handleHostReplayDonation);
   app.get("/host/:identifier/tampilan", requireHostAuth, (req, res) => handleHostAppearancePage(req, res));
   app.post("/host/:identifier/tampilan", requireHostAuth, handleHostAppearanceUpdate);
   app.post("/host/:identifier/tampilan/avatar", requireHostAuth, avatarUpload.single("avatar"), handleHostAvatarUpload);
