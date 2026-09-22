@@ -10,33 +10,35 @@ export async function execute(message) {
   if (message.author.bot) return;
   if (!message.guildId) return; // DMs out of scope for Phase 1
 
-  try {
-    const levelUp = await awardMessageXp(message.guildId, message.author.id);
-    if (levelUp) {
-      await message.channel
-        .send(`🎉 GG ${message.author}, kamu naik ke **level ${levelUp.level}**!`)
-        .catch(() => {});
-    }
-  } catch (err) {
-    logError("Failed to award message XP:", err);
-  }
+  // Fire-and-forget: XP is unrelated to a mention reply, so it shouldn't add
+  // its own DB round trip to that critical path.
+  awardMessageXp(message.guildId, message.author.id)
+    .then((levelUp) => {
+      if (levelUp) {
+        return message.channel.send(`🎉 GG ${message.author}, kamu naik ke **level ${levelUp.level}**!`).catch(() => {});
+      }
+    })
+    .catch((err) => logError("Failed to award message XP:", err));
 
   if (!message.mentions.has(message.client.user)) return;
 
-  const allowed = await isChannelAllowed(message.guildId, message.channelId);
-  if (!allowed) return;
-
+  // isChannelAllowed and the dedup claim are independent lookups — run them
+  // concurrently instead of back-to-back so a mention reply only pays for
+  // one DB round trip's worth of latency, not two.
+  //
   // Dedup guard: a plain message has no single-winner ack the way a slash-command
   // interaction does, so if two bot instances are briefly connected at once (e.g.
   // during a Railway rolling deploy) both would otherwise reply to the same mention.
   // Claiming the message's own unique ID means only the instance whose insert wins
   // actually replies — everyone else bails out right here.
-  try {
-    const claimed = await db.claimProcessedMessage(message.id);
-    if (!claimed) return;
-  } catch (err) {
-    logError("Failed to claim message for dedup — proceeding anyway:", err);
-  }
+  const [allowed, claimed] = await Promise.all([
+    isChannelAllowed(message.guildId, message.channelId),
+    db.claimProcessedMessage(message.id).catch((err) => {
+      logError("Failed to claim message for dedup — proceeding anyway:", err);
+      return true;
+    }),
+  ]);
+  if (!allowed || !claimed) return;
 
   const userMessage = message.content
     .replace(new RegExp(`<@!?${message.client.user.id}>`, "g"), "")
