@@ -2,6 +2,7 @@ import * as db from "../services/db.js";
 import { hashPassword } from "../services/password.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { broadcast } from "../services/donationOverlay.js";
+import { fetchTotalFollowers } from "../services/tiktokLiveEvents.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -52,6 +53,35 @@ export async function handleHostHomePage(req, res) {
         <a class="btn" href="/host/${identifier}/wishlist" style="margin-top:12px">Kelola wishlist</a>
       </div>
     </div>
+
+    ${
+      settings.tiktok_url
+        ? `<div class="panel" style="margin-top:1.25rem" id="tiktokFollowersPanel">
+      <h2>Followers TikTok</h2>
+      <p class="earnings-value" id="tiktokFollowersValue" style="font-size:1.8rem">…</p>
+      <p class="hint" id="tiktokFollowersHint">Mengecek…</p>
+    </div>
+    <script>
+      fetch(${JSON.stringify(`/host/${identifier}/tiktok-followers`)})
+        .then((r) => r.json())
+        .then((d) => {
+          const value = document.getElementById("tiktokFollowersValue");
+          const hint = document.getElementById("tiktokFollowersHint");
+          if (d.followerCount == null) {
+            value.textContent = "—";
+            hint.textContent = "Cuma bisa dicek pas kamu lagi live di TikTok.";
+          } else {
+            value.textContent = d.followerCount.toLocaleString("id-ID");
+            hint.textContent = "Total followers akun TikTok kamu sekarang.";
+          }
+        })
+        .catch(() => {
+          document.getElementById("tiktokFollowersValue").textContent = "—";
+          document.getElementById("tiktokFollowersHint").textContent = "Gagal ngecek, coba refresh halaman ini.";
+        });
+    </script>`
+        : ""
+    }
 
     <div class="panel" style="margin-top:1.25rem">
       <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem">
@@ -294,15 +324,15 @@ export async function handleHostSettingsPage(req, res, notice) {
       <p class="hint">Tambahin sebagai Browser Source di OBS/TikTok Live Studio.</p>
       ${!settings.tiktok_url ? `<p class="hint" style="color:var(--warning)">Widget Chat &amp; Gift butuh username TikTok — isi dulu di halaman <a href="/host/${identifier}/tampilan" style="color:inherit">Tampilan</a>.</p>` : ""}
       ${[
-        { label: "Alert", desc: "Muncul di layar tiap ada donasi masuk, lengkap sama nominal, nama, dan pesan.", url: overlayUrl, testType: "donation" },
-        { label: "Leaderboard", desc: "Papan peringkat donatur terbesar, update otomatis tiap ada donasi baru.", url: leaderboardUrl },
-        { label: "Wishlist", desc: "Progress milestone wishlist yang lagi dikejar, gantian tiap beberapa detik.", url: wishlistWidgetUrl, testType: "wishlist" },
-        { label: "Video", desc: "Muterin klip YouTube yang di-request lewat donasi, otomatis nongol di layar.", url: videoWidgetUrl },
-        { label: "Chat Live", desc: "Nampilin chat TikTok LIVE beneran langsung di overlay stream kamu.", url: chatWidgetUrl, testType: "chat" },
-        { label: "Gift", desc: "Popup tiap ada yang ngirim gift TikTok, nama pengirim + jenis hadiahnya.", url: giftWidgetUrl, testType: "gift" },
-        { label: "Like Counter", desc: "Jumlah like real-time selama live, langsung dari TikTok LIVE.", url: likesWidgetUrl, testType: "likes" },
-        { label: "Follower Count", desc: "Jumlah follower baru yang masuk selama live berlangsung.", url: followersWidgetUrl, testType: "follow" },
-        { label: "Coin Jar", desc: "Toples visual yang keisi tiap ada gift masuk selama live.", url: jarWidgetUrl, testType: "gift" },
+        { label: "Alert", desc: "Muncul di layar tiap ada donasi masuk, lengkap sama nominal, nama, dan pesan.", url: overlayUrl, testType: "donation", w: 360, h: 200 },
+        { label: "Leaderboard", desc: "Papan peringkat donatur terbesar, update otomatis tiap ada donasi baru.", url: leaderboardUrl, w: 280, h: 360 },
+        { label: "Wishlist", desc: "Progress milestone wishlist yang lagi dikejar, gantian tiap beberapa detik.", url: wishlistWidgetUrl, testType: "wishlist", w: 320, h: 160 },
+        { label: "Video", desc: "Muterin klip YouTube yang di-request lewat donasi, otomatis nongol di layar.", url: videoWidgetUrl, w: 640, h: 480 },
+        { label: "Chat Live", desc: "Nampilin chat TikTok LIVE beneran langsung di overlay stream kamu.", url: chatWidgetUrl, testType: "chat", w: 360, h: 420 },
+        { label: "Gift", desc: "Popup tiap ada yang ngirim gift TikTok, nama pengirim + jenis hadiahnya.", url: giftWidgetUrl, testType: "gift", w: 420, h: 100 },
+        { label: "Like Counter", desc: "Jumlah like real-time selama live, langsung dari TikTok LIVE.", url: likesWidgetUrl, testType: "likes", w: 220, h: 80 },
+        { label: "Follower Count", desc: "Jumlah follower baru yang masuk selama live berlangsung.", url: followersWidgetUrl, testType: "follow", w: 260, h: 80 },
+        { label: "Coin Jar", desc: "Toples visual yang keisi tiap ada gift masuk selama live.", url: jarWidgetUrl, testType: "gift", w: 140, h: 190 },
       ]
         .map(
           (w) => `
@@ -314,8 +344,8 @@ export async function handleHostSettingsPage(req, res, notice) {
             <button type="button" class="widget-btn" onclick="copyWidgetUrl(this)" data-url="${escapeHtml(w.url)}">Copy URL</button>
             ${
               w.testType
-                ? `<button type="button" class="widget-btn" onclick="testLiveWidget(this)" data-url="${escapeHtml(w.url)}" data-type="${w.testType}">Buka + Test</button>`
-                : `<a class="widget-btn" href="${escapeHtml(w.url)}" target="_blank" rel="noopener">Test</a>`
+                ? `<button type="button" class="widget-btn" onclick="testLiveWidget(this)" data-url="${escapeHtml(w.url)}" data-type="${w.testType}" data-w="${w.w}" data-h="${w.h}">Buka + Test</button>`
+                : `<button type="button" class="widget-btn" onclick="openWidgetWindow(this)" data-url="${escapeHtml(w.url)}" data-w="${w.w}" data-h="${w.h}">Test</button>`
             }
           </div>
         </div>`
@@ -345,8 +375,17 @@ export async function handleHostSettingsPage(req, res, notice) {
       // event a moment later (once that tab's had time to connect its SSE
       // stream) — so Chat/Gift/Like Counter/Follower Count/Coin Jar can be
       // previewed without needing to actually be live on TikTok.
+      // Opens a small popup window sized to match the widget's actual content
+      // instead of a full browser tab — a plain full-size tab leaves most of
+      // itself empty/transparent for a widget that's really just a small badge.
+      function openWidgetWindow(btn) {
+        const w = btn.dataset.w || 400, h = btn.dataset.h || 300;
+        const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+        window.open(btn.dataset.url, "_blank", "noopener,width=" + w + ",height=" + h + ",left=" + left + ",top=" + top);
+      }
+
       function testLiveWidget(btn) {
-        window.open(btn.dataset.url, "_blank", "noopener");
+        openWidgetWindow(btn);
         const original = btn.textContent;
         btn.textContent = "Menyiapkan...";
         btn.disabled = true;
@@ -450,6 +489,15 @@ export async function handleHostReplayDonation(req, res) {
     await announceDonation(null, settings, donation, { toDiscord: false });
   }
   res.redirect(`/host/${req.params.identifier}/pesan`);
+}
+
+/** One-off TikTok follower count for the Beranda panel — only returns a number
+ * while the host is actually live (see fetchTotalFollowers's own doc comment). */
+export async function handleHostTiktokFollowers(req, res) {
+  const settings = req.donationSettings;
+  if (!settings.tiktok_url) return res.json({ followerCount: null });
+  const followerCount = await fetchTotalFollowers(settings.tiktok_url);
+  res.json({ followerCount });
 }
 
 // ---- Test live widgets (Chat/Gift/Likes/Followers/Jar) without needing a real TikTok LIVE ----

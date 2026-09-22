@@ -73,6 +73,23 @@ export async function acquireLiveConnection(token, tiktokUrl) {
   }
 }
 
+/** One-off lookup of the account's real (lifetime) follower count, straight from
+ * TikTok's room-info endpoint — no persistent WebSocket needed, just an HTTP
+ * round trip (~1s). Only works while the account is actually live, same as
+ * the chat/gift connection, since it has to resolve a live room ID first.
+ * Returns null if the account isn't currently live or the lookup fails. */
+export async function fetchTotalFollowers(tiktokUrl) {
+  try {
+    const connection = new TikTokLiveConnection(tiktokUrl, {});
+    const info = await connection.fetchRoomInfo();
+    const count = info?.data?.owner?.follow_info?.follower_count;
+    return typeof count === "number" ? count : null;
+  } catch (err) {
+    logError(`Failed to fetch TikTok follower count for ${tiktokUrl}:`, err);
+    return null;
+  }
+}
+
 export function releaseLiveConnection(token) {
   const entry = active.get(token);
   if (!entry) return;

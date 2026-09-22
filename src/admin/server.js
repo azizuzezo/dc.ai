@@ -63,6 +63,7 @@ import {
   handleHostRegenerateToken,
   handleHostPasswordUpdate,
   handleHostReplayDonation,
+  handleHostTiktokFollowers,
   handleHostTestLiveEvent,
 } from "./hostDashboard.js";
 
@@ -152,6 +153,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/login", handleHostLogin);
   app.post("/host/:identifier/logout", handleHostLogout);
   app.get("/host/:identifier", requireHostAuth, handleHostHomePage);
+  app.get("/host/:identifier/tiktok-followers", requireHostAuth, handleHostTiktokFollowers);
   app.get("/host/:identifier/wishlist", requireHostAuth, (req, res) => handleHostWishlistPage(req, res));
   app.post("/host/:identifier/wishlist", requireHostAuth, handleHostWishlistAdd);
   app.post("/host/:identifier/wishlist/:id/delete", requireHostAuth, handleHostWishlistDelete);
