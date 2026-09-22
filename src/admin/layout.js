@@ -9,7 +9,7 @@ const GUILD_TABS = [
   { key: "allowlist", label: "Allowlist" },
   { key: "knowledge", label: "Knowledge" },
   { key: "conversations", label: "Conversations" },
-  { key: "donations", label: "Donations" },
+  { key: "donations", label: "Patungan" },
 ];
 
 const STYLE = `<style>
@@ -110,6 +110,7 @@ function navLink(item, active) {
 export function layout(body, { active } = {}) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>DC.AI Admin</title>
+    <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     ${STYLE}

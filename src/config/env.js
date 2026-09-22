@@ -43,7 +43,7 @@ export const env = {
 
   joobleApiKey: process.env.JOOBLE_API_KEY,
 
-  // Used only by /donate to print a full link. Optional — without it, the
+  // Used only by /patungan to print a full link. Optional — without it, the
   // command points admins to the dashboard instead of guessing the domain.
   publicBaseUrl: process.env.PUBLIC_BASE_URL,
 

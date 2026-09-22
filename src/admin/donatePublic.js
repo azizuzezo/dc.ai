@@ -23,13 +23,15 @@ const SOCIAL_ICONS = {
 
 /** Clean green checkout style (matches the streamer's SociaBuzz reference) for the donate form + QR pages. */
 const CHECKOUT_STYLE = `
+  <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;--ink:#111827;--muted:#6b7280;--border:#e5e7eb;--track:#eef2f0;
+    :root{--green:#15803d;--green-light:#22c55e;--green-deep:#166534;
+      --ink:#122e1e;--muted:#5b7267;--border:#d7ebdc;--track:#e3f2e8;--page-bg:#f7fbf8;
       --ease:cubic-bezier(.16,1,.3,1)}
     *{box-sizing:border-box}
-    body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:#fff;color:var(--ink)}
+    body{font-family:'Inter',sans-serif;max-width:440px;margin:0 auto;padding:32px 16px 48px;background:var(--page-bg);color:var(--ink)}
     /* On a real desktop viewport (not just a resized phone view), give the
        wishlist grid room to actually be a grid instead of two squeezed
        columns, while keeping the header/form/lists at a readable column
@@ -39,7 +41,8 @@ const CHECKOUT_STYLE = `
       .header-block,.card,.section{max-width:460px;margin-left:auto;margin-right:auto}
       .section.section-wide{max-width:680px}
     }
-    .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:22px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:16px;
+      box-shadow:0 1px 2px rgba(18,46,30,.04),0 12px 28px -16px rgba(18,46,30,.14);padding:22px}
     label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
     .required-mark{color:#dc2626;margin-left:2px}
     .social-links{display:flex;justify-content:center;gap:14px;margin-top:10px}
@@ -68,13 +71,14 @@ const CHECKOUT_STYLE = `
     .hidden{display:none}
     .divider{border:none;border-top:1px solid var(--border);margin:28px 0 0}
     .section{margin-top:24px}
-    .section-title{font-size:19px;font-weight:800;text-align:center;margin:0 0 16px}
+    .section-title{font-size:21px;font-weight:800;text-align:center;margin:0 0 16px;letter-spacing:-.01em}
     .link-btn{display:block;background:none;border:none;padding:0;margin-top:8px;
       font:600 13px 'Inter',sans-serif;color:var(--green);cursor:pointer;text-decoration:underline}
 
     .wishlist-grid{display:grid;grid-template-columns:1fr;gap:14px}
     @media (min-width:480px){.wishlist-grid{grid-template-columns:1fr 1fr}}
-    .wish-card{border:1px solid var(--border);border-radius:14px;padding:16px;background:#fff}
+    .wish-card{border:1px solid var(--border);border-radius:14px;padding:16px;background:#fff;
+      box-shadow:0 1px 2px rgba(18,46,30,.04)}
     .wish-card.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
     .wish-card .wish-title{font-weight:800;font-size:15px}
     .wish-target{font-size:12px;color:var(--muted);margin-top:4px}
@@ -154,7 +158,7 @@ export async function handleDonatePage(req, res) {
   const title = escapeHtml(settings.display_name || "Dukung Kami");
   const initial = escapeHtml(title.trim().charAt(0).toUpperCase() || "?");
   const avatarHtml = settings.avatar_data
-    ? `<img src="/donate/${identifier}/avatar" alt="" style="width:100%;height:100%;object-fit:cover" />`
+    ? `<img src="/patungan/${identifier}/avatar" alt="" style="width:100%;height:100%;object-fit:cover" />`
     : initial;
   const socialLinks = [
     { url: settings.tiktok_url, label: "TikTok", icon: SOCIAL_ICONS.tiktok },
@@ -265,7 +269,7 @@ export async function handleDonatePage(req, res) {
       <div class="header-block fade-in" style="text-align:center;margin-bottom:20px">
         <div id="avatarCircle" style="width:76px;height:76px;border-radius:50%;background:var(--green);border:3px solid #fff;box-shadow:0 0 0 3px var(--green);
           display:flex;align-items:center;justify-content:center;margin:0 auto 10px;color:#fff;font-size:32px;font-weight:800;overflow:hidden">${avatarHtml}</div>
-        <h1 style="margin:0;font-size:22px">${title}</h1>
+        <h1 style="margin:0;font-size:27px;letter-spacing:-.015em">${title}</h1>
         ${settings.description ? `<p style="margin:6px 0 0;color:var(--muted);font-size:14px">${escapeHtml(settings.description)}</p>` : ""}
         ${socialLinksHtml}
         <button type="button" class="btn-primary main-cta">Berikan Patungan</button>
@@ -276,7 +280,7 @@ export async function handleDonatePage(req, res) {
     </div>
     <div id="step2" class="${hasPreselected ? "" : "hidden"}">
       <button type="button" class="back-btn" id="backBtn">&larr; Kembali</button>
-      <form class="card" id="donateForm" method="post" action="/donate/${identifier}">
+      <form class="card" id="donateForm" method="post" action="/patungan/${identifier}">
         <input type="hidden" name="wishlistItemId" id="wishlistItemId" value="${hasPreselected ? preselectedWishlistId : ""}" />
         <label><span id="amountLabelText">Nominal (Rp, minimal ${min.toLocaleString("id-ID")})</span><span class="required-mark">*</span></label>
         <div class="pills">
@@ -457,7 +461,7 @@ export async function handleDonatePage(req, res) {
       }
       document.getElementById("supportersRange")?.addEventListener("change", async (e) => {
         try {
-          const res = await fetch(${JSON.stringify(`/donate/${identifier}/supporters`)} + "?range=" + e.target.value);
+          const res = await fetch(${JSON.stringify(`/patungan/${identifier}/supporters`)} + "?range=" + e.target.value);
           const data = await res.json();
           renderSupporters(data.leaderboard || []);
         } catch {}
@@ -554,7 +558,7 @@ export async function handleDonateCreate(req, res) {
       async function poll() {
         if (done) return;
         try {
-          const res = await fetch("/donate/status/" + trxId);
+          const res = await fetch("/patungan/status/" + trxId);
           const data = await res.json();
           if (data.status === "paid") {
             done = true;

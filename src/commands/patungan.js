@@ -11,8 +11,8 @@ import { env } from "../config/env.js";
 import { logError } from "../services/logger.js";
 
 export const data = new SlashCommandBuilder()
-  .setName("donate")
-  .setDescription("Get this server's donation link");
+  .setName("patungan")
+  .setDescription("Get this server's patungan (support/donation) link");
 
 // 1 row for the main "Patungan Dukung" button + up to 4 rows of 5 wishlist shortcuts (Discord's 5-row cap).
 const MAX_WISHLIST_BUTTONS = 20;
@@ -28,29 +28,29 @@ export async function execute(interaction) {
     if (!settings?.gateway_url) {
       await interaction.reply({
         content:
-          "Donasi belum diaktifkan di server ini. Admin bisa setup lewat dashboard admin → pilih server → Donations.",
+          "Patungan belum diaktifkan di server ini. Admin bisa setup lewat dashboard admin → pilih server → Patungan.",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
     if (!env.publicBaseUrl) {
       await interaction.reply({
-        content: "Cek halaman Donation Settings di dashboard admin untuk link lengkapnya.",
+        content: "Cek halaman Patungan di dashboard admin untuk link lengkapnya.",
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
-    const donateUrl = `${env.publicBaseUrl}/donate/${interaction.guildId}`;
+    const patunganUrl = `${env.publicBaseUrl}/patungan/${interaction.guildId}`;
     const wishlistItems = (await db.listWishlistItemsWithProgress(interaction.guildId)).slice(0, MAX_WISHLIST_BUTTONS);
 
     const embed = new EmbedBuilder()
       .setColor(0x22c55e)
-      .setTitle("💛 Dukung server ini")
+      .setTitle("💛 Patungan buat server ini")
       .setDescription(
         wishlistItems.length
           ? "Klik **Patungan Dukung** buat donasi langsung, atau pilih salah satu milestone wishlist di bawah buat patungan bareng sampai targetnya tercapai."
-          : "Klik tombol di bawah buat donasi ke server ini."
+          : "Klik tombol di bawah buat patungan ke server ini."
       );
 
     if (wishlistItems.length) {
@@ -61,7 +61,7 @@ export async function execute(interaction) {
 
     const rows = [
       new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel("🤝 Patungan Dukung").setStyle(ButtonStyle.Link).setURL(donateUrl)
+        new ButtonBuilder().setLabel("🤝 Patungan Dukung").setStyle(ButtonStyle.Link).setURL(patunganUrl)
       ),
     ];
     for (let i = 0; i < wishlistItems.length; i += 5) {
@@ -71,7 +71,7 @@ export async function execute(interaction) {
             new ButtonBuilder()
               .setLabel(`🎯 ${item.title} (${wishlistProgressText(item).pct}%)`.slice(0, 80))
               .setStyle(ButtonStyle.Link)
-              .setURL(`${donateUrl}?wishlist=${item.id}`)
+              .setURL(`${patunganUrl}?wishlist=${item.id}`)
           )
         )
       );
@@ -79,7 +79,7 @@ export async function execute(interaction) {
 
     await interaction.reply({ embeds: [embed], components: rows });
   } catch (err) {
-    logError("donate command failed:", err);
-    await interaction.reply({ content: "Couldn't fetch the donation link.", flags: MessageFlags.Ephemeral });
+    logError("patungan command failed:", err);
+    await interaction.reply({ content: "Couldn't fetch the patungan link.", flags: MessageFlags.Ephemeral });
   }
 }

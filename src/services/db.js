@@ -796,7 +796,7 @@ export async function getDonationSettingsBySlug(slug) {
   return Array.from(memDonationSettings.values()).find((s) => s.slug === slug) || null;
 }
 
-/** Resolves a /donate/:identifier path segment — either a custom slug or a raw guild ID. */
+/** Resolves a /patungan/:identifier path segment — either a custom slug or a raw guild ID. */
 export async function getDonationSettingsByIdentifier(identifier) {
   return (await getDonationSettingsBySlug(identifier)) || (await getDonationSettings(identifier));
 }

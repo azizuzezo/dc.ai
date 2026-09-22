@@ -49,7 +49,7 @@ export function startAdminServer() {
   const app = express();
   // Railway sits in front as a reverse proxy — trust its X-Forwarded-* headers
   // so req.protocol/req.get("host") reflect the public https:// URL, used to
-  // build shareable donate/overlay links.
+  // build shareable patungan/overlay links.
   app.set("trust proxy", 1);
   app.use(express.urlencoded({ extended: false }));
   app.use("/overlay/assets", express.static(join(__dirname, "assets")));
@@ -98,11 +98,11 @@ export function startAdminServer() {
 
   // Public — no auth. Donor-facing checkout + OBS/TikTok Live Studio overlay sources.
   // :identifier is either a custom slug or a raw guild ID (see db.getDonationSettingsByIdentifier).
-  app.get("/donate/:identifier", handleDonatePage);
-  app.post("/donate/:identifier", handleDonateCreate);
-  app.get("/donate/status/:trxId", handleDonateStatus);
-  app.get("/donate/:identifier/avatar", handleDonateAvatar);
-  app.get("/donate/:identifier/supporters", handleDonateSupporters);
+  app.get("/patungan/:identifier", handleDonatePage);
+  app.post("/patungan/:identifier", handleDonateCreate);
+  app.get("/patungan/status/:trxId", handleDonateStatus);
+  app.get("/patungan/:identifier/avatar", handleDonateAvatar);
+  app.get("/patungan/:identifier/supporters", handleDonateSupporters);
   app.get("/overlay/:token", handleOverlayPage);
   app.get("/overlay/:token/events", handleOverlayEvents);
   app.get("/overlay/audio/:id", handleOverlayAudio);

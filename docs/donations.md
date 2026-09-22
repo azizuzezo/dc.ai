@@ -19,11 +19,11 @@ project on its own (see its own README), note its public URL and the
 
 ## 2. Configure it in this bot's admin dashboard
 
-Go to `/guilds` → pick your server → **Donations**, and fill in:
-- **Custom link** (optional) — a vanity slug so the donate page is
-  `/donate/your-name` instead of `/donate/<guildId>`. Letters/numbers/hyphens,
+Go to `/guilds` → pick your server → **Patungan**, and fill in:
+- **Custom link** (optional) — a vanity slug so the patungan page is
+  `/patungan/your-name` instead of `/patungan/<guildId>`. Letters/numbers/hyphens,
   3-32 chars, must be unique across all servers using this bot.
-- **Page title / description** (optional) — shown at the top of the donate
+- **Page title / description** (optional) — shown at the top of the patungan
   page (e.g. "Dukung DuaCincin Live" + a short bio line).
 - **Gateway URL** — the gopay-api-gateaway deployment's public URL
 - **Gateway API Key** — must match that deployment's `API_KEY`
@@ -45,7 +45,7 @@ instantly. Without `GEMINI_TTS_API_KEYS`, the alert still shows and chimes,
 it just won't narrate the message.
 
 Saving generates several links shown on that page:
-- **Donate link** (`/donate/<guildId>`) — share this in your TikTok/
+- **Patungan link** (`/patungan/<guildId>`) — share this in your TikTok/
   Instagram bio for viewers to send support
 - **Overlay link** (`/overlay/<token>`) — add as a Browser Source in OBS or
   TikTok Live Studio (transparent background; e.g. 380×260, positioned

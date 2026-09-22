@@ -14,7 +14,7 @@ function baseUrl(req) {
 export async function handleDonationSettingsPage(req, res, error) {
   const { guildId } = req.params;
   const settings = await db.ensureDonationSettings(guildId);
-  const donateUrl = `${baseUrl(req)}/donate/${settings.slug || guildId}`;
+  const donateUrl = `${baseUrl(req)}/patungan/${settings.slug || guildId}`;
   const overlayUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}`;
   const leaderboardUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/leaderboard`;
   const wishlistWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/wishlist`;
@@ -39,7 +39,7 @@ export async function handleDonationSettingsPage(req, res, error) {
     layout(
       `
       ${crumbs(guildId)}
-      <h1>Donations</h1>
+      <h1>Patungan</h1>
       ${guildTabs(guildId, "donations")}
       ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}
       <p class="lede">Needs a self-hosted
@@ -116,7 +116,7 @@ export async function handleDonationSettingsPage(req, res, error) {
 
       <h2>Links</h2>
       <div class="card">
-        <label>Donate link <span class="hint">(share in your TikTok/Instagram bio)</span></label>
+        <label>Patungan link <span class="hint">(share in your TikTok/Instagram bio)</span></label>
         <p class="mono" style="word-break:break-all"><a href="${donateUrl}">${donateUrl}</a></p>
         <label>Overlay alert <span class="hint">(Browser Source in OBS/TikTok Live Studio, transparent background)</span></label>
         <p class="mono" style="word-break:break-all"><a href="${overlayUrl}">${overlayUrl}</a></p>
