@@ -306,11 +306,11 @@ export async function handleDonatePage(req, res) {
         <div class="pills">
           ${presets.map((p) => `<button type="button" class="pill" data-amount="${p}">${p.toLocaleString("id-ID")}</button>`).join("")}
         </div>
-        <input type="number" name="amount" id="amount" min="${min}" step="500" required style="margin-top:10px" placeholder="Atau isi nominal lain" />
+        <input type="text" inputmode="numeric" class="rupiah-input" name="amount" id="amount" required style="margin-top:10px" placeholder="Atau isi nominal lain" />
 
-        <label>Nama</label>
-        <input type="text" name="donorName" id="donorName" maxlength="40" placeholder="Nama kamu" />
-        <label class="check"><input type="checkbox" id="anon" /> Donasi sebagai Anonim</label>
+        <label>Nama<span class="required-mark">*</span></label>
+        <input type="text" name="donorName" id="donorName" maxlength="40" placeholder="Nama kamu" required />
+        <label class="check"><input type="checkbox" id="anon" name="isAnonymous" /> Donasi sebagai Anonim</label>
 
         <label for="donorEmail">Email<span class="required-mark">*</span></label>
         <input type="email" name="donorEmail" id="donorEmail" required placeholder="email@kamu.com" />
@@ -374,11 +374,13 @@ export async function handleDonatePage(req, res) {
           document.querySelectorAll(".pill").forEach((b) => b.classList.remove("active"));
           btn.classList.add("active");
           amountInput.value = btn.dataset.amount;
+          amountInput.dispatchEvent(new Event("input", { bubbles: true }));
           updateYoutubeLock();
         });
       });
       amountInput.addEventListener("input", () => {
-        document.querySelectorAll(".pill").forEach((b) => b.classList.toggle("active", b.dataset.amount === amountInput.value));
+        const rawAmount = amountInput.value.replace(/\\./g, "");
+        document.querySelectorAll(".pill").forEach((b) => b.classList.toggle("active", b.dataset.amount === rawAmount));
         updateYoutubeLock();
       });
 
@@ -434,7 +436,7 @@ export async function handleDonatePage(req, res) {
       // the same ${VIDEO_MIN_AMOUNT} the server enforces in handleDonateCreate,
       // so donors see the requirement up front instead of after submitting.
       function updateYoutubeLock() {
-        const locked = (Number(amountInput.value) || 0) < ${VIDEO_MIN_AMOUNT};
+        const locked = (Number(amountInput.value.replace(/\\./g, "")) || 0) < ${VIDEO_MIN_AMOUNT};
         youtubeToggle.disabled = locked;
         youtubeLockIcon.classList.toggle("hidden", !locked);
         if (locked) {
@@ -516,6 +518,7 @@ export async function handleDonatePage(req, res) {
         } catch {}
       });
     </script>
+    <script src="/overlay/assets/rupiah-format.js"></script>
   </body></html>`);
 }
 
@@ -530,7 +533,12 @@ export async function handleDonateCreate(req, res) {
   if (!Number.isFinite(amount) || amount < settings.min_amount) {
     return res.status(400).send(`Jumlah minimal Rp${settings.min_amount.toLocaleString("id-ID")}.`);
   }
-  const donorName = (req.body.donorName || "").trim().slice(0, 40) || "Anonim";
+  const trimmedName = (req.body.donorName || "").trim().slice(0, 40);
+  const isAnonymous = req.body.isAnonymous === "on";
+  if (!isAnonymous && !trimmedName) {
+    return res.status(400).send('Nama wajib diisi, atau centang "Donasi sebagai Anonim".');
+  }
+  const donorName = trimmedName || "Anonim";
   const donorEmail = (req.body.donorEmail || "").trim().slice(0, 254);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(donorEmail)) {
     return res.status(400).send("Masukkan alamat email yang valid.");

@@ -130,6 +130,7 @@ export function layout(body, { active } = {}) {
       </nav>
       <div id="main"><div class="content">${body}</div></div>
     </div>
+    <script src="/overlay/assets/rupiah-format.js"></script>
   </body></html>`;
 }
 

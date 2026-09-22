@@ -90,7 +90,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/tiers" enctype="multipart/form-data" style="margin-top:1.25rem">
       <h2>Tambah Tingkatan</h2>
       <label for="minAmount">Minimal nominal (Rp)</label>
-      <input id="minAmount" type="number" name="minAmount" min="0" step="1000" required />
+      <input id="minAmount" type="text" inputmode="numeric" class="rupiah-input" name="minAmount" required />
       <label for="imageFile">Gambar (opsional, maks 8MB)</label>
       <input id="imageFile" type="file" name="imageFile" accept="image/*" />
       <label for="effect">Efek</label>
@@ -104,7 +104,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
       <h2>Simulasi</h2>
       <p class="hint">Buka widget Alert dulu, terus test kirim donasi dengan nominal tertentu buat lihat tingkatan mana yang kepakai.</p>
       <form method="post" action="/host/${identifier}/tampilan-alert/simulate-donation" style="display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:10rem"><label for="simAmount">Nominal (Rp)</label><input id="simAmount" type="number" name="amount" value="10000" min="1000" step="1000" /></div>
+        <div style="flex:1;min-width:10rem"><label for="simAmount">Nominal (Rp)</label><input id="simAmount" type="text" inputmode="numeric" class="rupiah-input" name="amount" value="10000" /></div>
         <button type="submit" class="btn btn-sm">Simulasi Donasi</button>
       </form>
     </div>`;

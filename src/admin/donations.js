@@ -84,7 +84,7 @@ export async function handleDonationSettingsPage(req, res, error) {
         <p class="hint">Right-click a Discord channel → Copy Channel ID.</p>
 
         <label for="minAmount">Minimum donation (Rp)</label>
-        <input id="minAmount" type="number" name="minAmount" value="${settings.min_amount}" min="1000" step="500" />
+        <input id="minAmount" type="text" inputmode="numeric" class="rupiah-input" name="minAmount" value="${settings.min_amount}" />
 
         <label class="checkbox-row"><input type="checkbox" name="ttsEnabled" ${settings.tts_enabled ? "checked" : ""} /> Text-to-speech reads the message aloud</label>
         <label class="checkbox-row"><input type="checkbox" name="soundEnabled" ${settings.sound_enabled ? "checked" : ""} /> Play a chime when the alert appears</label>
@@ -184,7 +184,7 @@ export async function handleDonationSettingsPage(req, res, error) {
         <label for="wishlistTitle">Title</label>
         <input id="wishlistTitle" type="text" name="title" placeholder="Wisuda" maxlength="60" required />
         <label for="wishlistTarget">Target amount (Rp)</label>
-        <input id="wishlistTarget" type="number" name="targetAmount" min="1000" step="1000" required />
+        <input id="wishlistTarget" type="text" inputmode="numeric" class="rupiah-input" name="targetAmount" required />
         <div class="actions"><button type="submit" class="btn-primary">Add wishlist item</button></div>
       </form>
 
@@ -194,7 +194,7 @@ export async function handleDonationSettingsPage(req, res, error) {
         <label for="testDonorName">Name</label>
         <input id="testDonorName" type="text" name="donorName" placeholder="Test Donatur" />
         <label for="testAmount">Amount</label>
-        <input id="testAmount" type="number" name="amount" placeholder="10000" min="1" />
+        <input id="testAmount" type="text" inputmode="numeric" class="rupiah-input" name="amount" placeholder="10000" />
         <label for="testMessage">Message</label>
         <input id="testMessage" type="text" name="message" placeholder="(optional)" />
         ${

@@ -277,6 +277,7 @@ export function hostLayout(body, { active, identifier, settings }) {
         ${body}
       </main>
     </div>
+    <script src="/overlay/assets/rupiah-format.js"></script>
     </body></html>`;
 }
 

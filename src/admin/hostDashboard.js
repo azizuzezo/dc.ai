@@ -138,7 +138,7 @@ export async function handleHostWishlistPage(req, res, error) {
               </div>
               <div>
                 <label for="targetAmount-${w.id}">Target (Rp)</label>
-                <input id="targetAmount-${w.id}" type="number" name="targetAmount" value="${w.target_amount}" min="1000" step="1000" required />
+                <input id="targetAmount-${w.id}" type="text" inputmode="numeric" class="rupiah-input" name="targetAmount" value="${w.target_amount}" required />
               </div>
             </div>
             <div class="progress-track" style="margin-top:.85rem"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -163,7 +163,7 @@ export async function handleHostWishlistPage(req, res, error) {
       <label for="title">Judul</label>
       <input id="title" type="text" name="title" placeholder="Wisuda" maxlength="60" required />
       <label for="targetAmount">Target (Rp)</label>
-      <input id="targetAmount" type="number" name="targetAmount" min="1000" step="1000" required />
+      <input id="targetAmount" type="text" inputmode="numeric" class="rupiah-input" name="targetAmount" required />
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Tambah wishlist</button>
     </form>`;
 
@@ -338,7 +338,7 @@ export async function handleHostSettingsPage(req, res, notice) {
     <form class="panel" method="post" action="/host/${identifier}/pengaturan">
       <h2>Umum</h2>
       <label for="minAmount">Minimal donasi (Rp)</label>
-      <input id="minAmount" type="number" name="minAmount" value="${settings.min_amount}" min="1000" step="500" />
+      <input id="minAmount" type="text" inputmode="numeric" class="rupiah-input" name="minAmount" value="${settings.min_amount}" />
       <label class="checkbox-row"><input type="checkbox" name="ttsEnabled" ${settings.tts_enabled ? "checked" : ""} /> Bacakan pesan pakai suara (TTS)</label>
       <label class="checkbox-row"><input type="checkbox" name="soundEnabled" ${settings.sound_enabled ? "checked" : ""} /> Bunyi lonceng pas ada donasi masuk</label>
       <label class="checkbox-row"><input type="checkbox" name="leaderboardEnabled" ${settings.leaderboard_enabled ? "checked" : ""} /> Aktifin widget leaderboard</label>
