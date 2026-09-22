@@ -35,6 +35,7 @@ export async function execute(interaction) {
     const reply = await runAiChat({
       channelId: interaction.channelId,
       guildId: interaction.guildId,
+      userId: interaction.user.id,
       userMessage,
       userName: interaction.member?.displayName || interaction.user.username,
     });

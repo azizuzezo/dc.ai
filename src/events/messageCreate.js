@@ -58,6 +58,7 @@ export async function execute(message) {
     const reply = await runAiChat({
       channelId: message.channelId,
       guildId: message.guildId,
+      userId: message.author.id,
       userMessage,
       userName: message.member?.displayName || message.author.username,
     });

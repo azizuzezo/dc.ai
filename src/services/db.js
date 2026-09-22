@@ -22,6 +22,7 @@ if (!isPersistent) {
 // In-memory fallback stores. Callers never see which backend is active —
 // every exported function below picks a branch internally.
 const memHistory = new Map(); // channelId -> [{ role, content, created_at }]
+const memHistoryByUser = new Map(); // `${guildId}:${userId}` -> [{ role, content, created_at }]
 const memProcessedMessages = new Set(); // Discord message IDs already claimed (dedup guard)
 const memAllowlist = new Map(); // guildId -> string[]
 const memGuilds = new Map(); // guildId -> { guild_id, guild_name, updated_at }
@@ -59,32 +60,65 @@ let memGlobalAiSettings = { model: null, baseUrl: null, apiKey: null };
 
 // ---- conversation history ----
 
-export async function fetchHistory(channelId, limit) {
-  if (supabase) {
-    const { data, error } = await supabase
-      .from("bot_conversation_history")
-      .select("role, content, created_at")
-      .eq("channel_id", channelId)
-      .order("created_at", { ascending: false })
-      .limit(limit * 2);
-    if (error) throw error;
-    return (data || []).reverse();
-  }
-  const rows = memHistory.get(channelId) || [];
-  return rows.slice(-limit * 2);
-}
-
-export async function saveHistoryTurn(channelId, guildId, role, content) {
+export async function saveHistoryTurn(channelId, guildId, userId, role, content) {
   if (supabase) {
     const { error } = await supabase
       .from("bot_conversation_history")
-      .insert({ channel_id: channelId, guild_id: guildId, role, content });
+      .insert({ channel_id: channelId, guild_id: guildId, user_id: userId, role, content });
     if (error) throw error;
     return;
   }
   const rows = memHistory.get(channelId) || [];
   rows.push({ guild_id: guildId, role, content, created_at: new Date().toISOString() });
   memHistory.set(channelId, rows);
+
+  if (userId) {
+    const userKey = `${guildId}:${userId}`;
+    const userRows = memHistoryByUser.get(userKey) || [];
+    userRows.push({ role, content, created_at: new Date().toISOString() });
+    memHistoryByUser.set(userKey, userRows);
+  }
+}
+
+/** The AI's actual conversational memory: a person's own history across every
+ * channel in the guild, so a busy shared channel can't push them out of it. */
+export async function fetchHistoryForUser(guildId, userId, limit) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_conversation_history")
+      .select("role, content, created_at")
+      .eq("guild_id", guildId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit * 2);
+    if (error) throw error;
+    return (data || []).reverse();
+  }
+  const rows = memHistoryByUser.get(`${guildId}:${userId}`) || [];
+  return rows.slice(-limit * 2);
+}
+
+export async function trimHistoryForUser(guildId, userId, limit) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_conversation_history")
+      .select("id")
+      .eq("guild_id", guildId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const idsToDelete = (data || []).slice(limit * 2).map((row) => row.id);
+    if (idsToDelete.length) {
+      const { error: deleteError } = await supabase.from("bot_conversation_history").delete().in("id", idsToDelete);
+      if (deleteError) throw deleteError;
+    }
+    return;
+  }
+  const userKey = `${guildId}:${userId}`;
+  const rows = memHistoryByUser.get(userKey);
+  if (rows && rows.length > limit * 2) {
+    memHistoryByUser.set(userKey, rows.slice(-limit * 2));
+  }
 }
 
 export async function trimHistory(channelId, limit) {
