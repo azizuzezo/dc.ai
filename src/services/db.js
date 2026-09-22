@@ -22,6 +22,7 @@ if (!isPersistent) {
 // In-memory fallback stores. Callers never see which backend is active —
 // every exported function below picks a branch internally.
 const memHistory = new Map(); // channelId -> [{ role, content, created_at }]
+const memProcessedMessages = new Set(); // Discord message IDs already claimed (dedup guard)
 const memAllowlist = new Map(); // guildId -> string[]
 const memGuilds = new Map(); // guildId -> { guild_id, guild_name, updated_at }
 const memWarnings = new Map(); // `${guildId}:${userId}` -> [{ moderator_id, reason, created_at }]
@@ -108,6 +109,24 @@ export async function trimHistory(channelId, limit) {
   if (rows && rows.length > limit * 2) {
     memHistory.set(channelId, rows.slice(-limit * 2));
   }
+}
+
+// ---- message-processing dedup guard (see messageCreate.js) ----
+
+/** Atomically claims a Discord message ID. Returns true the first time (caller should
+ * proceed), false on any later call for the same ID (some instance already handled it). */
+export async function claimProcessedMessage(messageId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_processed_messages")
+      .upsert({ message_id: messageId }, { onConflict: "message_id", ignoreDuplicates: true })
+      .select("message_id");
+    if (error) throw error;
+    return (data || []).length > 0;
+  }
+  if (memProcessedMessages.has(messageId)) return false;
+  memProcessedMessages.add(messageId);
+  return true;
 }
 
 // ---- per-guild channel allowlist ----
