@@ -825,6 +825,8 @@ export async function ensureDonationSettings(guildId) {
     instagram_url: null,
     youtube_url: null,
     twitter_url: null,
+    host_username: null,
+    host_password_hash: null,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
@@ -991,6 +993,49 @@ export async function getDonationLeaderboard(guildId, limit = 10, sinceIso = nul
     ),
     limit
   );
+}
+
+/** Total paid amount and per-day breakdown for the host dashboard's earnings chart, oldest day first. */
+export async function getDonationDailyTotals(guildId, days = 7) {
+  const sinceIso = new Date(Date.now() - days * 86400000).toISOString();
+  let rows;
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donations")
+      .select("amount, paid_at")
+      .eq("guild_id", guildId)
+      .eq("status", "paid")
+      .gte("paid_at", sinceIso);
+    if (error) throw error;
+    rows = data || [];
+  } else {
+    rows = memDonations.filter((d) => d.guild_id === guildId && d.status === "paid" && d.paid_at >= sinceIso);
+  }
+
+  const totalsByDay = new Map();
+  for (const row of rows) {
+    const day = row.paid_at.slice(0, 10); // "YYYY-MM-DD"
+    totalsByDay.set(day, (totalsByDay.get(day) || 0) + Number(row.amount));
+  }
+
+  const points = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    points.push({ date, total: totalsByDay.get(date) || 0 });
+  }
+  return { points, grandTotal: rows.reduce((sum, r) => sum + Number(r.amount), 0) };
+}
+
+/** All-time paid total for the host dashboard's earnings figure (getDonationDailyTotals' grandTotal is window-scoped). */
+export async function getDonationGrandTotal(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donations").select("amount").eq("guild_id", guildId).eq("status", "paid");
+    if (error) throw error;
+    return (data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+  }
+  return memDonations
+    .filter((d) => d.guild_id === guildId && d.status === "paid")
+    .reduce((sum, r) => sum + Number(r.amount), 0);
 }
 
 // ---- donation wishlist / milestones ----

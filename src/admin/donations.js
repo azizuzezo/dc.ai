@@ -1,6 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
+import { hashPassword } from "../services/password.js";
 import { layout, guildTabs, crumbs } from "./layout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -8,7 +9,7 @@ const SLUG_PATTERN = /^[a-z0-9-]{3,32}$/;
 // Now that donor-facing pages live at the domain root (patungan.my.id/:identifier)
 // instead of under /patungan/, a custom slug can't shadow any of the admin app's
 // own top-level routes.
-const RESERVED_SLUGS = new Set(["status", "login", "logout", "guilds", "settings", "scan-operators", "overlay"]);
+const RESERVED_SLUGS = new Set(["status", "login", "logout", "guilds", "settings", "scan-operators", "overlay", "host"]);
 
 function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
@@ -22,6 +23,7 @@ export async function handleDonationSettingsPage(req, res, error) {
   const leaderboardUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/leaderboard`;
   const wishlistWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/wishlist`;
   const videoWidgetUrl = `${baseUrl(req)}/overlay/${settings.overlay_token}/video`;
+  const hostDashboardUrl = `${baseUrl(req)}/host/${settings.slug || guildId}`;
   const recent = await db.listRecentPaidDonations(guildId, 10);
   const wishlistItems = await db.listWishlistItemsWithProgress(guildId);
 
@@ -137,6 +139,27 @@ export async function handleDonationSettingsPage(req, res, error) {
         }
         <label>Video widget <span class="hint">(optional separate Browser Source, full-window; plays a donor's YouTube link for Rp1.000 = 1s, 10-120s)</span></label>
         <p class="mono" style="word-break:break-all"><a href="${videoWidgetUrl}">${videoWidgetUrl}</a></p>
+      </div>
+
+      <h2>Host dashboard</h2>
+      <p class="lede">A self-service dashboard (separate from this admin panel) where the server's own
+        host can manage their wishlist, view messages/earnings, and tweak their page — no admin login needed.
+        Set a username/password below, then share the link with them.</p>
+      <div class="card">
+        <label>Host dashboard link</label>
+        <p class="mono" style="word-break:break-all">${hostDashboardUrl}</p>
+        ${
+          settings.host_username
+            ? `<p class="hint">Currently set up for username <strong>${escapeHtml(settings.host_username)}</strong>.</p>`
+            : `<p class="hint">Not set up yet — the host dashboard will 404 until you set credentials.</p>`
+        }
+        <form method="post" action="/guilds/${guildId}/donations/host-credentials">
+          <label for="hostUsername">Username</label>
+          <input id="hostUsername" type="text" name="username" value="${escapeHtml(settings.host_username || "")}" required />
+          <label for="hostPassword">${settings.host_username ? "New password" : "Password"}</label>
+          <input id="hostPassword" type="password" name="password" placeholder="${settings.host_username ? "Leave blank to keep the current one" : ""}" ${settings.host_username ? "" : "required"} />
+          <div class="actions"><button type="submit" class="btn-primary">Save host login</button></div>
+        </form>
       </div>
 
       <h2>Wishlist</h2>
@@ -320,5 +343,16 @@ export async function handleAvatarUpload(req, res) {
 export async function handleAvatarDelete(req, res) {
   const { guildId } = req.params;
   await db.updateDonationSettings(guildId, { avatar_data: null, avatar_mime: null });
+  res.redirect(`/guilds/${guildId}/donations`);
+}
+
+export async function handleHostCredentialsUpdate(req, res) {
+  const { guildId } = req.params;
+  await db.ensureDonationSettings(guildId);
+  const username = req.body.username?.trim().slice(0, 40);
+  if (!username) return handleDonationSettingsPage(req, res, "Host username can't be empty.");
+  const fields = { host_username: username };
+  if (req.body.password) fields.host_password_hash = hashPassword(req.body.password);
+  await db.updateDonationSettings(guildId, fields);
   res.redirect(`/guilds/${guildId}/donations`);
 }

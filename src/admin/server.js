@@ -23,6 +23,7 @@ import {
   handleWishlistDelete,
   handleAvatarUpload,
   handleAvatarDelete,
+  handleHostCredentialsUpdate,
 } from "./donations.js";
 import {
   handleDonatePage,
@@ -40,6 +41,22 @@ import {
   handleWishlistData,
   handleVideoPage,
 } from "./donatePublic.js";
+import { requireHostAuth, handleHostLoginPage, handleHostLogin, handleHostLogout } from "./hostAuth.js";
+import {
+  handleHostHomePage,
+  handleHostWishlistPage,
+  handleHostWishlistAdd,
+  handleHostWishlistDelete,
+  handleHostMessagesPage,
+  handleHostAppearancePage,
+  handleHostAppearanceUpdate,
+  handleHostAvatarUpload,
+  handleHostAvatarDelete,
+  handleHostSettingsPage,
+  handleHostSettingsUpdate,
+  handleHostRegenerateToken,
+  handleHostPasswordUpdate,
+} from "./hostDashboard.js";
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
@@ -95,6 +112,7 @@ export function startAdminServer() {
   app.post("/guilds/:guildId/donations/wishlist/:id/delete", requireAuth, handleWishlistDelete);
   app.post("/guilds/:guildId/donations/avatar", requireAuth, avatarUpload.single("avatar"), handleAvatarUpload);
   app.post("/guilds/:guildId/donations/avatar/delete", requireAuth, handleAvatarDelete);
+  app.post("/guilds/:guildId/donations/host-credentials", requireAuth, handleHostCredentialsUpdate);
 
   // Public — no auth. OBS/TikTok Live Studio overlay sources.
   app.get("/overlay/:token", handleOverlayPage);
@@ -106,6 +124,25 @@ export function startAdminServer() {
   app.get("/overlay/:token/wishlist", handleWishlistPage);
   app.get("/overlay/:token/wishlist/data", handleWishlistData);
   app.get("/overlay/:token/video", handleVideoPage);
+
+  // Self-service host dashboard — separate login from the bot-owner admin panel above,
+  // scoped per guild via username/password set by the admin on the Patungan settings page.
+  app.get("/host/:identifier/login", handleHostLoginPage);
+  app.post("/host/:identifier/login", handleHostLogin);
+  app.post("/host/:identifier/logout", handleHostLogout);
+  app.get("/host/:identifier", requireHostAuth, handleHostHomePage);
+  app.get("/host/:identifier/wishlist", requireHostAuth, (req, res) => handleHostWishlistPage(req, res));
+  app.post("/host/:identifier/wishlist", requireHostAuth, handleHostWishlistAdd);
+  app.post("/host/:identifier/wishlist/:id/delete", requireHostAuth, handleHostWishlistDelete);
+  app.get("/host/:identifier/pesan", requireHostAuth, handleHostMessagesPage);
+  app.get("/host/:identifier/tampilan", requireHostAuth, (req, res) => handleHostAppearancePage(req, res));
+  app.post("/host/:identifier/tampilan", requireHostAuth, handleHostAppearanceUpdate);
+  app.post("/host/:identifier/tampilan/avatar", requireHostAuth, avatarUpload.single("avatar"), handleHostAvatarUpload);
+  app.post("/host/:identifier/tampilan/avatar/delete", requireHostAuth, handleHostAvatarDelete);
+  app.get("/host/:identifier/pengaturan", requireHostAuth, (req, res) => handleHostSettingsPage(req, res));
+  app.post("/host/:identifier/pengaturan", requireHostAuth, handleHostSettingsUpdate);
+  app.post("/host/:identifier/pengaturan/regenerate-token", requireHostAuth, handleHostRegenerateToken);
+  app.post("/host/:identifier/pengaturan/password", requireHostAuth, handleHostPasswordUpdate);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every
