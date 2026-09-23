@@ -2107,25 +2107,40 @@ export async function handleWheelPage(req, res) {
   </body></html>`);
 }
 
+const LIKEATHON_STYLE_DEFAULTS = {
+  panelColor: "#ffffff",
+  panelOpacity: 97,
+  titleColor: "#122e1e",
+  titleIcon: "❤️",
+  rankColor: "#76cc11",
+  nameColor: "#122e1e",
+  valColor: "#122e1e",
+  fontFamily: "Open Sans",
+  fontSize: 13,
+};
+
 export async function handleLikeathonPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...LIKEATHON_STYLE_DEFAULTS, ...(settings.likeathon_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
+  const rowBorder = hexToRgba(style.titleColor, 12);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #card{width:260px;background:rgba(255,255,255,.97);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
-      #card h3{margin:0 0 8px;color:#122e1e;font-size:15px;display:flex;align-items:center;gap:6px}
-      #card h3::before{content:"❤️"}
-      .row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;color:#122e1e;border-top:1px solid #eee}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #card{width:260px;background:${hexToRgba(style.panelColor, style.panelOpacity)};border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      #card h3{margin:0 0 8px;color:${escapeHtml(style.titleColor)};font-size:15px;display:flex;align-items:center;gap:6px}
+      #card h3::before{content:"${escapeHtml(style.titleIcon)}"}
+      .row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:${style.fontSize}px;color:${escapeHtml(style.nameColor)};border-top:1px solid ${rowBorder}}
       .row:first-of-type{border-top:none}
-      .rank{color:#76cc11;font-weight:800;width:1.4em;flex:none}
+      .rank{color:${escapeHtml(style.rankColor)};font-weight:800;width:1.4em;flex:none}
       .avatar{width:22px;height:22px;border-radius:50%;flex:none;object-fit:cover;background:#e5e5e5}
       .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .val{flex:none;font-weight:700}
+      .val{flex:none;font-weight:700;color:${escapeHtml(style.valColor)}}
     </style></head><body>
     <div id="card"><h3>Likeathon</h3><div id="rows"></div></div>
     <script src="/overlay/assets/overlay-relay.js"></script>

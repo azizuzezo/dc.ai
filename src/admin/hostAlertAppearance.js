@@ -1,7 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
-import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES } from "../services/overlayTemplates.js";
+import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES } from "../services/overlayTemplates.js";
 import { FONT_STACKS as FONT_OPTIONS, ANIMATION_OPTIONS } from "../services/overlayStyleShared.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
@@ -43,6 +43,18 @@ const LEADERBOARD_STYLE_DEFAULTS = {
   amountColor: "#ffffff",
   fontFamily: "Inter",
   fontSize: 14,
+};
+
+const LIKEATHON_STYLE_DEFAULTS = {
+  panelColor: "#ffffff",
+  panelOpacity: 97,
+  titleColor: "#122e1e",
+  titleIcon: "❤️",
+  rankColor: "#76cc11",
+  nameColor: "#122e1e",
+  valColor: "#122e1e",
+  fontFamily: "Open Sans",
+  fontSize: 13,
 };
 
 function fontSelect(id, name, current) {
@@ -154,6 +166,18 @@ function leaderboardPreviewHTML(style) {
   </div>`;
 }
 
+function likeathonPreviewHTML(style) {
+  return `<div class="tpl-preview" style="align-items:stretch">
+    <div style="background:${hexToRgba(style.panelColor, style.panelOpacity)};padding:8px 10px;border-radius:10px;width:100%;
+      font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">
+      <div style="font-size:11px;font-weight:800;color:${escapeHtml(style.titleColor)};margin-bottom:5px">${escapeHtml(style.titleIcon)} Likeathon</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:${style.fontSize}px;color:${escapeHtml(style.nameColor)}">
+        <span style="color:${escapeHtml(style.rankColor)};font-weight:800">#1</span><span style="flex:1;text-align:left">Nama</span><span style="font-weight:700;color:${escapeHtml(style.valColor)}">128</span>
+      </div>
+    </div>
+  </div>`;
+}
+
 /** Every template is its own tiny <form> posting straight to the real update
  * route with hidden inputs for each field — picking one just IS a normal save,
  * no separate "apply template" code path to keep in sync with manual edits. */
@@ -210,6 +234,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const style = { ...CHAT_BUBBLE_DEFAULTS, ...(settings.chat_bubble_style || {}) };
   const alertStyle = { ...ALERT_APPEARANCE_DEFAULTS, ...(settings.alert_appearance || {}) };
   const leaderboardStyle = { ...LEADERBOARD_STYLE_DEFAULTS, ...(settings.leaderboard_style || {}) };
+  const likeathonStyle = { ...LIKEATHON_STYLE_DEFAULTS, ...(settings.likeathon_style || {}) };
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
@@ -388,6 +413,56 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     </form>
 
     <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Likeathon</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(LIKEATHON_TEMPLATES, `/host/${identifier}/tampilan-alert/likeathon`, likeathonPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/likeathon" style="margin-top:1.25rem">
+      <h2>Likeathon (Manual)</h2>
+      <p class="hint">Warna, font, dan ikon widget papan ranking Likeathon.</p>
+      <div class="grid grid-2">
+        <div>
+          <label for="lkPanelColor">Warna panel</label>
+          <input id="lkPanelColor" type="color" name="panelColor" value="${escapeHtml(likeathonStyle.panelColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lkPanelOpacity">Transparansi panel (%)</label>
+          <input id="lkPanelOpacity" type="number" name="panelOpacity" min="0" max="100" value="${likeathonStyle.panelOpacity}" />
+        </div>
+        <div>
+          <label for="lkTitleColor">Warna judul</label>
+          <input id="lkTitleColor" type="color" name="titleColor" value="${escapeHtml(likeathonStyle.titleColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lkTitleIcon">Ikon judul (emoji)</label>
+          <input id="lkTitleIcon" type="text" name="titleIcon" maxlength="4" value="${escapeHtml(likeathonStyle.titleIcon)}" placeholder="❤️" />
+        </div>
+        <div>
+          <label for="lkRankColor">Warna nomor urut</label>
+          <input id="lkRankColor" type="color" name="rankColor" value="${escapeHtml(likeathonStyle.rankColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lkNameColor">Warna nama</label>
+          <input id="lkNameColor" type="color" name="nameColor" value="${escapeHtml(likeathonStyle.nameColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lkValColor">Warna jumlah</label>
+          <input id="lkValColor" type="color" name="valColor" value="${escapeHtml(likeathonStyle.valColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lkFontFamily">Font</label>
+          ${fontSelect("lkFontFamily", "fontFamily", likeathonStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="lkFontSize">Ukuran teks (px)</label>
+          <input id="lkFontSize" type="number" name="fontSize" min="10" max="20" value="${likeathonStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
       <h2>Alert Berdasarkan Nominal</h2>
       <p class="hint">Widget Alert (donasi) bisa nampilin gambar &amp; efek beda-beda tergantung nominal donasi — dipilih otomatis dari tingkatan tertinggi yang nominalnya kepenuhin.</p>
       ${
@@ -486,6 +561,24 @@ export async function handleHostLeaderboardStyleUpdate(req, res) {
       amountColor: HEX_RE.test(req.body.amountColor || "") ? req.body.amountColor : LEADERBOARD_STYLE_DEFAULTS.amountColor,
       fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : LEADERBOARD_STYLE_DEFAULTS.fontFamily,
       fontSize: Math.min(24, Math.max(10, Number(req.body.fontSize) || LEADERBOARD_STYLE_DEFAULTS.fontSize)),
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostLikeathonStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    likeathon_style: {
+      panelColor: HEX_RE.test(req.body.panelColor || "") ? req.body.panelColor : LIKEATHON_STYLE_DEFAULTS.panelColor,
+      panelOpacity: Math.min(100, Math.max(0, Number(req.body.panelOpacity) || 0)),
+      titleColor: HEX_RE.test(req.body.titleColor || "") ? req.body.titleColor : LIKEATHON_STYLE_DEFAULTS.titleColor,
+      titleIcon: String(req.body.titleIcon || "").trim().slice(0, 4) || LIKEATHON_STYLE_DEFAULTS.titleIcon,
+      rankColor: HEX_RE.test(req.body.rankColor || "") ? req.body.rankColor : LIKEATHON_STYLE_DEFAULTS.rankColor,
+      nameColor: HEX_RE.test(req.body.nameColor || "") ? req.body.nameColor : LIKEATHON_STYLE_DEFAULTS.nameColor,
+      valColor: HEX_RE.test(req.body.valColor || "") ? req.body.valColor : LIKEATHON_STYLE_DEFAULTS.valColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : LIKEATHON_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(20, Math.max(10, Number(req.body.fontSize) || LIKEATHON_STYLE_DEFAULTS.fontSize)),
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
