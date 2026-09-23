@@ -3,6 +3,7 @@ import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
 import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES } from "../services/overlayTemplates.js";
 import { FONT_STACKS as FONT_OPTIONS, ANIMATION_OPTIONS } from "../services/overlayStyleShared.js";
+import { HEX_RE, hexToRgba, shadeHex, fontSelect, animationSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -57,18 +58,6 @@ const LIKEATHON_STYLE_DEFAULTS = {
   fontSize: 13,
 };
 
-function fontSelect(id, name, current) {
-  return `<select id="${id}" name="${name}">
-    ${Object.keys(FONT_OPTIONS).map((f) => `<option value="${escapeHtml(f)}" ${f === current ? "selected" : ""}>${escapeHtml(f)}</option>`).join("")}
-  </select>`;
-}
-
-function animationSelect(id, name, current) {
-  return `<select id="${id}" name="${name}">
-    ${Object.entries(ANIMATION_OPTIONS).map(([k, label]) => `<option value="${k}" ${k === current ? "selected" : ""}>${label}</option>`).join("")}
-  </select>`;
-}
-
 function layoutSelect(id, name, current) {
   return `<select id="${id}" name="${name}">
     ${Object.entries(ALERT_LAYOUTS).map(([k, label]) => `<option value="${k}" ${k === current ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
@@ -102,29 +91,6 @@ function avatarPresetPicker(name, current) {
       font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
     .avatar-preset-label{font-size:.72rem;opacity:.85}
   </style>`;
-}
-
-/** "#rrggbb" + 0-100 opacity -> "rgba(r,g,b,a)", mirrors donatePublic.js's
- * helper so template preview cards render the same way the real widget does. */
-function hexToRgba(hex, opacityPercent) {
-  const clean = /^#?[0-9a-f]{6}$/i.test(hex) ? hex.replace("#", "") : "ffffff";
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  const a = Math.min(100, Math.max(0, Number(opacityPercent) || 0)) / 100;
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-/** Mirrors donatePublic.js's shadeHex() so the banner preview card's gradient
- * matches what the real widget renders. */
-function shadeHex(hex, percent) {
-  const clean = /^#?[0-9a-f]{6}$/i.test(hex) ? hex.replace("#", "") : "1d4ed8";
-  const num = parseInt(clean, 16);
-  const amt = Math.round(2.55 * percent);
-  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
-  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
-  const b = Math.min(255, Math.max(0, (num & 0xff) + amt));
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
 const SHAPE_RADIUS = { rounded: "10px", pill: "999px", square: "4px" };
@@ -176,44 +142,6 @@ function likeathonPreviewHTML(style) {
       </div>
     </div>
   </div>`;
-}
-
-/** Every template is its own tiny <form> posting straight to the real update
- * route with hidden inputs for each field — picking one just IS a normal save,
- * no separate "apply template" code path to keep in sync with manual edits. */
-function templateGallery(templates, action, previewFn) {
-  return `<div class="tpl-gallery">
-    ${templates
-      .map(
-        (t) => `<form method="post" action="${action}" class="tpl-card">
-          ${Object.entries(t.style)
-            .map(([field, value]) =>
-              typeof value === "boolean"
-                ? value
-                  ? `<input type="hidden" name="${field}" value="on" />`
-                  : ""
-                : `<input type="hidden" name="${field}" value="${escapeHtml(String(value))}" />`
-            )
-            .join("")}
-          ${previewFn(t.style)}
-          <button type="submit" class="btn btn-sm tpl-apply">Pakai "${escapeHtml(t.label)}"</button>
-        </form>`
-      )
-      .join("")}
-  </div>
-  <style>
-    .tpl-gallery{display:flex;flex-wrap:wrap;gap:.9rem;margin:.6rem 0 1.25rem}
-    .tpl-card{width:190px;padding:.7rem;border-radius:12px;background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.6rem;align-items:stretch}
-    .tpl-preview{border-radius:10px;padding:.6rem;min-height:60px;display:flex;align-items:center;justify-content:center;
-      flex-direction:column;gap:.3rem;text-align:center;overflow:hidden;background:#1a1a1a}
-    .tpl-preview-bubble{flex-direction:row;justify-content:flex-start;text-align:left;padding:.5rem .7rem}
-    .tpl-banner-box{font-weight:900;color:#fff;padding:4px 14px;border-radius:8px;border:2px solid rgba(255,255,255,.85);font-size:.85rem}
-    .tpl-hl{padding:1px 7px;border-radius:4px;font-size:.72rem;font-weight:700;color:#fff}
-    .tpl-avatar-badge{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
-    .tpl-alert-name{font-size:.72rem;font-weight:700;color:#fff}
-    .tpl-apply{width:100%}
-  </style>`;
 }
 
 const EFFECT_LABELS = {
@@ -506,8 +434,6 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
 
   res.send(hostLayout(body, { active: "tampilan-alert", identifier, settings }));
 }
-
-const HEX_RE = /^#[0-9a-f]{6}$/i;
 
 export async function handleHostChatBubbleUpdate(req, res) {
   const settings = req.donationSettings;

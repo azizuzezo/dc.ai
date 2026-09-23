@@ -395,3 +395,84 @@ export const LIKEATHON_TEMPLATES = [
     },
   },
 ];
+
+export const WAKTU_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: {
+      panelColor: "#000000",
+      panelOpacity: 55,
+      labelColor: "#ffffff",
+      clockColor: "#ffffff",
+      addedColor: "#4ade80",
+      fontFamily: "Open Sans",
+      clockSize: 52,
+    },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: {
+      panelColor: "#12122a",
+      panelOpacity: 90,
+      labelColor: "#f5f5ff",
+      clockColor: "#00f5ff",
+      addedColor: "#ff2fd0",
+      fontFamily: "Poppins",
+      clockSize: 52,
+    },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: {
+      panelColor: "#fdf2f8",
+      panelOpacity: 95,
+      labelColor: "#831843",
+      clockColor: "#831843",
+      addedColor: "#db2777",
+      fontFamily: "Comic Neue",
+      clockSize: 50,
+    },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: {
+      panelColor: "#0f0f0f",
+      panelOpacity: 92,
+      labelColor: "#facc15",
+      clockColor: "#facc15",
+      addedColor: "#facc15",
+      fontFamily: "Montserrat",
+      clockSize: 52,
+    },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: {
+      panelColor: "#ffffff",
+      panelOpacity: 98,
+      labelColor: "#6b7280",
+      clockColor: "#111827",
+      addedColor: "#16a34a",
+      fontFamily: "Inter",
+      clockSize: 50,
+    },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: {
+      panelColor: "#0a0a12",
+      panelOpacity: 90,
+      labelColor: "#e5e5ff",
+      clockColor: "#39ff88",
+      addedColor: "#7c3aed",
+      fontFamily: "Bebas Neue",
+      clockSize: 56,
+    },
+  },
+];

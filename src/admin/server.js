@@ -102,6 +102,7 @@ import {
   handleHostSubathonStart,
   handleHostSubathonStop,
   handleHostSubathonRateUpdate,
+  handleHostSubathonStyleUpdate,
 } from "./hostSubathon.js";
 import { handleHostMilestonesPage, handleHostMilestoneAdd, handleHostMilestoneDelete } from "./hostMilestones.js";
 import {
@@ -343,6 +344,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/subathon/start", requireHostAuth, handleHostSubathonStart);
   app.post("/host/:identifier/subathon/stop", requireHostAuth, handleHostSubathonStop);
   app.post("/host/:identifier/subathon/rate", requireHostAuth, handleHostSubathonRateUpdate);
+  app.post("/host/:identifier/subathon/style", requireHostAuth, handleHostSubathonStyleUpdate);
 
   app.get("/host/:identifier/milestone", requireHostAuth, (req, res) => handleHostMilestonesPage(req, res));
   app.post("/host/:identifier/milestone", requireHostAuth, handleHostMilestoneAdd);

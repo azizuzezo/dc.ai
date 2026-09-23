@@ -1744,26 +1744,38 @@ export async function handleJarPage(req, res) {
   </body></html>`);
 }
 
+const WAKTU_STYLE_DEFAULTS = {
+  panelColor: "#000000",
+  panelOpacity: 55,
+  labelColor: "#ffffff",
+  clockColor: "#ffffff",
+  addedColor: "#4ade80",
+  fontFamily: "Open Sans",
+  clockSize: 52,
+};
+
 export async function handleSubathonPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...WAKTU_STYLE_DEFAULTS, ...(settings.waktu_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
       #wrap{display:inline-block;text-align:center;padding:10px 22px;border-radius:16px;
-        background:rgba(0,0,0,.55);box-shadow:0 10px 30px rgba(0,0,0,.35)}
-      #label{color:rgba(255,255,255,.75);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+        background:${hexToRgba(style.panelColor, style.panelOpacity)};box-shadow:0 10px 30px rgba(0,0,0,.35)}
+      #label{color:${escapeHtml(style.labelColor)};font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
       #clock-wrap{position:relative;display:inline-block}
-      #clock{color:#fff;font-size:52px;font-weight:800;letter-spacing:.02em;text-shadow:0 2px 10px rgba(0,0,0,.5);
+      #clock{color:${escapeHtml(style.clockColor)};font-size:${style.clockSize}px;font-weight:800;letter-spacing:.02em;text-shadow:0 2px 10px rgba(0,0,0,.5);
         font-variant-numeric:tabular-nums;transition:transform .25s ease}
       #clock.bump{animation:bump .4s ease}
       #clock.ended{color:#f87171}
       @keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.12)}100%{transform:scale(1)}}
-      #added-badge{position:absolute;top:-6px;right:-14px;color:#4ade80;font-size:18px;font-weight:800;
+      #added-badge{position:absolute;top:-6px;right:-14px;color:${escapeHtml(style.addedColor)};font-size:18px;font-weight:800;
         text-shadow:0 2px 6px rgba(0,0,0,.6);opacity:0;pointer-events:none}
       #added-badge.show{animation:added-pop 2.2s ease forwards}
       @keyframes added-pop{0%{opacity:0;transform:translateY(4px) scale(.8)}
