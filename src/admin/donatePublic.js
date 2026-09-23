@@ -19,6 +19,19 @@ function hexToRgba(hex, opacityPercent) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+/** Lightens (positive percent) or darkens (negative) a "#rrggbb" color — used
+ * to build a gradient/glow from a single host-picked banner color instead of
+ * asking them to pick two coordinated shades themselves. */
+function shadeHex(hex, percent) {
+  const clean = /^#?[0-9a-f]{6}$/i.test(hex) ? hex.replace("#", "") : "1d4ed8";
+  const num = parseInt(clean, 16);
+  const amt = Math.round(2.55 * percent);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 /** Attaching a YouTube clip requires a bigger donation than the guild's own minimum. */
 const VIDEO_MIN_AMOUNT = 25000;
 
@@ -703,6 +716,8 @@ export async function handleOverlayPage(req, res) {
       ? `<img src="/overlay/${token}/avatar" alt="" />`
       : "🙏";
   const avatarBgStyle = avatarPreset.gradient ? ` style="background:${avatarPreset.gradient}"` : "";
+  const bannerGradientEnd = shadeHex(alertStyle.bannerColor, -18);
+  const bannerGlow = hexToRgba(alertStyle.bannerColor, 65);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -724,16 +739,41 @@ export async function handleOverlayPage(req, res) {
       @keyframes fx-pop{0%{transform:translate(-50%,0) scale(.3);opacity:0}
         55%{transform:translate(-50%,0) scale(1.12);opacity:1}100%{transform:translate(-50%,0) scale(1)}}
 
-      /* Banner layout: a bold color-block headline instead of the circle avatar,
-         with the donation text drawn as highlighter-marker chips underneath. */
+      /* Banner layout: a big, glossy color-block headline instead of the
+         circle avatar, with the donation text drawn as highlighter-marker
+         chips underneath. Sized to be a real screen-level "wow" moment, not
+         a subtle accent — bigger stage, bigger type, a gradient + colored
+         glow built from the host's single banner color, a one-shot shine
+         sweep on entrance, and flanking sparkles reusing the decorations
+         toggle the classic layout already has. */
       #banner-box{display:none}
-      #stage.layout-banner #banner-box{display:inline-block;background:${escapeHtml(alertStyle.bannerColor)};
-        color:#fff;font-weight:900;font-size:30px;padding:8px 30px;border-radius:14px;
-        border:3px solid rgba(255,255,255,.9);box-shadow:0 6px 20px rgba(0,0,0,.4);margin-bottom:12px;letter-spacing:1px}
+      #stage.layout-banner{width:480px}
+      #banner-wrap{position:relative;display:none}
+      #stage.layout-banner #banner-wrap{display:inline-block;margin-bottom:16px}
+      #stage.layout-banner #banner-box{position:relative;display:inline-block;overflow:hidden;
+        background:linear-gradient(135deg,${escapeHtml(alertStyle.bannerColor)},${bannerGradientEnd});
+        color:#fff;font-weight:900;font-size:48px;line-height:1.05;padding:16px 48px;border-radius:22px;
+        text-transform:uppercase;letter-spacing:2px;text-shadow:0 3px 8px rgba(0,0,0,.4);
+        border:5px solid rgba(255,255,255,.95);
+        box-shadow:0 14px 34px rgba(0,0,0,.45),0 0 60px 6px ${bannerGlow}}
+      #stage.layout-banner #banner-box::after{content:"";position:absolute;top:0;left:-60%;width:35%;height:100%;
+        background:linear-gradient(115deg,transparent,rgba(255,255,255,.65),transparent);transform:skewX(-18deg)}
+      #stage.layout-banner.show #banner-box::after{animation:banner-shine 1.15s ease .2s 1}
+      @keyframes banner-shine{0%{left:-60%}100%{left:135%}}
+      .banner-deco{position:absolute;top:50%;transform:translateY(-50%);font-size:30px;
+        filter:drop-shadow(0 3px 5px rgba(0,0,0,.4));animation:banner-deco-float 2.2s ease-in-out infinite}
+      .banner-deco.bd-l{left:-42px;animation-delay:0s}
+      .banner-deco.bd-r{right:-42px;animation-delay:.5s}
+      @keyframes banner-deco-float{0%,100%{transform:translateY(-50%) scale(1)}50%{transform:translateY(-58%) scale(1.15)}}
       #stage.layout-banner #avatar-wrap{display:none}
-      #stage.layout-banner .hl{background:${escapeHtml(alertStyle.highlightColor)};padding:1px 9px;
-        border-radius:5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+      #stage.layout-banner .hl{background:${escapeHtml(alertStyle.highlightColor)};padding:3px 12px;
+        border-radius:7px;font-size:1.15em;font-weight:800;box-decoration-break:clone;-webkit-box-decoration-break:clone;
+        box-shadow:0 3px 10px rgba(0,0,0,.3)}
       #stage.layout-banner #line2:empty{display:none}
+      @media (prefers-reduced-motion: reduce){
+        #stage.layout-banner #banner-box::after{display:none}
+        .banner-deco{animation:none}
+      }
 
       #avatar-wrap{position:relative;width:88px;height:88px;margin-bottom:14px}
       #avatar{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4ade80,#16a34a);
@@ -799,7 +839,10 @@ export async function handleOverlayPage(req, res) {
     <div id="screen-flash"></div>
     <div id="effect-layer"></div>
     <div id="stage" class="${alertStyle.layout === "banner" ? "layout-banner" : ""}">
-      <div id="banner-box">${escapeHtml(alertStyle.bannerHeadline || "HEY!")}</div>
+      <div id="banner-wrap">
+        <div id="banner-box">${escapeHtml(alertStyle.bannerHeadline || "HEY!")}</div>
+        ${alertStyle.showDecorations ? `<span class="banner-deco bd-l">✨</span><span class="banner-deco bd-r">✨</span>` : ""}
+      </div>
       <div id="avatar-wrap">
         <div id="avatar"${avatarBgStyle}>${defaultAvatarInner}</div>
         ${

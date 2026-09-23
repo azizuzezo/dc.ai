@@ -103,6 +103,18 @@ function hexToRgba(hex, opacityPercent) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+/** Mirrors donatePublic.js's shadeHex() so the banner preview card's gradient
+ * matches what the real widget renders. */
+function shadeHex(hex, percent) {
+  const clean = /^#?[0-9a-f]{6}$/i.test(hex) ? hex.replace("#", "") : "1d4ed8";
+  const num = parseInt(clean, 16);
+  const amt = Math.round(2.55 * percent);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 const SHAPE_RADIUS = { rounded: "10px", pill: "999px", square: "4px" };
 
 function chatBubblePreviewHTML(style) {
@@ -117,7 +129,7 @@ function chatBubblePreviewHTML(style) {
 function alertPreviewHTML(style) {
   if (style.layout === "banner") {
     return `<div class="tpl-preview tpl-preview-alert-banner">
-      <span class="tpl-banner-box" style="background:${escapeHtml(style.bannerColor)}">${escapeHtml(style.bannerHeadline)}</span>
+      <span class="tpl-banner-box" style="background:linear-gradient(135deg,${escapeHtml(style.bannerColor)},${shadeHex(style.bannerColor, -18)})">${escapeHtml(style.bannerHeadline)}</span>
       <span class="tpl-hl" style="background:${escapeHtml(style.highlightColor)}">Rp10.000 dari <b style="color:${escapeHtml(style.nameColor)}">Nama</b></span>
     </div>`;
   }
