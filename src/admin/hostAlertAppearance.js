@@ -10,7 +10,52 @@ const CHAT_BUBBLE_DEFAULTS = {
   usernameColor: "#76cc11",
   showAvatar: true,
   shape: "rounded",
+  fontFamily: "Open Sans",
+  fontSize: 13,
+  borderWidth: 0,
+  borderColor: "#76cc11",
+  animation: "slide-up",
 };
+
+const ALERT_APPEARANCE_DEFAULTS = {
+  nameColor: "#86efac",
+  fontFamily: "Inter",
+  fontSize: 19,
+  animation: "slide-up",
+  showDecorations: true,
+};
+
+// Shared across Chat Bubble + Alert so both widgets draw from the same
+// curated set instead of the host needing to know real Google Fonts names.
+const FONT_OPTIONS = {
+  "Open Sans": "'Open Sans',sans-serif",
+  Inter: "'Inter',sans-serif",
+  Poppins: "'Poppins',sans-serif",
+  Montserrat: "'Montserrat',sans-serif",
+  "Bebas Neue": "'Bebas Neue',sans-serif",
+  "Comic Neue": "'Comic Neue',cursive",
+};
+
+const ANIMATION_OPTIONS = {
+  "slide-up": "Geser dari bawah",
+  "slide-down": "Geser dari atas",
+  "slide-left": "Geser dari kanan",
+  "slide-right": "Geser dari kiri",
+  fade: "Muncul halus (fade)",
+  pop: "Muncul membesar (pop)",
+};
+
+function fontSelect(id, name, current) {
+  return `<select id="${id}" name="${name}">
+    ${Object.keys(FONT_OPTIONS).map((f) => `<option value="${escapeHtml(f)}" ${f === current ? "selected" : ""}>${escapeHtml(f)}</option>`).join("")}
+  </select>`;
+}
+
+function animationSelect(id, name, current) {
+  return `<select id="${id}" name="${name}">
+    ${Object.entries(ANIMATION_OPTIONS).map(([k, label]) => `<option value="${k}" ${k === current ? "selected" : ""}>${label}</option>`).join("")}
+  </select>`;
+}
 
 const EFFECT_LABELS = {
   none: "Tanpa efek",
@@ -28,6 +73,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const settings = req.donationSettings;
   const identifier = req.params.identifier;
   const style = { ...CHAT_BUBBLE_DEFAULTS, ...(settings.chat_bubble_style || {}) };
+  const alertStyle = { ...ALERT_APPEARANCE_DEFAULTS, ...(settings.alert_appearance || {}) };
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
@@ -62,8 +108,53 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
             <option value="square" ${style.shape === "square" ? "selected" : ""}>Kotak</option>
           </select>
         </div>
+        <div>
+          <label for="fontFamily">Font</label>
+          ${fontSelect("fontFamily", "fontFamily", style.fontFamily)}
+        </div>
+        <div>
+          <label for="fontSize">Ukuran teks (px)</label>
+          <input id="fontSize" type="number" name="fontSize" min="10" max="28" value="${style.fontSize}" />
+        </div>
+        <div>
+          <label for="animation">Animasi muncul</label>
+          ${animationSelect("animation", "animation", style.animation)}
+        </div>
+        <div>
+          <label for="borderWidth">Lebar border (px, 0 = tanpa border)</label>
+          <input id="borderWidth" type="number" name="borderWidth" min="0" max="6" value="${style.borderWidth}" />
+        </div>
+        <div>
+          <label for="borderColor">Warna border</label>
+          <input id="borderColor" type="color" name="borderColor" value="${escapeHtml(style.borderColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
       </div>
       <label class="checkbox-row"><input type="checkbox" name="showAvatar" ${style.showAvatar ? "checked" : ""} /> Tampilin foto profil pengirim</label>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/appearance" style="margin-top:1.25rem">
+      <h2>Tampilan Alert (Dasar)</h2>
+      <p class="hint">Warna, font, dan animasi widget Alert buat donasi biasa (di luar efek tingkatan nominal di bawah).</p>
+      <div class="grid grid-2">
+        <div>
+          <label for="nameColor">Warna nama donatur</label>
+          <input id="nameColor" type="color" name="nameColor" value="${escapeHtml(alertStyle.nameColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="alertFontFamily">Font</label>
+          ${fontSelect("alertFontFamily", "fontFamily", alertStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="alertFontSize">Ukuran teks (px)</label>
+          <input id="alertFontSize" type="number" name="fontSize" min="12" max="32" value="${alertStyle.fontSize}" />
+        </div>
+        <div>
+          <label for="alertAnimation">Animasi muncul</label>
+          ${animationSelect("alertAnimation", "animation", alertStyle.animation)}
+        </div>
+      </div>
+      <label class="checkbox-row"><input type="checkbox" name="showDecorations" ${alertStyle.showDecorations ? "checked" : ""} /> Tampilin ikon hati/kilau di sekitar foto profil</label>
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
     </form>
 
@@ -112,16 +203,37 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   res.send(hostLayout(body, { active: "tampilan-alert", identifier, settings }));
 }
 
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
 export async function handleHostChatBubbleUpdate(req, res) {
   const settings = req.donationSettings;
   await db.updateDonationSettings(settings.guild_id, {
     chat_bubble_style: {
-      bubbleColor: /^#[0-9a-f]{6}$/i.test(req.body.bubbleColor || "") ? req.body.bubbleColor : CHAT_BUBBLE_DEFAULTS.bubbleColor,
+      bubbleColor: HEX_RE.test(req.body.bubbleColor || "") ? req.body.bubbleColor : CHAT_BUBBLE_DEFAULTS.bubbleColor,
       bubbleOpacity: Math.min(100, Math.max(0, Number(req.body.bubbleOpacity) || 0)),
-      textColor: /^#[0-9a-f]{6}$/i.test(req.body.textColor || "") ? req.body.textColor : CHAT_BUBBLE_DEFAULTS.textColor,
-      usernameColor: /^#[0-9a-f]{6}$/i.test(req.body.usernameColor || "") ? req.body.usernameColor : CHAT_BUBBLE_DEFAULTS.usernameColor,
+      textColor: HEX_RE.test(req.body.textColor || "") ? req.body.textColor : CHAT_BUBBLE_DEFAULTS.textColor,
+      usernameColor: HEX_RE.test(req.body.usernameColor || "") ? req.body.usernameColor : CHAT_BUBBLE_DEFAULTS.usernameColor,
       showAvatar: req.body.showAvatar === "on",
       shape: ["rounded", "pill", "square"].includes(req.body.shape) ? req.body.shape : "rounded",
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : CHAT_BUBBLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(28, Math.max(10, Number(req.body.fontSize) || CHAT_BUBBLE_DEFAULTS.fontSize)),
+      borderWidth: Math.min(6, Math.max(0, Number(req.body.borderWidth) || 0)),
+      borderColor: HEX_RE.test(req.body.borderColor || "") ? req.body.borderColor : CHAT_BUBBLE_DEFAULTS.borderColor,
+      animation: Object.keys(ANIMATION_OPTIONS).includes(req.body.animation) ? req.body.animation : CHAT_BUBBLE_DEFAULTS.animation,
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostAlertAppearanceUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    alert_appearance: {
+      nameColor: HEX_RE.test(req.body.nameColor || "") ? req.body.nameColor : ALERT_APPEARANCE_DEFAULTS.nameColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : ALERT_APPEARANCE_DEFAULTS.fontFamily,
+      fontSize: Math.min(32, Math.max(12, Number(req.body.fontSize) || ALERT_APPEARANCE_DEFAULTS.fontSize)),
+      animation: Object.keys(ANIMATION_OPTIONS).includes(req.body.animation) ? req.body.animation : ALERT_APPEARANCE_DEFAULTS.animation,
+      showDecorations: req.body.showDecorations === "on",
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
