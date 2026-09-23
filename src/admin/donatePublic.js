@@ -1236,32 +1236,50 @@ export async function handleLeaderboardData(req, res) {
   res.json({ leaderboard });
 }
 
+const WISHLIST_STYLE_DEFAULTS = {
+  cardStyle: "transparent",
+  panelColor: "#000000",
+  panelOpacity: 55,
+  headerColor: "#ffffff",
+  titleColor: "#ffffff",
+  pctColor: "#4ade80",
+  doneColor: "#fbbf24",
+  fillColor: "#4ade80",
+  fontFamily: "Inter",
+  fontSize: 16,
+};
+
 export async function handleWishlistPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...WISHLIST_STYLE_DEFAULTS, ...(settings.wishlist_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS.Inter;
+  const panel = style.cardStyle === "panel";
+  const fillEnd = shadeHex(style.fillColor, 20);
+  const doneEnd = shadeHex(style.doneColor, 20);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
-      #board{width:300px}
-      #board h3{margin:0 0 10px;font-size:12px;font-weight:700;color:rgba(255,255,255,.75);
-        text-transform:uppercase;letter-spacing:.06em;text-shadow:0 1px 4px rgba(0,0,0,.55)}
-      #empty{font-size:13px;color:rgba(255,255,255,.7);text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #board{width:300px${panel ? ";padding:14px 16px;border-radius:14px;background:" + hexToRgba(style.panelColor, style.panelOpacity) : ""}}
+      #board h3{margin:0 0 10px;font-size:12px;font-weight:700;color:${escapeHtml(style.headerColor)};
+        text-transform:uppercase;letter-spacing:.06em;${panel ? "" : "text-shadow:0 1px 4px rgba(0,0,0,.55)"}}
+      #empty{font-size:13px;color:${escapeHtml(style.headerColor)};${panel ? "" : "text-shadow:0 1px 4px rgba(0,0,0,.55)"}}
       #current{opacity:0;transition:opacity .4s ease}
       #current.show{opacity:1}
       @media (prefers-reduced-motion: reduce){#current{transition:none}}
-      .item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:16px;font-weight:800;color:#fff;
-        margin-bottom:4px;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      .item-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:${style.fontSize}px;font-weight:800;color:${escapeHtml(style.titleColor)};
+        margin-bottom:4px;${panel ? "" : "text-shadow:0 1px 4px rgba(0,0,0,.55)"}}
       .item-top .title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .item-top .pct{flex:none;font-size:13px;font-weight:800;color:#4ade80}
-      .item-top .pct.done{color:#fbbf24}
-      .item-amounts{font-size:12px;font-weight:600;color:rgba(255,255,255,.8);margin-bottom:6px;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      .item-top .pct{flex:none;font-size:13px;font-weight:800;color:${escapeHtml(style.pctColor)}}
+      .item-top .pct.done{color:${escapeHtml(style.doneColor)}}
+      .item-amounts{font-size:12px;font-weight:600;color:${escapeHtml(style.titleColor)};margin-bottom:6px;${panel ? "" : "text-shadow:0 1px 4px rgba(0,0,0,.55)"}}
       .bar{height:6px;background:rgba(255,255,255,.25);border-radius:999px;overflow:hidden}
-      .bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:999px;transition:width .5s ease}
-      .bar-fill.done{background:linear-gradient(90deg,#f59e0b,#fbbf24);box-shadow:0 0 8px rgba(251,191,36,.6)}
+      .bar-fill{height:100%;background:linear-gradient(90deg,${escapeHtml(style.fillColor)},${fillEnd});border-radius:999px;transition:width .5s ease}
+      .bar-fill.done{background:linear-gradient(90deg,${escapeHtml(style.doneColor)},${doneEnd});box-shadow:0 0 8px ${hexToRgba(style.doneColor, 60)}}
     </style></head><body>
     <div id="board">
       <h3>Wishlist</h3>

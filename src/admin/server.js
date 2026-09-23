@@ -69,6 +69,7 @@ import {
   handleHostWishlistAdd,
   handleHostWishlistEdit,
   handleHostWishlistDelete,
+  handleHostWishlistStyleUpdate,
   handleHostMessagesPage,
   handleHostAppearancePage,
   handleHostAppearanceUpdate,
@@ -285,6 +286,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/wishlist", requireHostAuth, handleHostWishlistAdd);
   app.post("/host/:identifier/wishlist/:id/edit", requireHostAuth, handleHostWishlistEdit);
   app.post("/host/:identifier/wishlist/:id/delete", requireHostAuth, handleHostWishlistDelete);
+  app.post("/host/:identifier/wishlist/style", requireHostAuth, handleHostWishlistStyleUpdate);
   app.get("/host/:identifier/pesan", requireHostAuth, handleHostMessagesPage);
   app.post("/host/:identifier/replay/:trxId", requireHostAuth, handleHostReplayDonation);
   app.post("/host/:identifier/pengaturan/test-live-event", requireHostAuth, handleHostTestLiveEvent);

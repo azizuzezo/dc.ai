@@ -3,11 +3,43 @@ import { hashPassword } from "../services/password.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { broadcast } from "../services/donationOverlay.js";
 import { fetchTotalFollowers } from "../services/tiktokLiveEvents.js";
+import { WISHLIST_TEMPLATES } from "../services/overlayTemplates.js";
+import { FONT_STACKS as FONT_OPTIONS } from "../services/overlayStyleShared.js";
+import { HEX_RE, hexToRgba, fontSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
 function rupiah(n) {
   return "Rp" + Number(n || 0).toLocaleString("id-ID");
+}
+
+const WISHLIST_STYLE_DEFAULTS = {
+  cardStyle: "transparent",
+  panelColor: "#000000",
+  panelOpacity: 55,
+  headerColor: "#ffffff",
+  titleColor: "#ffffff",
+  pctColor: "#4ade80",
+  doneColor: "#fbbf24",
+  fillColor: "#4ade80",
+  fontFamily: "Inter",
+  fontSize: 16,
+};
+
+function wishlistPreviewHTML(style) {
+  const panel = style.cardStyle === "panel";
+  const panelBg = panel ? `background:${hexToRgba(style.panelColor, style.panelOpacity)};padding:8px 10px;border-radius:10px;width:100%` : "";
+  return `<div class="tpl-preview" style="align-items:stretch">
+    <div style="font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS.Inter};${panelBg}">
+      <div style="font-size:9px;font-weight:700;color:${escapeHtml(style.headerColor)};text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Wishlist</div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:${escapeHtml(style.titleColor)};margin-bottom:4px">
+        <span>Wisuda</span><span style="color:${escapeHtml(style.pctColor)}">65%</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.25);border-radius:6px;overflow:hidden">
+        <div style="height:100%;width:65%;background:${escapeHtml(style.fillColor)}"></div>
+      </div>
+    </div>
+  </div>`;
 }
 
 function baseUrl(req) {
@@ -123,6 +155,7 @@ export async function handleHostWishlistPage(req, res, error) {
   const settings = req.donationSettings;
   const identifier = req.params.identifier;
   const items = await db.listWishlistItemsWithProgress(settings.guild_id);
+  const wishlistStyle = { ...WISHLIST_STYLE_DEFAULTS, ...(settings.wishlist_style || {}) };
 
   const cards = items.length
     ? items
@@ -165,6 +198,63 @@ export async function handleHostWishlistPage(req, res, error) {
       <label for="targetAmount">Target (Rp)</label>
       <input id="targetAmount" type="text" inputmode="numeric" class="rupiah-input" name="targetAmount" required />
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Tambah wishlist</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Tampilan Widget</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(WISHLIST_TEMPLATES, `/host/${identifier}/wishlist/style`, wishlistPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/wishlist/style" style="margin-top:1.25rem">
+      <h2>Tampilan Widget (Manual)</h2>
+      <p class="hint">Warna, font, dan gaya latar widget overlay Wishlist (bukan halaman ini).</p>
+      <label for="wlCardStyle">Gaya latar</label>
+      <div style="max-width:22rem">
+        <select id="wlCardStyle" name="cardStyle">
+          <option value="transparent" ${wishlistStyle.cardStyle === "transparent" ? "selected" : ""}>Transparan (tanpa panel)</option>
+          <option value="panel" ${wishlistStyle.cardStyle === "panel" ? "selected" : ""}>Panel (kotak warna di belakang)</option>
+        </select>
+      </div>
+      <div class="grid grid-2" style="margin-top:1rem">
+        <div>
+          <label for="wlPanelColor">Warna panel</label>
+          <input id="wlPanelColor" type="color" name="panelColor" value="${escapeHtml(wishlistStyle.panelColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="wlPanelOpacity">Transparansi panel (%)</label>
+          <input id="wlPanelOpacity" type="number" name="panelOpacity" min="0" max="100" value="${wishlistStyle.panelOpacity}" />
+        </div>
+        <div>
+          <label for="wlHeaderColor">Warna judul "Wishlist"</label>
+          <input id="wlHeaderColor" type="color" name="headerColor" value="${escapeHtml(wishlistStyle.headerColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="wlTitleColor">Warna judul item</label>
+          <input id="wlTitleColor" type="color" name="titleColor" value="${escapeHtml(wishlistStyle.titleColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="wlPctColor">Warna persen</label>
+          <input id="wlPctColor" type="color" name="pctColor" value="${escapeHtml(wishlistStyle.pctColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="wlDoneColor">Warna saat tercapai</label>
+          <input id="wlDoneColor" type="color" name="doneColor" value="${escapeHtml(wishlistStyle.doneColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="wlFillColor">Warna bar progress</label>
+          <input id="wlFillColor" type="color" name="fillColor" value="${escapeHtml(wishlistStyle.fillColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="wlFontFamily">Font</label>
+          ${fontSelect("wlFontFamily", "fontFamily", wishlistStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="wlFontSize">Ukuran judul item (px)</label>
+          <input id="wlFontSize" type="number" name="fontSize" min="12" max="24" value="${wishlistStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
     </form>`;
 
   res.send(hostLayout(body, { active: "wishlist", identifier, settings }));
@@ -179,6 +269,25 @@ export async function handleHostWishlistAdd(req, res) {
     await db.addWishlistItem(settings.guild_id, title, targetAmount);
   }
   res.redirect(`/host/${identifier}/wishlist`);
+}
+
+export async function handleHostWishlistStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    wishlist_style: {
+      cardStyle: ["transparent", "panel"].includes(req.body.cardStyle) ? req.body.cardStyle : WISHLIST_STYLE_DEFAULTS.cardStyle,
+      panelColor: HEX_RE.test(req.body.panelColor || "") ? req.body.panelColor : WISHLIST_STYLE_DEFAULTS.panelColor,
+      panelOpacity: Math.min(100, Math.max(0, Number(req.body.panelOpacity) || 0)),
+      headerColor: HEX_RE.test(req.body.headerColor || "") ? req.body.headerColor : WISHLIST_STYLE_DEFAULTS.headerColor,
+      titleColor: HEX_RE.test(req.body.titleColor || "") ? req.body.titleColor : WISHLIST_STYLE_DEFAULTS.titleColor,
+      pctColor: HEX_RE.test(req.body.pctColor || "") ? req.body.pctColor : WISHLIST_STYLE_DEFAULTS.pctColor,
+      doneColor: HEX_RE.test(req.body.doneColor || "") ? req.body.doneColor : WISHLIST_STYLE_DEFAULTS.doneColor,
+      fillColor: HEX_RE.test(req.body.fillColor || "") ? req.body.fillColor : WISHLIST_STYLE_DEFAULTS.fillColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : WISHLIST_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(24, Math.max(12, Number(req.body.fontSize) || WISHLIST_STYLE_DEFAULTS.fontSize)),
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/wishlist`);
 }
 
 export async function handleHostWishlistEdit(req, res) {
