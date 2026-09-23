@@ -22,6 +22,10 @@ export const env = {
   // 30-90s (no cookie configured, by choice — see geminiClient.js), so this
   // has to stay generous enough not to cut off an otherwise-working reply.
   aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS) || 90000,
+  // The one Discord user allowed to "train" the AI persona live in chat — see
+  // aiChatPipeline.js. Defaults to the account this was set up for; override
+  // via env if that ever needs to change without a code edit.
+  aiTrainerUserId: process.env.AI_TRAINER_USER_ID || "485132968159870976",
   floodLimit: Number(process.env.FLOOD_LIMIT) || 6,
   floodWindowMs: Number(process.env.FLOOD_WINDOW_MS) || 10000,
 

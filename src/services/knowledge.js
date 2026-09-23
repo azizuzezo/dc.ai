@@ -29,3 +29,11 @@ export async function getKnowledgeBlock(guildId) {
   const entries = await loadKnowledge(guildId);
   return formatForPrompt(entries);
 }
+
+/** Forces the next getKnowledgeBlock() call to hit the DB instead of serving
+ * a stale cached copy — used right after the AI trainer adds a new directive
+ * (see aiChatPipeline.js) so it takes effect on the very next message instead
+ * of waiting out the normal 30s TTL. */
+export function invalidateKnowledgeCache(guildId) {
+  cache.delete(guildId);
+}
