@@ -811,3 +811,36 @@ export const VIDEO_TEMPLATES = [
   { key: "minimalis", label: "Minimalis Putih", style: { nameColor: "#ffffff", line2Color: "#e5e7eb", fontFamily: "Inter", fontSize: 34 } },
   { key: "gamer", label: "Gamer RGB", style: { nameColor: "#39ff88", line2Color: "#e5e5ff", fontFamily: "Bebas Neue", fontSize: 44 } },
 ];
+
+export const PARKIRAN_LINK_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: { panelColor: "#ffffff", panelOpacity: 97, titleColor: "#122e1e", rankColor: "#76cc11", nameColor: "#122e1e", amountColor: "#76cc11", fontFamily: "Open Sans", fontSize: 13 },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: { panelColor: "#12122a", panelOpacity: 92, titleColor: "#f5f5ff", rankColor: "#00f5ff", nameColor: "#f5f5ff", amountColor: "#00f5ff", fontFamily: "Poppins", fontSize: 13 },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: { panelColor: "#fdf2f8", panelOpacity: 96, titleColor: "#831843", rankColor: "#db2777", nameColor: "#831843", amountColor: "#db2777", fontFamily: "Comic Neue", fontSize: 13 },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: { panelColor: "#0f0f0f", panelOpacity: 94, titleColor: "#f5f5f5", rankColor: "#facc15", nameColor: "#f5f5f5", amountColor: "#facc15", fontFamily: "Montserrat", fontSize: 13 },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: { panelColor: "#ffffff", panelOpacity: 100, titleColor: "#111827", rankColor: "#6b7280", nameColor: "#111827", amountColor: "#16a34a", fontFamily: "Inter", fontSize: 13 },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: { panelColor: "#0a0a12", panelOpacity: 90, titleColor: "#e5e5ff", rankColor: "#7c3aed", nameColor: "#e5e5ff", amountColor: "#39ff88", fontFamily: "Bebas Neue", fontSize: 13 },
+  },
+];

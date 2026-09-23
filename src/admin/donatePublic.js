@@ -2078,6 +2078,79 @@ export async function handlePointsLeaderboardPage(req, res) {
   </body></html>`);
 }
 
+/** Only donor_name + amount ever leave this endpoint — never `content` (the
+ * link/note itself), so the overlay can show "who's queued and how much they
+ * donated" on stream without exposing what Parkiran Link exists to protect. */
+export async function handleParkiranLinkQueueData(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).json({ queue: [] });
+  const items = await db.listLinkQueue(settings.guild_id);
+  const queue = items.filter((i) => !i.done).map((i) => ({ donor_name: i.donor_name, amount: i.amount }));
+  res.json({ queue });
+}
+
+const PARKIRAN_LINK_STYLE_DEFAULTS = {
+  panelColor: "#ffffff",
+  panelOpacity: 97,
+  titleColor: "#122e1e",
+  rankColor: "#76cc11",
+  nameColor: "#122e1e",
+  amountColor: "#76cc11",
+  fontFamily: "Open Sans",
+  fontSize: 13,
+};
+
+export async function handleParkiranLinkQueuePage(req, res) {
+  const { token } = req.params;
+  const settings = await db.getDonationSettingsByOverlayToken(token);
+  if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...PARKIRAN_LINK_STYLE_DEFAULTS, ...(settings.parkiran_link_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
+  const rowBorder = hexToRgba(style.titleColor, 12);
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
+    <style>
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #card{width:260px;background:${hexToRgba(style.panelColor, style.panelOpacity)};border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      #card h3{margin:0 0 8px;color:${escapeHtml(style.titleColor)};font-size:15px}
+      .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:${style.fontSize}px;color:${escapeHtml(style.nameColor)};border-top:1px solid ${rowBorder}}
+      .row:first-of-type{border-top:none}
+      .rank{color:${escapeHtml(style.rankColor)};font-weight:800;width:1.4em;flex:none}
+      .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .amount{font-weight:700;color:${escapeHtml(style.amountColor)};flex:none}
+      #empty{color:${escapeHtml(style.titleColor)};font-size:12px}
+    </style></head><body>
+    <div id="card"><h3>Parkiran Link</h3><div id="rows"><p id="empty">Belum ada antrian.</p></div></div>
+    <script>
+      function rupiah(n) {
+        return "Rp" + Math.round(Number(n) || 0).toLocaleString("id-ID");
+      }
+      async function refresh() {
+        try {
+          const res = await fetch(${JSON.stringify(`/overlay/${token}/parkiran-link/data`)});
+          const data = await res.json();
+          const rowsEl = document.getElementById("rows");
+          rowsEl.innerHTML = "";
+          if (!data.queue.length) { rowsEl.innerHTML = '<p id="empty">Belum ada antrian.</p>'; return; }
+          data.queue.forEach((q, i) => {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML = '<span class="rank">#' + (i + 1) + '</span><span class="name"></span><span class="amount"></span>';
+            row.querySelector(".name").textContent = q.donor_name;
+            row.querySelector(".amount").textContent = q.amount ? rupiah(q.amount) : "";
+            rowsEl.appendChild(row);
+          });
+        } catch {}
+      }
+      refresh();
+      setInterval(refresh, 5000);
+    </script>
+  </body></html>`);
+}
+
 export async function handleSoundAlertPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);

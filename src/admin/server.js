@@ -58,6 +58,8 @@ import {
   handleCommandResponsePage,
   handlePointsDropPage,
   handleLinkPreviewPage,
+  handleParkiranLinkQueuePage,
+  handleParkiranLinkQueueData,
   handleMediaServe,
   handleSubathonPage,
   handleMilestonePage,
@@ -109,7 +111,12 @@ import {
   handleHostSubathonStyleUpdate,
 } from "./hostSubathon.js";
 import { handleHostMilestonesPage, handleHostMilestoneAdd, handleHostMilestoneDelete, handleHostMilestoneStyleUpdate } from "./hostMilestones.js";
-import { handleHostLinkQueuePage, handleHostLinkQueueToggle, handleHostLinkQueueDelete } from "./hostLinkQueue.js";
+import {
+  handleHostLinkQueuePage,
+  handleHostLinkQueueToggle,
+  handleHostLinkQueueDelete,
+  handleHostLinkQueueStyleUpdate,
+} from "./hostLinkQueue.js";
 import {
   handleHostToolsPage,
   handleHostToolsCommandsUpdate,
@@ -274,6 +281,8 @@ export function startAdminServer() {
   app.get("/overlay/:token/commands", handleCommandResponsePage);
   app.get("/overlay/:token/points-drop", handlePointsDropPage);
   app.get("/overlay/:token/link-preview", handleLinkPreviewPage);
+  app.get("/overlay/:token/parkiran-link", handleParkiranLinkQueuePage);
+  app.get("/overlay/:token/parkiran-link/data", handleParkiranLinkQueueData);
   app.get("/overlay/:token/media/:id", handleMediaServe);
   app.post("/event-api/:token/trigger", handleEventApiTrigger);
 
@@ -299,6 +308,7 @@ export function startAdminServer() {
   app.get("/host/:identifier/parkiran-link", requireHostAuth, handleHostLinkQueuePage);
   app.post("/host/:identifier/parkiran-link/:id/toggle", requireHostAuth, handleHostLinkQueueToggle);
   app.post("/host/:identifier/parkiran-link/:id/delete", requireHostAuth, handleHostLinkQueueDelete);
+  app.post("/host/:identifier/parkiran-link/style", requireHostAuth, handleHostLinkQueueStyleUpdate);
   app.post("/host/:identifier/replay/:trxId", requireHostAuth, handleHostReplayDonation);
   app.post("/host/:identifier/pengaturan/test-live-event", requireHostAuth, handleHostTestLiveEvent);
   app.get("/host/:identifier/tampilan", requireHostAuth, (req, res) => handleHostAppearancePage(req, res));

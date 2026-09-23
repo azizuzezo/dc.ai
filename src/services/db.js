@@ -941,6 +941,7 @@ export async function ensureDonationSettings(guildId) {
     points_drop_style: {},
     link_preview_style: {},
     video_style: {},
+    parkiran_link_style: {},
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
@@ -1723,13 +1724,14 @@ export async function listLinkQueue(guildId) {
       .from("bot_link_queue")
       .select("id, donor_name, content, amount, done, created_at")
       .eq("guild_id", guildId)
+      .order("amount", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
   }
   return memLinkQueue
     .filter((q) => q.guild_id === guildId)
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0) || new Date(b.created_at) - new Date(a.created_at));
 }
 
 export async function getLinkQueueItem(guildId, id) {
