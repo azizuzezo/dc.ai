@@ -19,6 +19,12 @@ export async function execute(interaction) {
     return;
   }
 
+  // player.connect() waits on Discord's voice gateway handshake, which can
+  // exceed the 3s window for an initial interaction reply — deferring first
+  // (like play.js already does) avoids the reply silently racing that ack
+  // window and throwing "Interaction has already been acknowledged".
+  await interaction.deferReply();
+
   try {
     let player = manager.getPlayer(interaction.guildId);
     if (!player) {
@@ -30,9 +36,9 @@ export async function execute(interaction) {
       });
     }
     if (!player.connected) await player.connect();
-    await interaction.reply(`✅ Joined ${voiceChannel}.`);
+    await interaction.editReply(`✅ Joined ${voiceChannel}.`);
   } catch (err) {
     logError("join command failed:", err);
-    await interaction.reply({ content: "Couldn't join that voice channel.", flags: MessageFlags.Ephemeral });
+    await interaction.editReply("Couldn't join that voice channel.").catch(() => {});
   }
 }

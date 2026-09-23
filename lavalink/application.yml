@@ -48,12 +48,16 @@ plugins:
       - WEBEMBEDDED
     # Anonymous clients increasingly hit "This video requires login" from
     # YouTube's anti-bot checks. OAuth (a real Google account's refresh
-    # token) is the plugin's own documented workaround — completed once via
-    # the device-code flow printed on first boot; the resulting token is
-    # injected via the YOUTUBE_OAUTH_REFRESH_TOKEN env var so it survives
-    # redeploys without repeating that flow.
+    # token) is the plugin's own documented workaround, but leaving it
+    # enabled with no refreshToken set doesn't fall back to anonymous
+    # clients or print a device-code prompt — it throws on an empty token
+    # during startup ("Invalid status code for oauth2 token fetch: 400")
+    # and takes the whole server down with it, not just YouTube. Disabled
+    # until a real token exists: set YOUTUBE_OAUTH_REFRESH_TOKEN and flip
+    # this to true once you've completed that flow; other sources
+    # (SoundCloud, etc.) work fine without it in the meantime.
     oauth:
-      enabled: true
+      enabled: false
       refreshToken: "${YOUTUBE_OAUTH_REFRESH_TOKEN}"
 
 metrics:
