@@ -91,6 +91,7 @@ import {
   handleHostAlertAppearancePage,
   handleHostChatBubbleUpdate,
   handleHostAlertAppearanceUpdate,
+  handleHostLeaderboardStyleUpdate,
   handleHostAlertTierAdd,
   handleHostAlertTierDelete,
   handleHostAlertTierSimulate,
@@ -331,6 +332,7 @@ export function startAdminServer() {
   app.get("/host/:identifier/tampilan-alert", requireHostAuth, (req, res) => handleHostAlertAppearancePage(req, res));
   app.post("/host/:identifier/tampilan-alert/chat-bubble", requireHostAuth, handleHostChatBubbleUpdate);
   app.post("/host/:identifier/tampilan-alert/appearance", requireHostAuth, handleHostAlertAppearanceUpdate);
+  app.post("/host/:identifier/tampilan-alert/leaderboard", requireHostAuth, handleHostLeaderboardStyleUpdate);
   app.post("/host/:identifier/tampilan-alert/tiers", requireHostAuth, mediaUpload.single("imageFile"), handleHostAlertTierAdd);
   app.post("/host/:identifier/tampilan-alert/tiers/:id/delete", requireHostAuth, handleHostAlertTierDelete);
   app.post("/host/:identifier/tampilan-alert/simulate-donation", requireHostAuth, handleHostAlertTierSimulate);

@@ -207,3 +207,98 @@ export const ALERT_TEMPLATES = [
     },
   },
 ];
+
+// Same "skin family" names as the Chat Bubble/Alert templates above, so a
+// host who picks "Neon Malam" everywhere gets a visually matching set.
+export const LEADERBOARD_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: {
+      cardStyle: "transparent",
+      panelColor: "#000000",
+      panelOpacity: 55,
+      headerColor: "#ffffff",
+      rankColor: "#4ade80",
+      nameColor: "#ffffff",
+      amountColor: "#ffffff",
+      fontFamily: "Inter",
+      fontSize: 14,
+    },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: {
+      cardStyle: "panel",
+      panelColor: "#12122a",
+      panelOpacity: 88,
+      headerColor: "#f5f5ff",
+      rankColor: "#00f5ff",
+      nameColor: "#f5f5ff",
+      amountColor: "#ff2fd0",
+      fontFamily: "Poppins",
+      fontSize: 14,
+    },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: {
+      cardStyle: "panel",
+      panelColor: "#fdf2f8",
+      panelOpacity: 92,
+      headerColor: "#831843",
+      rankColor: "#db2777",
+      nameColor: "#831843",
+      amountColor: "#db2777",
+      fontFamily: "Comic Neue",
+      fontSize: 15,
+    },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: {
+      cardStyle: "panel",
+      panelColor: "#0f0f0f",
+      panelOpacity: 90,
+      headerColor: "#facc15",
+      rankColor: "#facc15",
+      nameColor: "#f5f5f5",
+      amountColor: "#facc15",
+      fontFamily: "Montserrat",
+      fontSize: 14,
+    },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: {
+      cardStyle: "panel",
+      panelColor: "#ffffff",
+      panelOpacity: 96,
+      headerColor: "#111827",
+      rankColor: "#6b7280",
+      nameColor: "#111827",
+      amountColor: "#111827",
+      fontFamily: "Inter",
+      fontSize: 14,
+    },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: {
+      cardStyle: "panel",
+      panelColor: "#0a0a12",
+      panelOpacity: 86,
+      headerColor: "#e5e5ff",
+      rankColor: "#39ff88",
+      nameColor: "#e5e5ff",
+      amountColor: "#7c3aed",
+      fontFamily: "Bebas Neue",
+      fontSize: 16,
+    },
+  },
+];

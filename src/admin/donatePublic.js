@@ -6,6 +6,7 @@ import { getAudio } from "../services/ttsCache.js";
 import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
 import { AVATAR_PRESETS } from "../services/alertPresets.js";
+import { FONT_STACKS, GOOGLE_FONT_QUERY, entranceKeyframes, centeredEntranceKeyframes } from "../services/overlayStyleShared.js";
 import { escapeHtml } from "./htmlEscape.js";
 
 /** "#rrggbb" + 0-100 opacity -> "rgba(r,g,b,a)", for customizable overlay widget colors. */
@@ -688,29 +689,6 @@ const ALERT_APPEARANCE_DEFAULTS = {
   avatarPreset: "photo",
 };
 
-/** Same shape as entranceKeyframes() above, but every transform keeps the
- * `-50%` X-anchor the Alert stage's `left:50%` centering relies on — a plain
- * slide-left/right here still needs to end up centered, not just offset. */
-function centeredEntranceKeyframes(animation, distance = 16) {
-  const d = distance;
-  const settle = Math.round(d * 0.6);
-  switch (animation) {
-    case "slide-down":
-      return { base: `translate(-50%,-${d}px)`, show: "translate(-50%,0)", hide: `translate(-50%,${settle}px)` };
-    case "slide-left":
-      return { base: `translate(calc(-50% + ${d}px),0)`, show: "translate(-50%,0)", hide: `translate(calc(-50% - ${settle}px),0)` };
-    case "slide-right":
-      return { base: `translate(calc(-50% - ${d}px),0)`, show: "translate(-50%,0)", hide: `translate(calc(-50% + ${settle}px),0)` };
-    case "fade":
-      return { base: "translate(-50%,0)", show: "translate(-50%,0)", hide: "translate(-50%,0)" };
-    case "pop":
-      return { base: "translate(-50%,0) scale(.5)", show: "translate(-50%,0) scale(1)", hide: "translate(-50%,0) scale(.92)" };
-    case "slide-up":
-    default:
-      return { base: `translate(-50%,${d}px)`, show: "translate(-50%,0)", hide: `translate(-50%,-${settle}px)` };
-  }
-}
-
 export async function handleOverlayPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
@@ -1146,24 +1124,39 @@ export async function handleOverlayAvatar(req, res) {
   res.send(Buffer.from(settings.avatar_data, "base64"));
 }
 
+const LEADERBOARD_STYLE_DEFAULTS = {
+  cardStyle: "transparent", // "transparent" | "panel"
+  panelColor: "#000000",
+  panelOpacity: 55,
+  headerColor: "#ffffff",
+  rankColor: "#4ade80",
+  nameColor: "#ffffff",
+  amountColor: "#ffffff",
+  fontFamily: "Inter",
+  fontSize: 14,
+};
+
 export async function handleLeaderboardPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...LEADERBOARD_STYLE_DEFAULTS, ...(settings.leaderboard_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS.Inter;
+  const panel = style.cardStyle === "panel";
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Inter',sans-serif}
-      #board{width:260px}
-      #board h3{margin:0 0 10px;font-size:12px;font-weight:700;color:rgba(255,255,255,.75);
-        text-transform:uppercase;letter-spacing:.06em;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #board{width:260px${panel ? ";padding:14px 16px;border-radius:14px;background:" + hexToRgba(style.panelColor, style.panelOpacity) : ""}}
+      #board h3{margin:0 0 10px;font-size:12px;font-weight:700;color:${escapeHtml(style.headerColor)};
+        text-transform:uppercase;letter-spacing:.06em;${panel ? "" : "text-shadow:0 1px 4px rgba(0,0,0,.55)"}}
       #list{list-style:none;margin:0;padding:0}
-      #list li{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px;font-weight:700;color:#fff;
-        text-shadow:0 1px 4px rgba(0,0,0,.55)}
-      #list .rank{color:#4ade80;font-weight:800;width:20px}
-      #list .amount{font-weight:800;color:rgba(255,255,255,.9)}
+      #list li{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:${style.fontSize}px;font-weight:700;
+        color:${escapeHtml(style.nameColor)};${panel ? "" : "text-shadow:0 1px 4px rgba(0,0,0,.55)"}}
+      #list .rank{color:${escapeHtml(style.rankColor)};font-weight:800;width:20px}
+      #list .amount{font-weight:800;color:${escapeHtml(style.amountColor)}}
     </style></head><body>
     <div id="board"><h3>Top Donatur</h3><ol id="list"></ol></div>
     <script src="/overlay/assets/overlay-relay.js"></script>
@@ -1423,42 +1416,6 @@ const CHAT_BUBBLE_DEFAULTS = {
   borderColor: "#76cc11",
   animation: "slide-up",
 };
-
-// Shared with hostAlertAppearance.js's own copies of these maps (kept in
-// sync there since that file builds the <select> options) — this side just
-// needs the CSS font stack / entrance keyframe for each key.
-const FONT_STACKS = {
-  "Open Sans": "'Open Sans',sans-serif",
-  Inter: "'Inter',sans-serif",
-  Poppins: "'Poppins',sans-serif",
-  Montserrat: "'Montserrat',sans-serif",
-  "Bebas Neue": "'Bebas Neue',sans-serif",
-  "Comic Neue": "'Comic Neue',cursive",
-};
-const GOOGLE_FONT_QUERY = "Open+Sans:wght@400;600;700;800&family=Inter:wght@500;600;700;800&family=Poppins:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800&family=Bebas+Neue&family=Comic+Neue:wght@400;700";
-
-/** Entrance transform for each shared animation choice, keyed the same as
- * hostAlertAppearance.js's ANIMATION_OPTIONS. `base`/`hide` shift is 3x
- * `showAmount` in the opposite direction, matching how the Alert widget's
- * existing slide-up already worked (16px, then -10px on hide). */
-function entranceKeyframes(animation, distance = 20) {
-  const d = distance;
-  switch (animation) {
-    case "slide-down":
-      return { base: `translateY(-${d}px)`, show: "translateY(0)", hide: `translateY(${Math.round(d * 0.6)}px)` };
-    case "slide-left":
-      return { base: `translateX(${d}px)`, show: "translateX(0)", hide: `translateX(-${Math.round(d * 0.6)}px)` };
-    case "slide-right":
-      return { base: `translateX(-${d}px)`, show: "translateX(0)", hide: `translateX(${Math.round(d * 0.6)}px)` };
-    case "fade":
-      return { base: "translateY(0)", show: "translateY(0)", hide: "translateY(0)" };
-    case "pop":
-      return { base: "scale(.5)", show: "scale(1)", hide: "scale(.92)" };
-    case "slide-up":
-    default:
-      return { base: `translateY(${d}px)`, show: "translateY(0)", hide: `translateY(-${Math.round(d * 0.6)}px)` };
-  }
-}
 
 export async function handleChatPage(req, res) {
   const { token } = req.params;

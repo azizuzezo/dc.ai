@@ -1,7 +1,8 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
-import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES } from "../services/overlayTemplates.js";
+import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES } from "../services/overlayTemplates.js";
+import { FONT_STACKS as FONT_OPTIONS, ANIMATION_OPTIONS } from "../services/overlayStyleShared.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -32,24 +33,16 @@ const ALERT_APPEARANCE_DEFAULTS = {
   avatarPreset: "photo",
 };
 
-// Shared across Chat Bubble + Alert so both widgets draw from the same
-// curated set instead of the host needing to know real Google Fonts names.
-const FONT_OPTIONS = {
-  "Open Sans": "'Open Sans',sans-serif",
-  Inter: "'Inter',sans-serif",
-  Poppins: "'Poppins',sans-serif",
-  Montserrat: "'Montserrat',sans-serif",
-  "Bebas Neue": "'Bebas Neue',sans-serif",
-  "Comic Neue": "'Comic Neue',cursive",
-};
-
-const ANIMATION_OPTIONS = {
-  "slide-up": "Geser dari bawah",
-  "slide-down": "Geser dari atas",
-  "slide-left": "Geser dari kanan",
-  "slide-right": "Geser dari kiri",
-  fade: "Muncul halus (fade)",
-  pop: "Muncul membesar (pop)",
+const LEADERBOARD_STYLE_DEFAULTS = {
+  cardStyle: "transparent",
+  panelColor: "#000000",
+  panelOpacity: 55,
+  headerColor: "#ffffff",
+  rankColor: "#4ade80",
+  nameColor: "#ffffff",
+  amountColor: "#ffffff",
+  fontFamily: "Inter",
+  fontSize: 14,
 };
 
 function fontSelect(id, name, current) {
@@ -136,6 +129,19 @@ function alertPreviewHTML(style) {
   </div>`;
 }
 
+function leaderboardPreviewHTML(style) {
+  const panel = style.cardStyle === "panel";
+  const panelBg = panel ? `background:${hexToRgba(style.panelColor, style.panelOpacity)};padding:8px 10px;border-radius:10px;width:100%` : "";
+  return `<div class="tpl-preview tpl-preview-leaderboard" style="align-items:stretch">
+    <div style="font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS.Inter};${panelBg}">
+      <div style="font-size:9px;font-weight:700;color:${escapeHtml(style.headerColor)};text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Top Donatur</div>
+      <div style="display:flex;justify-content:space-between;gap:6px;font-size:${style.fontSize}px;font-weight:700;color:${escapeHtml(style.nameColor)}">
+        <span style="color:${escapeHtml(style.rankColor)}">#1</span><span style="flex:1;text-align:left">Nama</span><span style="color:${escapeHtml(style.amountColor)}">Rp50rb</span>
+      </div>
+    </div>
+  </div>`;
+}
+
 /** Every template is its own tiny <form> posting straight to the real update
  * route with hidden inputs for each field — picking one just IS a normal save,
  * no separate "apply template" code path to keep in sync with manual edits. */
@@ -191,6 +197,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const identifier = req.params.identifier;
   const style = { ...CHAT_BUBBLE_DEFAULTS, ...(settings.chat_bubble_style || {}) };
   const alertStyle = { ...ALERT_APPEARANCE_DEFAULTS, ...(settings.alert_appearance || {}) };
+  const leaderboardStyle = { ...LEADERBOARD_STYLE_DEFAULTS, ...(settings.leaderboard_style || {}) };
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
@@ -316,6 +323,59 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     </form>
 
     <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Papan Peringkat</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(LEADERBOARD_TEMPLATES, `/host/${identifier}/tampilan-alert/leaderboard`, leaderboardPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/leaderboard" style="margin-top:1.25rem">
+      <h2>Papan Peringkat (Manual)</h2>
+      <p class="hint">Warna, font, dan tampilan widget "Top Donatur".</p>
+      <label for="lbCardStyle">Gaya latar</label>
+      <div style="max-width:22rem">
+        <select id="lbCardStyle" name="cardStyle">
+          <option value="transparent" ${leaderboardStyle.cardStyle === "transparent" ? "selected" : ""}>Transparan (tanpa panel)</option>
+          <option value="panel" ${leaderboardStyle.cardStyle === "panel" ? "selected" : ""}>Panel (kotak warna di belakang)</option>
+        </select>
+      </div>
+      <div class="grid grid-2" style="margin-top:1rem">
+        <div>
+          <label for="lbPanelColor">Warna panel</label>
+          <input id="lbPanelColor" type="color" name="panelColor" value="${escapeHtml(leaderboardStyle.panelColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lbPanelOpacity">Transparansi panel (%)</label>
+          <input id="lbPanelOpacity" type="number" name="panelOpacity" min="0" max="100" value="${leaderboardStyle.panelOpacity}" />
+        </div>
+        <div>
+          <label for="lbHeaderColor">Warna judul "Top Donatur"</label>
+          <input id="lbHeaderColor" type="color" name="headerColor" value="${escapeHtml(leaderboardStyle.headerColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lbRankColor">Warna nomor urut</label>
+          <input id="lbRankColor" type="color" name="rankColor" value="${escapeHtml(leaderboardStyle.rankColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lbNameColor">Warna nama donatur</label>
+          <input id="lbNameColor" type="color" name="nameColor" value="${escapeHtml(leaderboardStyle.nameColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lbAmountColor">Warna nominal</label>
+          <input id="lbAmountColor" type="color" name="amountColor" value="${escapeHtml(leaderboardStyle.amountColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="lbFontFamily">Font</label>
+          ${fontSelect("lbFontFamily", "fontFamily", leaderboardStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="lbFontSize">Ukuran teks (px)</label>
+          <input id="lbFontSize" type="number" name="fontSize" min="10" max="24" value="${leaderboardStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
       <h2>Alert Berdasarkan Nominal</h2>
       <p class="hint">Widget Alert (donasi) bisa nampilin gambar &amp; efek beda-beda tergantung nominal donasi — dipilih otomatis dari tingkatan tertinggi yang nominalnya kepenuhin.</p>
       ${
@@ -396,6 +456,24 @@ export async function handleHostAlertAppearanceUpdate(req, res) {
       bannerHeadline: String(req.body.bannerHeadline || "").trim().slice(0, 20) || ALERT_APPEARANCE_DEFAULTS.bannerHeadline,
       highlightColor: HEX_RE.test(req.body.highlightColor || "") ? req.body.highlightColor : ALERT_APPEARANCE_DEFAULTS.highlightColor,
       avatarPreset: Object.keys(AVATAR_PRESETS).includes(req.body.avatarPreset) ? req.body.avatarPreset : ALERT_APPEARANCE_DEFAULTS.avatarPreset,
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostLeaderboardStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    leaderboard_style: {
+      cardStyle: ["transparent", "panel"].includes(req.body.cardStyle) ? req.body.cardStyle : LEADERBOARD_STYLE_DEFAULTS.cardStyle,
+      panelColor: HEX_RE.test(req.body.panelColor || "") ? req.body.panelColor : LEADERBOARD_STYLE_DEFAULTS.panelColor,
+      panelOpacity: Math.min(100, Math.max(0, Number(req.body.panelOpacity) || 0)),
+      headerColor: HEX_RE.test(req.body.headerColor || "") ? req.body.headerColor : LEADERBOARD_STYLE_DEFAULTS.headerColor,
+      rankColor: HEX_RE.test(req.body.rankColor || "") ? req.body.rankColor : LEADERBOARD_STYLE_DEFAULTS.rankColor,
+      nameColor: HEX_RE.test(req.body.nameColor || "") ? req.body.nameColor : LEADERBOARD_STYLE_DEFAULTS.nameColor,
+      amountColor: HEX_RE.test(req.body.amountColor || "") ? req.body.amountColor : LEADERBOARD_STYLE_DEFAULTS.amountColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : LEADERBOARD_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(24, Math.max(10, Number(req.body.fontSize) || LEADERBOARD_STYLE_DEFAULTS.fontSize)),
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
