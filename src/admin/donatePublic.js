@@ -772,6 +772,7 @@ export async function handleOverlayPage(req, res) {
       <div id="line1"></div>
       <p id="line2"></p>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const CONFETTI_COLORS = ["#76cc11", "#5da80d", "#aced60", "#fbbf24", "#f472b6", "#60a5fa", "#ffffff", "#ff6b6b"];
       function flashScreen() {
@@ -1052,7 +1053,7 @@ export async function handleOverlayPage(req, res) {
         processQueue();
       }
 
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => {
         donationQueue.push(JSON.parse(e.data));
         processQueue();
@@ -1104,6 +1105,7 @@ export async function handleLeaderboardPage(req, res) {
       #list .amount{font-weight:800;color:rgba(255,255,255,.9)}
     </style></head><body>
     <div id="board"><h3>Top Donatur</h3><ol id="list"></ol></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       function render(leaderboard) {
         const list = document.getElementById("list");
@@ -1123,7 +1125,7 @@ export async function handleLeaderboardPage(req, res) {
         });
       }
       fetch(${JSON.stringify(`/overlay/${token}/leaderboard/data`)}).then((r) => r.json()).then((d) => render(d.leaderboard));
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("leaderboard", (e) => render(JSON.parse(e.data).leaderboard));
     </script>
   </body></html>`);
@@ -1172,6 +1174,7 @@ export async function handleWishlistPage(req, res) {
       </div>
       <p id="empty" style="display:none">Belum ada wishlist.</p>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const ROTATE_MS = 6000;
       let items = [];
@@ -1217,7 +1220,7 @@ export async function handleWishlistPage(req, res) {
       }
 
       fetch(${JSON.stringify(`/overlay/${token}/wishlist/data`)}).then((r) => r.json()).then((d) => setItems(d.items));
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("wishlist", (e) => setItems(JSON.parse(e.data).items));
     </script>
   </body></html>`);
@@ -1259,6 +1262,7 @@ export async function handleVideoPage(req, res) {
     </style></head><body>
     <div id="wrap"><div id="player"></div><div id="caption"><div id="capLine1"></div><div id="capLine2"></div></div></div>
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const wrap = document.getElementById("wrap");
 
@@ -1325,7 +1329,7 @@ export async function handleVideoPage(req, res) {
         try { player?.stopVideo(); } catch {}
       }
 
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("donation", (e) => {
         const d = JSON.parse(e.data);
         if (!d.youtubeVideoId) return;
@@ -1381,6 +1385,7 @@ export async function handleChatPage(req, res) {
       .msg .text{color:${style.textColor};font-size:13px;font-weight:400;word-break:break-word}
     </style></head><body>
     <div id="feed"></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const SHOW_AVATAR = ${JSON.stringify(Boolean(style.showAvatar))};
       const feed = document.getElementById("feed");
@@ -1409,7 +1414,7 @@ export async function handleChatPage(req, res) {
         feed.appendChild(row);
         while (feed.children.length > MAX_MESSAGES) feed.removeChild(feed.firstChild);
       }
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("chat", (e) => addMessage(JSON.parse(e.data)));
     </script>
   </body></html>`);
@@ -1441,6 +1446,7 @@ export async function handleGiftPage(req, res) {
       <img id="giftImg" src="" alt="" onerror="this.style.display='none'" />
       <div id="giftText"></div>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const stage = document.getElementById("stage");
       let hideTimer = null;
@@ -1461,7 +1467,7 @@ export async function handleGiftPage(req, res) {
         stage.classList.add("show");
         hideTimer = setTimeout(() => stage.classList.remove("show"), 5000);
       }
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("gift", (e) => showGift(JSON.parse(e.data)));
     </script>
   </body></html>`);
@@ -1497,8 +1503,9 @@ export async function handleLikesPage(req, res) {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="#76cc11"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.1c2.3-1.15 4.7-.3 5.9 1.3l1.5 2 1.5-2c1.2-1.6 3.6-2.45 5.9-1.3 3 1.5 3.6 5 1.9 7.8C18.7 16.65 12 21 12 21z"/></svg>
       <span id="count">0</span>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("likes", (e) => {
         document.getElementById("count").textContent = Number(JSON.parse(e.data).total).toLocaleString("id-ID");
       });
@@ -1527,10 +1534,11 @@ export async function handleFollowersPage(req, res) {
       </svg>
       <span id="count">0</span><span>follower baru</span>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const tag = document.getElementById("tag");
       let flashTimer = null;
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("follow", (e) => {
         document.getElementById("count").textContent = Number(JSON.parse(e.data).total).toLocaleString("id-ID");
         tag.classList.add("flash");
@@ -1563,10 +1571,11 @@ export async function handleSharePage(req, res) {
       </svg>
       <span id="count">0</span><span>share</span>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const tag = document.getElementById("tag");
       let flashTimer = null;
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("share", (e) => {
         document.getElementById("count").textContent = Number(JSON.parse(e.data).total).toLocaleString("id-ID");
         tag.classList.add("flash");
@@ -1610,12 +1619,13 @@ export async function handleJarPage(req, res) {
       </svg>
       <div id="label">Gift: <span id="count">0</span></div>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const JAR_STEP = 10;
       const JAR_TOP = 21, JAR_BOTTOM = 127; // inner clip bounds, matches the SVG path above
       let total = 0;
       const fill = document.getElementById("fill");
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("gift", (e) => {
         const g = JSON.parse(e.data);
         total += g.repeatCount || 1;
@@ -1663,6 +1673,7 @@ export async function handleSubathonPage(req, res) {
         <div id="added-badge"></div>
       </div>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       let endAt = ${settings.subathon_end_at ? `new Date(${JSON.stringify(settings.subathon_end_at)}).getTime()` : "null"};
       const clockEl = document.getElementById("clock");
@@ -1688,7 +1699,7 @@ export async function handleSubathonPage(req, res) {
       render();
       setInterval(render, 1000);
 
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/events`)});
       events.addEventListener("subathon", (e) => {
         const d = JSON.parse(e.data);
         endAt = d.endAt ? new Date(d.endAt).getTime() : null;
@@ -1749,6 +1760,7 @@ export async function handleMilestonePage(req, res) {
       <div id="label"><span>${escapeHtml(milestone.label)}</span><span><span id="count">0</span> / ${Number(milestone.target).toLocaleString("id-ID")}</span></div>
       <div id="bar"><div id="fill"></div></div>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const target = ${Number(milestone.target)};
       const wrapEl = document.getElementById("wrap");
@@ -1763,7 +1775,7 @@ export async function handleMilestonePage(req, res) {
       }
       render(0);
 
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener(${JSON.stringify(eventName)}, (e) => {
         render(Number(JSON.parse(e.data).total) || 0);
       });
@@ -1835,6 +1847,7 @@ export async function handleSoundAlertPage(req, res) {
   res.send(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}
     #dot{width:10px;height:10px;border-radius:50%;background:#76cc11;opacity:.5}</style></head><body>
     <div id="dot" title="Sound Alert aktif"></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const map = ${JSON.stringify(map)};
       let volume = ${Number(settings.media_volume ?? 100)} / 100;
@@ -1858,7 +1871,7 @@ export async function handleSoundAlertPage(req, res) {
         queue.push(cfg.soundUrl || "/overlay/assets/bell.wav");
         playNext();
       }
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("gift", () => play("gift"));
       events.addEventListener("follow", () => play("follow"));
       events.addEventListener("share", () => play("share"));
@@ -1887,6 +1900,7 @@ export async function handleActionsScreenPage(req, res) {
       #stage .desc{font-size:15px;font-weight:400;margin-top:.2rem}
     </style></head><body>
     <div id="stage"><div class="media"></div><div class="caption"><div class="name"></div><div class="desc"></div></div></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const SCREEN = ${JSON.stringify(screen)};
       let volume = ${Number(settings.media_volume ?? 100)} / 100;
@@ -1918,7 +1932,7 @@ export async function handleActionsScreenPage(req, res) {
         }, action.durationMs || 4000);
       }
 
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("action", (e) => {
         const action = JSON.parse(e.data);
         if (Number(action.screen) !== SCREEN) return;
@@ -1956,6 +1970,7 @@ export async function handleWheelPage(req, res) {
       <div id="wheel"></div>
       <div id="result"></div>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const OPTIONS = ${JSON.stringify(options.map((o) => o.label))};
       const COLORS = ["#76cc11", "#5da80d", "#aced60", "#93dc3e"];
@@ -1968,7 +1983,7 @@ export async function handleWheelPage(req, res) {
         wheel.style.background = "conic-gradient(" + stops + ")";
       }
       paintWheel();
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("wheel", (e) => {
         const data = JSON.parse(e.data);
         const idx = Math.max(0, data.options.indexOf(data.result));
@@ -2008,8 +2023,9 @@ export async function handleLikeathonPage(req, res) {
       .val{flex:none;font-weight:700}
     </style></head><body>
     <div id="card"><h3>Likeathon</h3><div id="rows"></div></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("likeathon", (e) => {
         const data = JSON.parse(e.data);
         const rowsEl = document.getElementById("rows");
@@ -2047,10 +2063,11 @@ export async function handleCommandResponsePage(req, res) {
       #toast.show{opacity:1;transform:translateY(0)}
     </style></head><body>
     <div id="toast"></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const toast = document.getElementById("toast");
       let hideTimer = null;
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("command-response", (e) => {
         const data = JSON.parse(e.data);
         toast.textContent = data.text;
@@ -2077,9 +2094,10 @@ export async function handlePointsDropPage(req, res) {
       #banner.show{opacity:1;transform:translateY(0)}
     </style></head><body>
     <div id="banner"></div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const banner = document.getElementById("banner");
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("points-drop", (e) => {
         const data = JSON.parse(e.data);
         if (data.active) {
@@ -2120,10 +2138,11 @@ export async function handleLinkPreviewPage(req, res) {
         <div class="desc" id="cardDesc"></div>
       </div>
     </div>
+    <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const card = document.getElementById("card");
       let hideTimer = null;
-      const events = new EventSource(${JSON.stringify(`/overlay/${token}/live-events`)});
+      const events = connectOverlayEvents(${JSON.stringify(`/overlay/${token}/live-events`)});
       events.addEventListener("link-preview", (e) => {
         const data = JSON.parse(e.data);
         const img = document.getElementById("cardImg");

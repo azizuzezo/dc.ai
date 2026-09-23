@@ -559,8 +559,12 @@ const TEST_MESSAGES = [
   "pertama kali mampir, langsung betah",
   "wkwkwk lucu banget",
 ];
+const TEST_LINKS = [
+  { title: "10 Tips Belajar Coding buat Pemula", description: "Panduan lengkap buat yang baru mulai belajar programming dari nol.", url: "https://example.com/artikel-coding" },
+  { title: "Resep Nasi Goreng Spesial", description: "Resep simpel tapi rasanya juara, cocok buat sarapan.", url: "https://example.com/resep" },
+];
 
-function randomTestPayload(type) {
+function randomTestPayload(type, settings) {
   const user = TEST_NAMES[Math.floor(Math.random() * TEST_NAMES.length)];
   switch (type) {
     case "chat":
@@ -578,6 +582,32 @@ function randomTestPayload(type) {
       return { total: Math.floor(Math.random() * 20) + 1, user };
     case "share":
       return { total: Math.floor(Math.random() * 10) + 1, user };
+    case "wheel": {
+      // Fake segments — doesn't touch/require the host's real configured
+      // wheel options (Tools page), just proves the widget itself spins.
+      const options = ["Hadiah A", "Hadiah B", "Hadiah C", "Coba Lagi", "Hadiah D"];
+      return { options, result: options[Math.floor(Math.random() * options.length)] };
+    }
+    case "points-drop":
+      return { active: true, bonus: settings?.points_drop_bonus || 50 };
+    case "gift-total":
+      // Drives Milestone widgets configured for the "gifts" metric — see
+      // tiktokLiveEvents.js's own counts.diamonds running total.
+      return { total: Math.floor(Math.random() * 2000) + 100 };
+    case "likeathon":
+      return {
+        ranking: TEST_NAMES.slice(0, 5).map((name, i) => ({
+          user: name,
+          count: (5 - i) * (Math.floor(Math.random() * 30) + 10),
+          avatarUrl: null,
+        })),
+      };
+    case "command-response":
+      return { text: `${user}: skor kamu sekarang 1.${Math.floor(Math.random() * 900) + 100} poin` };
+    case "link-preview": {
+      const link = TEST_LINKS[Math.floor(Math.random() * TEST_LINKS.length)];
+      return { user, ...link, image: null };
+    }
     default:
       return null;
   }
@@ -629,7 +659,53 @@ export async function handleHostTestLiveEvent(req, res) {
     return res.status(204).end();
   }
 
-  const payload = randomTestPayload(type);
+  if (type === "video") {
+    // Same real donation path as the "donation" test above, just with a
+    // YouTube clip attached (a well-known always-available video) so the
+    // separate Video widget actually has something to play.
+    const user = TEST_NAMES[Math.floor(Math.random() * TEST_NAMES.length)];
+    await announceDonation(
+      null,
+      settings,
+      {
+        guild_id: settings.guild_id,
+        donor_name: user,
+        amount: 50000,
+        message: "muterin ini dong kak",
+        wishlist_item_id: null,
+        youtube_video_id: "dQw4w9WgXcQ",
+        youtube_start_seconds: 0,
+        youtube_end_seconds: 20,
+      },
+      { toDiscord: false }
+    );
+    return res.status(204).end();
+  }
+
+  if (type === "action-demo") {
+    // Generic Layar 1 banner, independent of any real configured Action's
+    // trigger condition — just to confirm the screen itself shows up.
+    broadcast(settings.overlay_token, "action", {
+      screen: 1,
+      name: "Contoh Aksi",
+      description: "Ini contoh tampilan Layar 1 kalau ada Aksi yang aktif.",
+      mediaUrl: null,
+      mediaType: null,
+      soundUrl: null,
+      durationMs: 4000,
+    });
+    return res.status(204).end();
+  }
+
+  if (type === "subathon-demo") {
+    // Broadcast-only, like the wishlist test above — doesn't touch the real
+    // subathon_end_at/started_at, so it can't interfere with an actual run.
+    const endAt = new Date(Date.now() + 5 * 60_000);
+    broadcast(settings.overlay_token, "subathon", { endAt: endAt.toISOString(), addedMinutes: 5 });
+    return res.status(204).end();
+  }
+
+  const payload = randomTestPayload(type, settings);
   if (payload) broadcast(settings.overlay_token, type, payload);
   res.status(204).end();
 }
