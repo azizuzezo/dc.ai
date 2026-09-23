@@ -124,33 +124,45 @@ export async function handleHostPreviewPage(req, res) {
   const url = (path) => `${baseUrl}/overlay/${token}${path}`;
   const milestones = await db.listMilestones(settings.guild_id);
 
-  const frame = (name, src, style) =>
-    `<div class="mock-item" style="${style}">
+  // Design coordinates are against a real 1920×1080 canvas (matches a real
+  // OBS/stream resolution 1:1) — the whole canvas is scaled down uniformly to
+  // fit the browser window (see the stage-wrap/scaling script below), the
+  // same way OBS's own preview monitor works. Widgets bigger than what fits
+  // comfortably alongside everything else (Alert, Chat Live, the ranking
+  // boards) are shown at a reduced scale here — that's just this overview's
+  // thumbnail size, not a change to their real suggested OBS size.
+  const frame = (name, src, { top, left, right, w, h, origW = w, origH = h }) => {
+    const scale = w / origW;
+    const pos = left !== undefined ? `left:${left}px` : `right:${right}px`;
+    return `<div class="mock-item" style="top:${top}px;${pos};width:${w}px;height:${h}px">
       <div class="mock-label">${escapeHtml(name)}</div>
-      <iframe src="${escapeHtml(src)}" loading="lazy"></iframe>
+      <iframe src="${escapeHtml(src)}" loading="lazy"
+        style="width:${origW}px;height:${origH}px;transform:scale(${scale});transform-origin:top left"></iframe>
     </div>`;
+  };
 
   const canvasItems = [
-    frame("Like Counter", url("/likes"), "top:16px;left:16px;width:220px;height:60px"),
-    frame("Follower Count", url("/followers"), "top:84px;left:16px;width:260px;height:60px"),
-    frame("Share Count", url("/share"), "top:152px;left:16px;width:220px;height:60px"),
-    frame("Coin Jar", url("/jar"), "top:220px;left:16px;width:140px;height:190px"),
-    frame("Wishlist", url("/wishlist"), "top:420px;left:16px;width:320px;height:160px"),
+    frame("Like Counter", url("/likes"), { top: 24, left: 24, w: 220, h: 80 }),
+    frame("Follower Count", url("/followers"), { top: 112, left: 24, w: 260, h: 80 }),
+    frame("Share Count", url("/share"), { top: 200, left: 24, w: 220, h: 80 }),
+    frame("Coin Jar", url("/jar"), { top: 288, left: 24, w: 140, h: 190 }),
+    frame("Wishlist", url("/wishlist"), { top: 486, left: 24, origW: 320, origH: 160, w: 288, h: 144 }),
     ...milestones.map((m, i) =>
-      frame(`Milestone: ${m.label}`, url(`/milestone/${m.id}`), `top:${590 + i * 98}px;left:16px;width:300px;height:90px`)
+      frame(`Milestone: ${m.label}`, url(`/milestone/${m.id}`), { top: 638 + i * 98, left: 24, w: 300, h: 90 })
     ),
-    frame("Waktu", url("/subathon"), "top:16px;left:50%;transform:translateX(-50%);width:320px;height:140px"),
-    frame("Gift", url("/gift"), "top:170px;left:50%;transform:translateX(-50%);width:420px;height:100px"),
-    frame("Link Preview", url("/link-preview"), "top:288px;left:50%;transform:translateX(-50%);width:360px;height:220px"),
-    frame("Points Drop", url("/points-drop"), "top:376px;left:50%;transform:translateX(-50%);width:420px;height:80px"),
-    frame("Command Response", url("/commands"), "top:472px;left:50%;transform:translateX(-50%);width:440px;height:100px"),
-    frame("Alert", url(""), "bottom:16px;left:50%;transform:translateX(-50%);width:800px;height:600px"),
-    // Stacked in one right-hand column (not beside each other) — side by side
-    // at this canvas width collided with the centered Waktu/Alert column.
-    frame("Chat Live", url("/chat"), "top:16px;right:16px;width:360px;height:420px"),
-    frame("Leaderboard", url("/leaderboard"), "top:452px;right:96px;width:280px;height:360px"),
-    frame("Papan Poin", url("/points-leaderboard"), "top:828px;right:96px;width:280px;height:320px"),
-    frame("Likeathon", url("/likeathon"), "top:1164px;right:96px;width:280px;height:320px"),
+    frame("Waktu", url("/subathon"), { top: 24, left: 800, w: 320, h: 140 }),
+    frame("Gift", url("/gift"), { top: 180, left: 792, origW: 420, origH: 100, w: 336, h: 80 }),
+    frame("Link Preview", url("/link-preview"), { top: 276, left: 816, origW: 360, origH: 220, w: 288, h: 176 }),
+    frame("Points Drop", url("/points-drop"), { top: 468, left: 792, origW: 420, origH: 80, w: 336, h: 64 }),
+    frame("Command Response", url("/commands"), { top: 548, left: 784, origW: 440, origH: 100, w: 352, h: 80 }),
+    frame("Alert", url(""), { top: 726, left: 740, origW: 800, origH: 600, w: 440, h: 330 }),
+    frame("Chat Live", url("/chat"), { top: 24, right: 24, origW: 360, origH: 420, w: 252, h: 294 }),
+    // A compact row under Chat Live instead of a full-size stacked column —
+    // full-size boards here collided with either Chat Live or the centered
+    // Alert/Waktu column; this is still enough to see each one update live.
+    frame("Leaderboard", url("/leaderboard"), { top: 342, left: 1410, origW: 280, origH: 360, w: 154, h: 198 }),
+    frame("Papan Poin", url("/points-leaderboard"), { top: 342, left: 1576, origW: 280, origH: 320, w: 154, h: 176 }),
+    frame("Likeathon", url("/likeathon"), { top: 342, left: 1742, origW: 280, origH: 320, w: 154, h: 176 }),
   ].join("");
 
   const standaloneItems = [
@@ -180,13 +192,19 @@ export async function handleHostPreviewPage(req, res) {
       #topbar a{color:#fff;background:#333;border:1px solid #444;border-radius:8px;padding:8px 14px;
         font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
       #topbar a:hover{background:#444}
-      #canvas-wrap{overflow:auto;padding:24px}
-      #mock-canvas{position:relative;width:1280px;height:1550px;
+      #canvas-wrap{padding:24px}
+      /* Real 16:9 stage — a genuine 1920×1080 canvas (same as an actual OBS
+         canvas resolution) uniformly scaled down to fit the window, exactly
+         like OBS's own preview monitor does. Everything inside is designed
+         at real 1920×1080 coordinates, never at whatever size the browser
+         window happens to be. */
+      #stage-wrap{position:relative;width:100%;max-width:1800px;aspect-ratio:16/9;margin:0 auto;
+        overflow:hidden;border-radius:12px;border:1px solid #444;background:#000}
+      #mock-canvas{position:absolute;top:0;left:0;width:1920px;height:1080px;transform-origin:top left;
         background-color:#2a2a2a;background-image:linear-gradient(45deg,#3a3a3a 25%,transparent 25%),linear-gradient(-45deg,#3a3a3a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#3a3a3a 75%),linear-gradient(-45deg,transparent 75%,#3a3a3a 75%);
-        background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;
-        border-radius:12px;border:1px solid #444;margin:0 auto}
+        background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
       .mock-item{position:absolute}
-      .mock-item iframe{width:100%;height:100%;border:1px dashed rgba(255,255,255,.35);border-radius:6px;background:transparent}
+      .mock-item iframe{border:1px dashed rgba(255,255,255,.35);border-radius:6px;background:transparent}
       .mock-label{color:#fff;font-size:11px;font-weight:700;background:rgba(0,0,0,.6);display:inline-block;
         padding:2px 6px;border-radius:4px;margin-bottom:2px}
       #standalone{padding:0 24px 32px}
@@ -202,8 +220,10 @@ export async function handleHostPreviewPage(req, res) {
       <a href="/host/${identifier}/widget">← Kembali ke Semua Widget</a>
     </div>
     <div id="canvas-wrap">
-      <div id="mock-canvas">
-        ${canvasItems}
+      <div id="stage-wrap">
+        <div id="mock-canvas">
+          ${canvasItems}
+        </div>
       </div>
     </div>
     <div id="standalone">
@@ -211,5 +231,14 @@ export async function handleHostPreviewPage(req, res) {
       <p>Video, layar Aksi &amp; Event, dan Wheel of Fortune biasanya cuma aktif di momen tertentu (atau butuh ukuran gede sendiri), jadi ditampilin terpisah dari kanvas di atas.</p>
       ${standaloneItems}
     </div>
+    <script>
+      const stageWrap = document.getElementById("stage-wrap");
+      const stage = document.getElementById("mock-canvas");
+      function fitStage() {
+        stage.style.transform = "scale(" + (stageWrap.clientWidth / 1920) + ")";
+      }
+      fitStage();
+      window.addEventListener("resize", fitStage);
+    </script>
   </body></html>`);
 }
