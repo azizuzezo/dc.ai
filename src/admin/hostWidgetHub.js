@@ -1,3 +1,4 @@
+import * as db from "../services/db.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -62,7 +63,9 @@ export async function handleHostWidgetHubPage(req, res) {
   const groups = buildWidgetGroups(baseUrl, settings.overlay_token);
 
   const body = `
-    <div class="topbar"><div><h1>Semua Widget</h1><p>Satu tempat buat lihat &amp; copy semua link widget OBS kamu, lengkap sama ukuran yang disaranin.</p></div></div>
+    <div class="topbar"><div><h1>Semua Widget</h1><p>Satu tempat buat lihat &amp; copy semua link widget OBS kamu, lengkap sama ukuran yang disaranin.</p></div>
+      <a href="/host/${identifier}/widget/preview" class="btn btn-primary">Preview Semua Widget (Live)</a>
+    </div>
     ${!settings.tiktok_url ? `<p class="hint" style="color:var(--warning)">Widget TikTok LIVE butuh username TikTok — isi dulu di halaman <a href="/host/${identifier}/tampilan" style="color:inherit">Tampilan</a>.</p>` : ""}
     <div class="panel" style="border-color:var(--brand);background:var(--brand-soft)">
       <p class="hint" style="color:var(--ink);margin:0"><strong>Widget bertanda "Full Screen"</strong> (Alert &amp; Aksi &amp; Event) punya efek yang nutupin seluruh layar (confetti, kembang api, flash) — tambahin sebagai Browser Source sebesar <strong>resolusi canvas OBS kamu</strong> (biasanya 1920×1080), bukan kotak kecil, biar efeknya gak kepotong.</p>
@@ -104,6 +107,91 @@ export async function handleHostWidgetHubPage(req, res) {
         window.open(btn.dataset.url, "_blank", "noopener,width=" + w + ",height=" + h + ",left=" + left + ",top=" + top);
       }
     </script>`;
+
+  res.send(hostLayout(body, { active: "widget", identifier, settings }));
+}
+
+/** Absolutely-positioned iframes on one mock "OBS canvas" so every transparent
+ * overlay widget can be checked live, together, without opening ~20 tabs.
+ * Positions are a reasonable default arrangement (counters top-left, boards
+ * top-right, chat far-right, Waktu/Alert/transient banners center), not a
+ * prescription — hosts still pick their own real layout per-widget in OBS. */
+export async function handleHostPreviewPage(req, res) {
+  const settings = req.donationSettings;
+  const identifier = req.params.identifier;
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const token = settings.overlay_token;
+  const url = (path) => `${baseUrl}/overlay/${token}${path}`;
+  const milestones = await db.listMilestones(settings.guild_id);
+
+  const frame = (name, src, style) =>
+    `<div class="mock-item" style="${style}">
+      <div class="mock-label">${escapeHtml(name)}</div>
+      <iframe src="${escapeHtml(src)}" loading="lazy"></iframe>
+    </div>`;
+
+  const canvasItems = [
+    frame("Like Counter", url("/likes"), "top:16px;left:16px;width:220px;height:60px"),
+    frame("Follower Count", url("/followers"), "top:84px;left:16px;width:260px;height:60px"),
+    frame("Share Count", url("/share"), "top:152px;left:16px;width:220px;height:60px"),
+    frame("Coin Jar", url("/jar"), "top:220px;left:16px;width:140px;height:190px"),
+    frame("Wishlist", url("/wishlist"), "top:420px;left:16px;width:320px;height:160px"),
+    ...milestones.map((m, i) =>
+      frame(`Milestone: ${m.label}`, url(`/milestone/${m.id}`), `top:${590 + i * 98}px;left:16px;width:300px;height:90px`)
+    ),
+    frame("Waktu", url("/subathon"), "top:16px;left:50%;transform:translateX(-50%);width:320px;height:140px"),
+    frame("Gift", url("/gift"), "top:170px;left:50%;transform:translateX(-50%);width:420px;height:100px"),
+    frame("Link Preview", url("/link-preview"), "top:288px;left:50%;transform:translateX(-50%);width:360px;height:220px"),
+    frame("Points Drop", url("/points-drop"), "top:376px;left:50%;transform:translateX(-50%);width:420px;height:80px"),
+    frame("Command Response", url("/commands"), "top:472px;left:50%;transform:translateX(-50%);width:440px;height:100px"),
+    frame("Alert", url(""), "bottom:16px;left:50%;transform:translateX(-50%);width:800px;height:600px"),
+    // Stacked in one right-hand column (not beside each other) — side by side
+    // at this canvas width collided with the centered Waktu/Alert column.
+    frame("Chat Live", url("/chat"), "top:16px;right:16px;width:360px;height:420px"),
+    frame("Leaderboard", url("/leaderboard"), "top:452px;right:96px;width:280px;height:360px"),
+    frame("Papan Poin", url("/points-leaderboard"), "top:828px;right:96px;width:280px;height:320px"),
+    frame("Likeathon", url("/likeathon"), "top:1164px;right:96px;width:280px;height:320px"),
+  ].join("");
+
+  const standaloneItems = [
+    { name: "Video (klip YouTube donasi)", src: url("/video"), w: 640, h: 480 },
+    { name: "Layar 1 — Aksi & Event (Full Screen)", src: url("/actions?screen=1"), w: 960, h: 540 },
+    { name: "Wheel of Fortune", src: url("/wheel"), w: 280, h: 320 },
+    { name: "Sound Alert (audio doang, gak ada tampilan)", src: url("/sound-alerts"), w: 80, h: 80 },
+  ]
+    .map(
+      (w) => `<div class="panel" style="display:inline-block;margin:0 1rem 1rem 0;vertical-align:top">
+        <h3 style="margin-top:0">${escapeHtml(w.name)}</h3>
+        <iframe src="${escapeHtml(w.src)}" loading="lazy" style="width:${w.w}px;height:${w.h}px;border:1px solid var(--border);border-radius:8px;background:#111"></iframe>
+      </div>`
+    )
+    .join("");
+
+  const body = `
+    <div class="topbar"><div><h1>Preview Semua Widget</h1><p>Semua widget transparan digabung di satu "kanvas" buat dites bareng — posisinya cuma perkiraan, layout asli tetap kamu atur sendiri per-widget di OBS.</p></div>
+      <a href="/host/${identifier}/widget" class="btn">← Kembali ke Semua Widget</a>
+    </div>
+    <div style="overflow-x:auto;padding-bottom:1rem">
+      <div id="mock-canvas" style="position:relative;width:1280px;height:1550px;flex:none;
+        background-color:#2a2a2a;background-image:linear-gradient(45deg,#3a3a3a 25%,transparent 25%),linear-gradient(-45deg,#3a3a3a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#3a3a3a 75%),linear-gradient(-45deg,transparent 75%,#3a3a3a 75%);
+        background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;
+        border-radius:12px;border:1px solid var(--border)">
+        ${canvasItems}
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Widget lain (bukan overlay transparan)</h2>
+      <p class="hint">Video, layar Aksi &amp; Event, dan Wheel of Fortune biasanya cuma aktif di momen tertentu (atau butuh ukuran gede sendiri), jadi ditampilin terpisah dari kanvas di atas.</p>
+      ${standaloneItems}
+    </div>
+
+    <style>
+      .mock-item{position:absolute}
+      .mock-item iframe{width:100%;height:100%;border:1px dashed rgba(255,255,255,.35);border-radius:6px;background:transparent}
+      .mock-label{color:#fff;font-size:11px;font-weight:700;background:rgba(0,0,0,.6);display:inline-block;
+        padding:2px 6px;border-radius:4px;margin-bottom:2px}
+    </style>`;
 
   res.send(hostLayout(body, { active: "widget", identifier, settings }));
 }

@@ -86,7 +86,7 @@ import {
 import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsAdjust, handleHostPointsHalving } from "./hostPoints.js";
 import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate, handleHostVolumeUpdate } from "./hostSoundAlerts.js";
 import { handleHostModerationPage, handleHostModerationUpdate } from "./hostModeration.js";
-import { handleHostWidgetHubPage } from "./hostWidgetHub.js";
+import { handleHostWidgetHubPage, handleHostPreviewPage } from "./hostWidgetHub.js";
 import {
   handleHostAlertAppearancePage,
   handleHostChatBubbleUpdate,
@@ -275,6 +275,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/logout", handleHostLogout);
   app.get("/host/:identifier", requireHostAuth, handleHostHomePage);
   app.get("/host/:identifier/widget", requireHostAuth, handleHostWidgetHubPage);
+  app.get("/host/:identifier/widget/preview", requireHostAuth, handleHostPreviewPage);
   app.get("/host/:identifier/tiktok-followers", requireHostAuth, handleHostTiktokFollowers);
   app.get("/host/:identifier/wishlist", requireHostAuth, (req, res) => handleHostWishlistPage(req, res));
   app.post("/host/:identifier/wishlist", requireHostAuth, handleHostWishlistAdd);
