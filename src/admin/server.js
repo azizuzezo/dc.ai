@@ -84,7 +84,7 @@ import {
   handleHostTiktokFollowers,
   handleHostTestLiveEvent,
 } from "./hostDashboard.js";
-import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsAdjust, handleHostPointsHalving } from "./hostPoints.js";
+import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsAdjust, handleHostPointsHalving, handleHostPointsStyleUpdate } from "./hostPoints.js";
 import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate, handleHostVolumeUpdate } from "./hostSoundAlerts.js";
 import { handleHostModerationPage, handleHostModerationUpdate } from "./hostModeration.js";
 import { handleHostWidgetHubPage, handleHostPreviewPage } from "./hostWidgetHub.js";
@@ -306,6 +306,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/poin/pengaturan", requireHostAuth, handleHostPointsSettingsUpdate);
   app.post("/host/:identifier/poin/adjust", requireHostAuth, handleHostPointsAdjust);
   app.post("/host/:identifier/poin/halving", requireHostAuth, handleHostPointsHalving);
+  app.post("/host/:identifier/poin/style", requireHostAuth, handleHostPointsStyleUpdate);
 
   app.get("/host/:identifier/suara", requireHostAuth, (req, res) => handleHostSoundAlertsPage(req, res));
   app.post("/host/:identifier/suara", requireHostAuth, handleHostSoundAlertsUpdate);

@@ -724,3 +724,36 @@ export const JAR_TEMPLATES = [
     style: { lidColor: "#7c3aed", fillColor: "#39ff88", labelBgColor: "#0a0a12", labelBgOpacity: 90, labelTextColor: "#e5e5ff", fontFamily: "Bebas Neue" },
   },
 ];
+
+export const POINTS_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: { panelColor: "#ffffff", panelOpacity: 97, titleColor: "#122e1e", rankColor: "#76cc11", nameColor: "#122e1e", valColor: "#122e1e", fontFamily: "Open Sans", fontSize: 13 },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: { panelColor: "#12122a", panelOpacity: 90, titleColor: "#f5f5ff", rankColor: "#00f5ff", nameColor: "#f5f5ff", valColor: "#ff2fd0", fontFamily: "Poppins", fontSize: 13 },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: { panelColor: "#fdf2f8", panelOpacity: 96, titleColor: "#831843", rankColor: "#db2777", nameColor: "#831843", valColor: "#db2777", fontFamily: "Comic Neue", fontSize: 14 },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: { panelColor: "#0f0f0f", panelOpacity: 94, titleColor: "#facc15", rankColor: "#facc15", nameColor: "#f5f5f5", valColor: "#facc15", fontFamily: "Montserrat", fontSize: 13 },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: { panelColor: "#ffffff", panelOpacity: 100, titleColor: "#111827", rankColor: "#6b7280", nameColor: "#111827", valColor: "#111827", fontFamily: "Inter", fontSize: 13 },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: { panelColor: "#0a0a12", panelOpacity: 90, titleColor: "#e5e5ff", rankColor: "#39ff88", nameColor: "#e5e5ff", valColor: "#7c3aed", fontFamily: "Bebas Neue", fontSize: 15 },
+  },
+];

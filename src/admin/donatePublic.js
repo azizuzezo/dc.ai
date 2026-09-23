@@ -1979,24 +1979,38 @@ export async function handlePointsLeaderboardData(req, res) {
   res.json({ leaderboard: rows, currencyName: settings.points_currency_name });
 }
 
+const POINTS_STYLE_DEFAULTS = {
+  panelColor: "#ffffff",
+  panelOpacity: 97,
+  titleColor: "#122e1e",
+  rankColor: "#76cc11",
+  nameColor: "#122e1e",
+  valColor: "#122e1e",
+  fontFamily: "Open Sans",
+  fontSize: 13,
+};
+
 export async function handlePointsLeaderboardPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...POINTS_STYLE_DEFAULTS, ...(settings.points_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
+  const rowBorder = hexToRgba(style.titleColor, 12);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #card{width:260px;background:rgba(255,255,255,.97);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
-      #card h3{margin:0 0 8px;color:#122e1e;font-size:15px}
-      .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:13px;color:#122e1e;border-top:1px solid #eee}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #card{width:260px;background:${hexToRgba(style.panelColor, style.panelOpacity)};border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      #card h3{margin:0 0 8px;color:${escapeHtml(style.titleColor)};font-size:15px}
+      .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:${style.fontSize}px;color:${escapeHtml(style.nameColor)};border-top:1px solid ${rowBorder}}
       .row:first-of-type{border-top:none}
-      .rank{color:#76cc11;font-weight:800;width:1.4em;flex:none}
+      .rank{color:${escapeHtml(style.rankColor)};font-weight:800;width:1.4em;flex:none}
       .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .val{font-weight:700}
-      #empty{color:#5b7267;font-size:12px}
+      .val{font-weight:700;color:${escapeHtml(style.valColor)}}
+      #empty{color:${escapeHtml(style.titleColor)};font-size:12px}
     </style></head><body>
     <div id="card"><h3>Papan Poin</h3><div id="rows"><p id="empty">Belum ada data.</p></div></div>
     <script>
