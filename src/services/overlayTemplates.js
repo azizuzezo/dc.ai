@@ -757,3 +757,57 @@ export const POINTS_TEMPLATES = [
     style: { panelColor: "#0a0a12", panelOpacity: 90, titleColor: "#e5e5ff", rankColor: "#39ff88", nameColor: "#e5e5ff", valColor: "#7c3aed", fontFamily: "Bebas Neue", fontSize: 15 },
   },
 ];
+
+export const ACTIONS_TEMPLATES = [
+  { key: "klasik", label: "Klasik Hijau", style: { nameColor: "#ffffff", descColor: "#e5e7eb", fontFamily: "Open Sans", nameSize: 22, descSize: 15 } },
+  { key: "neon", label: "Neon Malam", style: { nameColor: "#00f5ff", descColor: "#f5f5ff", fontFamily: "Poppins", nameSize: 22, descSize: 15 } },
+  { key: "pastel", label: "Pastel Lembut", style: { nameColor: "#f9a8d4", descColor: "#fdf2f8", fontFamily: "Comic Neue", nameSize: 23, descSize: 16 } },
+  { key: "emas", label: "Emas Elegan", style: { nameColor: "#facc15", descColor: "#f5f5f5", fontFamily: "Montserrat", nameSize: 22, descSize: 15 } },
+  { key: "minimalis", label: "Minimalis Putih", style: { nameColor: "#ffffff", descColor: "#e5e7eb", fontFamily: "Inter", nameSize: 20, descSize: 14 } },
+  { key: "gamer", label: "Gamer RGB", style: { nameColor: "#39ff88", descColor: "#e5e5ff", fontFamily: "Bebas Neue", nameSize: 26, descSize: 16 } },
+];
+
+export const WHEEL_TEMPLATES = [
+  { key: "klasik", label: "Klasik Hijau", style: { colorA: "#76cc11", colorB: "#aced60", pointerColor: "#dc2626", resultBgColor: "#ffffff", resultTextColor: "#122e1e", fontFamily: "Open Sans" } },
+  { key: "neon", label: "Neon Malam", style: { colorA: "#00f5ff", colorB: "#ff2fd0", pointerColor: "#facc15", resultBgColor: "#12122a", resultTextColor: "#f5f5ff", fontFamily: "Poppins" } },
+  { key: "pastel", label: "Pastel Lembut", style: { colorA: "#f9a8d4", colorB: "#db2777", pointerColor: "#831843", resultBgColor: "#fdf2f8", resultTextColor: "#831843", fontFamily: "Comic Neue" } },
+  { key: "emas", label: "Emas Elegan", style: { colorA: "#facc15", colorB: "#a16207", pointerColor: "#facc15", resultBgColor: "#0f0f0f", resultTextColor: "#facc15", fontFamily: "Montserrat" } },
+  { key: "minimalis", label: "Minimalis Putih", style: { colorA: "#111827", colorB: "#6b7280", pointerColor: "#16a34a", resultBgColor: "#ffffff", resultTextColor: "#111827", fontFamily: "Inter" } },
+  { key: "gamer", label: "Gamer RGB", style: { colorA: "#39ff88", colorB: "#7c3aed", pointerColor: "#00f5ff", resultBgColor: "#0a0a12", resultTextColor: "#e5e5ff", fontFamily: "Bebas Neue" } },
+];
+
+export const COMMAND_RESPONSE_TEMPLATES = [
+  { key: "klasik", label: "Klasik Hijau", style: { bgColor: "#ffffff", bgOpacity: 97, textColor: "#122e1e", fontFamily: "Open Sans", fontSize: 14 } },
+  { key: "neon", label: "Neon Malam", style: { bgColor: "#12122a", bgOpacity: 92, textColor: "#f5f5ff", fontFamily: "Poppins", fontSize: 14 } },
+  { key: "pastel", label: "Pastel Lembut", style: { bgColor: "#fdf2f8", bgOpacity: 96, textColor: "#831843", fontFamily: "Comic Neue", fontSize: 15 } },
+  { key: "emas", label: "Emas Elegan", style: { bgColor: "#0f0f0f", bgOpacity: 94, textColor: "#facc15", fontFamily: "Montserrat", fontSize: 14 } },
+  { key: "minimalis", label: "Minimalis Putih", style: { bgColor: "#ffffff", bgOpacity: 100, textColor: "#111827", fontFamily: "Inter", fontSize: 14 } },
+  { key: "gamer", label: "Gamer RGB", style: { bgColor: "#0a0a12", bgOpacity: 90, textColor: "#39ff88", fontFamily: "Bebas Neue", fontSize: 16 } },
+];
+
+export const POINTS_DROP_TEMPLATES = [
+  { key: "klasik", label: "Klasik Hijau", style: { bgColor: "#76cc11", textColor: "#ffffff", fontFamily: "Open Sans", fontSize: 16 } },
+  { key: "neon", label: "Neon Malam", style: { bgColor: "#12122a", textColor: "#00f5ff", fontFamily: "Poppins", fontSize: 16 } },
+  { key: "pastel", label: "Pastel Lembut", style: { bgColor: "#db2777", textColor: "#ffffff", fontFamily: "Comic Neue", fontSize: 17 } },
+  { key: "emas", label: "Emas Elegan", style: { bgColor: "#0f0f0f", textColor: "#facc15", fontFamily: "Montserrat", fontSize: 16 } },
+  { key: "minimalis", label: "Minimalis Putih", style: { bgColor: "#111827", textColor: "#ffffff", fontFamily: "Inter", fontSize: 16 } },
+  { key: "gamer", label: "Gamer RGB", style: { bgColor: "#7c3aed", textColor: "#39ff88", fontFamily: "Bebas Neue", fontSize: 18 } },
+];
+
+export const LINK_PREVIEW_TEMPLATES = [
+  { key: "klasik", label: "Klasik Hijau", style: { bgColor: "#ffffff", bgOpacity: 97, userColor: "#76cc11", titleColor: "#122e1e", descColor: "#5b7267", fontFamily: "Open Sans" } },
+  { key: "neon", label: "Neon Malam", style: { bgColor: "#12122a", bgOpacity: 92, userColor: "#00f5ff", titleColor: "#f5f5ff", descColor: "#b9b9d8", fontFamily: "Poppins" } },
+  { key: "pastel", label: "Pastel Lembut", style: { bgColor: "#fdf2f8", bgOpacity: 96, userColor: "#db2777", titleColor: "#831843", descColor: "#a8577f", fontFamily: "Comic Neue" } },
+  { key: "emas", label: "Emas Elegan", style: { bgColor: "#0f0f0f", bgOpacity: 94, userColor: "#facc15", titleColor: "#f5f5f5", descColor: "#b8b8b8", fontFamily: "Montserrat" } },
+  { key: "minimalis", label: "Minimalis Putih", style: { bgColor: "#ffffff", bgOpacity: 100, userColor: "#6b7280", titleColor: "#111827", descColor: "#6b7280", fontFamily: "Inter" } },
+  { key: "gamer", label: "Gamer RGB", style: { bgColor: "#0a0a12", bgOpacity: 90, userColor: "#39ff88", titleColor: "#e5e5ff", descColor: "#9d9dc9", fontFamily: "Bebas Neue" } },
+];
+
+export const VIDEO_TEMPLATES = [
+  { key: "klasik", label: "Klasik Hijau", style: { nameColor: "#86efac", line2Color: "#ffffff", fontFamily: "Inter", fontSize: 38 } },
+  { key: "neon", label: "Neon Malam", style: { nameColor: "#00f5ff", line2Color: "#f5f5ff", fontFamily: "Poppins", fontSize: 38 } },
+  { key: "pastel", label: "Pastel Lembut", style: { nameColor: "#f9a8d4", line2Color: "#ffffff", fontFamily: "Comic Neue", fontSize: 40 } },
+  { key: "emas", label: "Emas Elegan", style: { nameColor: "#facc15", line2Color: "#ffffff", fontFamily: "Montserrat", fontSize: 38 } },
+  { key: "minimalis", label: "Minimalis Putih", style: { nameColor: "#ffffff", line2Color: "#e5e7eb", fontFamily: "Inter", fontSize: 34 } },
+  { key: "gamer", label: "Gamer RGB", style: { nameColor: "#39ff88", line2Color: "#e5e5ff", fontFamily: "Bebas Neue", fontSize: 44 } },
+];

@@ -1,7 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
-import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES, TAG_TEMPLATES, JAR_TEMPLATES } from "../services/overlayTemplates.js";
+import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES, TAG_TEMPLATES, JAR_TEMPLATES, VIDEO_TEMPLATES } from "../services/overlayTemplates.js";
 import { FONT_STACKS as FONT_OPTIONS, ANIMATION_OPTIONS } from "../services/overlayStyleShared.js";
 import { HEX_RE, hexToRgba, shadeHex, fontSelect, animationSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
@@ -74,6 +74,13 @@ const JAR_STYLE_DEFAULTS = {
   labelBgOpacity: 97,
   labelTextColor: "#122e1e",
   fontFamily: "Open Sans",
+};
+
+const VIDEO_STYLE_DEFAULTS = {
+  nameColor: "#86efac",
+  line2Color: "#ffffff",
+  fontFamily: "Inter",
+  fontSize: 38,
 };
 
 function layoutSelect(id, name, current) {
@@ -187,6 +194,13 @@ function jarPreviewHTML(style) {
   </div>`;
 }
 
+function videoPreviewHTML(style) {
+  return `<div class="tpl-preview" style="background:#1a1a1a;flex-direction:column;gap:2px">
+    <div style="font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS.Inter};font-weight:800;font-size:.9rem;color:#fff">Rp20.000 dari <span style="color:${escapeHtml(style.nameColor)}">Nama</span></div>
+    <div style="font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS.Inter};font-size:.62rem;color:${escapeHtml(style.line2Color)}">Puter lagu ini dong!</div>
+  </div>`;
+}
+
 const EFFECT_LABELS = {
   none: "Tanpa efek",
   shake: "Goyang (shake)",
@@ -208,6 +222,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const likeathonStyle = { ...LIKEATHON_STYLE_DEFAULTS, ...(settings.likeathon_style || {}) };
   const tagStyle = { ...TAG_STYLE_DEFAULTS, ...(settings.tag_style || {}) };
   const jarStyle = { ...JAR_STYLE_DEFAULTS, ...(settings.jar_style || {}) };
+  const videoStyle = { ...VIDEO_STYLE_DEFAULTS, ...(settings.video_style || {}) };
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
@@ -510,6 +525,35 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     </form>
 
     <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Widget Video (Donasi Lagu)</h2>
+      <p class="hint">Warna caption yang muncul di atas video YouTube saat donasi disertai clip. Klik salah satu buat langsung pakai.</p>
+      ${templateGallery(VIDEO_TEMPLATES, `/host/${identifier}/tampilan-alert/video`, videoPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/video" style="margin-top:1.25rem">
+      <h2>Widget Video (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="vdNameColor">Warna nama donatur</label>
+          <input id="vdNameColor" type="color" name="nameColor" value="${escapeHtml(videoStyle.nameColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="vdLine2Color">Warna pesan</label>
+          <input id="vdLine2Color" type="color" name="line2Color" value="${escapeHtml(videoStyle.line2Color)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="vdFontFamily">Font</label>
+          ${fontSelect("vdFontFamily", "fontFamily", videoStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="vdFontSize">Ukuran teks nama (px)</label>
+          <input id="vdFontSize" type="number" name="fontSize" min="20" max="60" value="${videoStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
       <h2>Alert Berdasarkan Nominal</h2>
       <p class="hint">Widget Alert (donasi) bisa nampilin gambar &amp; efek beda-beda tergantung nominal donasi — dipilih otomatis dari tingkatan tertinggi yang nominalnya kepenuhin.</p>
       ${
@@ -654,6 +698,19 @@ export async function handleHostJarStyleUpdate(req, res) {
       labelBgOpacity: Math.min(100, Math.max(0, Number(req.body.labelBgOpacity) || 0)),
       labelTextColor: HEX_RE.test(req.body.labelTextColor || "") ? req.body.labelTextColor : JAR_STYLE_DEFAULTS.labelTextColor,
       fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : JAR_STYLE_DEFAULTS.fontFamily,
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostVideoStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    video_style: {
+      nameColor: HEX_RE.test(req.body.nameColor || "") ? req.body.nameColor : VIDEO_STYLE_DEFAULTS.nameColor,
+      line2Color: HEX_RE.test(req.body.line2Color || "") ? req.body.line2Color : VIDEO_STYLE_DEFAULTS.line2Color,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : VIDEO_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(60, Math.max(20, Number(req.body.fontSize) || VIDEO_STYLE_DEFAULTS.fontSize)),
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);

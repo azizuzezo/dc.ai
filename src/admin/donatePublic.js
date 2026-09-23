@@ -1356,24 +1356,33 @@ const VIDEO_RP_PER_SECOND = 1000;
 const VIDEO_MIN_SECONDS = 10;
 const VIDEO_MAX_SECONDS = 120;
 
+const VIDEO_STYLE_DEFAULTS = {
+  nameColor: "#86efac",
+  line2Color: "#ffffff",
+  fontFamily: "Inter",
+  fontSize: 38,
+};
+
 export async function handleVideoPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...VIDEO_STYLE_DEFAULTS, ...(settings.video_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS.Inter;
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Inter',sans-serif}
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:${fontStack}}
       #wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
         opacity:0;transition:opacity .3s ease}
       #wrap.show{opacity:1}
       #player{width:100%;flex:1;min-height:0}
       #caption{flex:none;padding:18px 20px 12px;text-align:center}
-      #capLine1{font-size:38px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.65);line-height:1.2}
-      #capLine1 .name{color:#86efac}
-      #capLine2{margin-top:6px;font-size:24px;font-weight:600;color:rgba(255,255,255,.92);text-shadow:0 2px 8px rgba(0,0,0,.65)}
+      #capLine1{font-size:${style.fontSize}px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.65);line-height:1.2}
+      #capLine1 .name{color:${escapeHtml(style.nameColor)}}
+      #capLine2{margin-top:6px;font-size:${Math.max(14, Math.round(style.fontSize * 0.63))}px;font-weight:600;color:${escapeHtml(style.line2Color)};text-shadow:0 2px 8px rgba(0,0,0,.65)}
     </style></head><body>
     <div id="wrap"><div id="player"></div><div id="caption"><div id="capLine1"></div><div id="capLine2"></div></div></div>
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -2079,24 +2088,34 @@ export async function handleSoundAlertPage(req, res) {
   </body></html>`);
 }
 
+const ACTIONS_STYLE_DEFAULTS = {
+  nameColor: "#ffffff",
+  descColor: "#e5e7eb",
+  fontFamily: "Open Sans",
+  nameSize: 22,
+  descSize: 15,
+};
+
 export async function handleActionsScreenPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
   const screen = Number(req.query.screen) || 1;
+  const style = { ...ACTIONS_STYLE_DEFAULTS, ...(settings.actions_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Open Sans',sans-serif}
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:${fontStack}}
       #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
         opacity:0;transition:opacity .25s ease}
       #stage.show{opacity:1}
       #stage img,#stage video{max-width:90vw;max-height:90vh}
       #stage .caption{position:absolute;bottom:6%;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.6);color:#fff}
-      #stage .name{font-size:22px;font-weight:800}
-      #stage .desc{font-size:15px;font-weight:400;margin-top:.2rem}
+      #stage .name{font-size:${style.nameSize}px;font-weight:800;color:${escapeHtml(style.nameColor)}}
+      #stage .desc{font-size:${style.descSize}px;font-weight:400;margin-top:.2rem;color:${escapeHtml(style.descColor)}}
     </style></head><body>
     <div id="stage"><div class="media"></div><div class="caption"><div class="name"></div><div class="desc"></div></div></div>
     <script src="/overlay/assets/overlay-relay.js"></script>
@@ -2143,24 +2162,35 @@ export async function handleActionsScreenPage(req, res) {
   </body></html>`);
 }
 
+const WHEEL_STYLE_DEFAULTS = {
+  colorA: "#76cc11",
+  colorB: "#aced60",
+  pointerColor: "#dc2626",
+  resultBgColor: "#ffffff",
+  resultTextColor: "#122e1e",
+  fontFamily: "Open Sans",
+};
+
 export async function handleWheelPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
   const options = (settings.wheel_config || []).filter((o) => o?.label);
+  const style = { ...WHEEL_STYLE_DEFAULTS, ...(settings.wheel_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
       #wrap{position:relative;width:260px;height:260px}
       #wheel{width:100%;height:100%;border-radius:50%;border:6px solid #fff;box-shadow:0 4px 20px rgba(0,0,0,.25);
         transition:transform 4s cubic-bezier(.17,.67,.32,1.02)}
       #pointer{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;
-        border-left:14px solid transparent;border-right:14px solid transparent;border-top:22px solid #dc2626}
-      #result{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.97);
-        color:#122e1e;font-weight:800;padding:6px 14px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+        border-left:14px solid transparent;border-right:14px solid transparent;border-top:22px solid ${escapeHtml(style.pointerColor)}}
+      #result{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);background:${escapeHtml(style.resultBgColor)};
+        color:${escapeHtml(style.resultTextColor)};font-weight:800;padding:6px 14px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
         white-space:nowrap;opacity:0;transition:opacity .3s ease}
       #result.show{opacity:1}
     </style></head><body>
@@ -2172,7 +2202,7 @@ export async function handleWheelPage(req, res) {
     <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
       const OPTIONS = ${JSON.stringify(options.map((o) => o.label))};
-      const COLORS = ["#76cc11", "#5da80d", "#aced60", "#93dc3e"];
+      const COLORS = ${JSON.stringify([style.colorA, shadeHex(style.colorA, -18), style.colorB, shadeHex(style.colorB, -18)])};
       const wheel = document.getElementById("wheel");
       let rotation = 0;
       function paintWheel() {
@@ -2261,17 +2291,27 @@ export async function handleLikeathonPage(req, res) {
   </body></html>`);
 }
 
+const COMMAND_RESPONSE_STYLE_DEFAULTS = {
+  bgColor: "#ffffff",
+  bgOpacity: 97,
+  textColor: "#122e1e",
+  fontFamily: "Open Sans",
+  fontSize: 14,
+};
+
 export async function handleCommandResponsePage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...COMMAND_RESPONSE_STYLE_DEFAULTS, ...(settings.command_response_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #toast{max-width:420px;background:rgba(255,255,255,.97);color:#122e1e;font-size:14px;font-weight:700;
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #toast{max-width:420px;background:${hexToRgba(style.bgColor, style.bgOpacity)};color:${escapeHtml(style.textColor)};font-size:${style.fontSize}px;font-weight:700;
         padding:10px 16px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);
         opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease}
       #toast.show{opacity:1;transform:translateY(0)}
@@ -2293,17 +2333,26 @@ export async function handleCommandResponsePage(req, res) {
   </body></html>`);
 }
 
+const POINTS_DROP_STYLE_DEFAULTS = {
+  bgColor: "#76cc11",
+  textColor: "#ffffff",
+  fontFamily: "Open Sans",
+  fontSize: 16,
+};
+
 export async function handlePointsDropPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...POINTS_DROP_STYLE_DEFAULTS, ...(settings.points_drop_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #banner{background:#76cc11;color:#fff;font-weight:800;font-size:16px;padding:10px 18px;border-radius:12px;
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #banner{background:${escapeHtml(style.bgColor)};color:${escapeHtml(style.textColor)};font-weight:800;font-size:${style.fontSize}px;padding:10px 18px;border-radius:12px;
         box-shadow:0 4px 20px rgba(0,0,0,.15);opacity:0;transform:translateY(-8px);transition:opacity .25s ease,transform .25s ease}
       #banner.show{opacity:1;transform:translateY(0)}
     </style></head><body>
@@ -2325,24 +2374,35 @@ export async function handlePointsDropPage(req, res) {
   </body></html>`);
 }
 
+const LINK_PREVIEW_STYLE_DEFAULTS = {
+  bgColor: "#ffffff",
+  bgOpacity: 97,
+  userColor: "#76cc11",
+  titleColor: "#122e1e",
+  descColor: "#5b7267",
+  fontFamily: "Open Sans",
+};
+
 export async function handleLinkPreviewPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...LINK_PREVIEW_STYLE_DEFAULTS, ...(settings.link_preview_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #card{width:340px;background:rgba(255,255,255,.97);border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.15);
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #card{width:340px;background:${hexToRgba(style.bgColor, style.bgOpacity)};border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.15);
         opacity:0;transform:translateY(8px);transition:opacity .3s ease,transform .3s ease}
       #card.show{opacity:1;transform:translateY(0)}
       #card img{width:100%;height:140px;object-fit:cover;display:none;background:#e5e5e5}
       #card .body{padding:12px 14px}
-      #card .user{font-size:11px;color:#76cc11;font-weight:800;text-transform:uppercase}
-      #card .title{font-size:14px;font-weight:800;color:#122e1e;margin-top:2px}
-      #card .desc{font-size:12px;color:#5b7267;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+      #card .user{font-size:11px;color:${escapeHtml(style.userColor)};font-weight:800;text-transform:uppercase}
+      #card .title{font-size:14px;font-weight:800;color:${escapeHtml(style.titleColor)};margin-top:2px}
+      #card .desc{font-size:12px;color:${escapeHtml(style.descColor)};margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     </style></head><body>
     <div id="card">
       <img id="cardImg" src="" alt="" onerror="this.style.display='none'" />

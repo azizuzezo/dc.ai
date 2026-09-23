@@ -933,6 +933,12 @@ export async function ensureDonationSettings(guildId) {
     tag_style: {},
     jar_style: {},
     points_style: {},
+    actions_style: {},
+    wheel_style: {},
+    command_response_style: {},
+    points_drop_style: {},
+    link_preview_style: {},
+    video_style: {},
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);

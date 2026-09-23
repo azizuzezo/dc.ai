@@ -1,7 +1,56 @@
 import * as db from "../services/db.js";
 import { spinWheel, resetLikeathon, startPointsDrop } from "../services/donationTools.js";
+import { WHEEL_TEMPLATES, COMMAND_RESPONSE_TEMPLATES, POINTS_DROP_TEMPLATES } from "../services/overlayTemplates.js";
+import { FONT_STACKS as FONT_OPTIONS } from "../services/overlayStyleShared.js";
+import { HEX_RE, hexToRgba, shadeHex, fontSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
+
+const WHEEL_STYLE_DEFAULTS = {
+  colorA: "#76cc11",
+  colorB: "#aced60",
+  pointerColor: "#dc2626",
+  resultBgColor: "#ffffff",
+  resultTextColor: "#122e1e",
+  fontFamily: "Open Sans",
+};
+
+const COMMAND_RESPONSE_STYLE_DEFAULTS = {
+  bgColor: "#ffffff",
+  bgOpacity: 97,
+  textColor: "#122e1e",
+  fontFamily: "Open Sans",
+  fontSize: 14,
+};
+
+const POINTS_DROP_STYLE_DEFAULTS = {
+  bgColor: "#76cc11",
+  textColor: "#ffffff",
+  fontFamily: "Open Sans",
+  fontSize: 16,
+};
+
+function wheelPreviewHTML(style) {
+  const stops = [style.colorA, shadeHex(style.colorA, -18), style.colorB, shadeHex(style.colorB, -18)];
+  return `<div class="tpl-preview" style="gap:.4rem">
+    <div style="width:44px;height:44px;border-radius:50%;background:conic-gradient(${stops[0]} 0deg 90deg,${stops[1]} 90deg 180deg,${stops[2]} 180deg 270deg,${stops[3]} 270deg 360deg);border:3px solid #fff"></div>
+    <span style="background:${escapeHtml(style.resultBgColor)};color:${escapeHtml(style.resultTextColor)};font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:6px;font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">Rp10.000!</span>
+  </div>`;
+}
+
+function commandResponsePreviewHTML(style) {
+  return `<div class="tpl-preview">
+    <span style="background:${hexToRgba(style.bgColor, style.bgOpacity)};color:${escapeHtml(style.textColor)};font-size:${Math.max(11, style.fontSize - 4)}px;font-weight:700;padding:6px 12px;border-radius:8px;
+      font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">Poin kamu: 500</span>
+  </div>`;
+}
+
+function pointsDropPreviewHTML(style) {
+  return `<div class="tpl-preview">
+    <span style="background:${escapeHtml(style.bgColor)};color:${escapeHtml(style.textColor)};font-size:${Math.max(11, style.fontSize - 4)}px;font-weight:800;padding:6px 12px;border-radius:8px;
+      font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">Points Drop aktif!</span>
+  </div>`;
+}
 
 function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
@@ -31,6 +80,9 @@ export async function handleHostToolsPage(req, res, notice) {
   const identifier = req.params.identifier;
   const commandsConfig = { help: "!help", score: "!score", send: "!send", get: "!get", spin: "!spin", play: "!play", ...(settings.chat_commands_config || {}) };
   const eventApiUrl = `${baseUrl(req)}/event-api/${settings.overlay_token}/trigger`;
+  const wheelStyle = { ...WHEEL_STYLE_DEFAULTS, ...(settings.wheel_style || {}) };
+  const commandResponseStyle = { ...COMMAND_RESPONSE_STYLE_DEFAULTS, ...(settings.command_response_style || {}) };
+  const pointsDropStyle = { ...POINTS_DROP_STYLE_DEFAULTS, ...(settings.points_drop_style || {}) };
 
   const body = `
     <div class="topbar"><div><h1>Tools</h1><p>Perintah chat, Wheel of Fortune, Likeathon, Points Drop, dan Event API.</p></div></div>
@@ -63,6 +115,39 @@ export async function handleHostToolsPage(req, res, notice) {
       </div>
     </div>
 
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Command Response</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(COMMAND_RESPONSE_TEMPLATES, `/host/${identifier}/tools/command-response-style`, commandResponsePreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tools/command-response-style" style="margin-top:1.25rem">
+      <h2>Command Response (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="crBgColor">Warna latar</label>
+          <input id="crBgColor" type="color" name="bgColor" value="${escapeHtml(commandResponseStyle.bgColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="crBgOpacity">Transparansi latar (%)</label>
+          <input id="crBgOpacity" type="number" name="bgOpacity" min="0" max="100" value="${commandResponseStyle.bgOpacity}" />
+        </div>
+        <div>
+          <label for="crTextColor">Warna teks</label>
+          <input id="crTextColor" type="color" name="textColor" value="${escapeHtml(commandResponseStyle.textColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="crFontFamily">Font</label>
+          ${fontSelect("crFontFamily", "fontFamily", commandResponseStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="crFontSize">Ukuran teks (px)</label>
+          <input id="crFontSize" type="number" name="fontSize" min="10" max="24" value="${commandResponseStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
     <form class="panel" method="post" action="/host/${identifier}/tools/wheel" style="margin-top:1.25rem">
       <h2>Wheel of Fortune</h2>
       <label for="wheelConfig">Daftar hadiah (satu baris satu hadiah, format: <code>Nama,bobot</code>)</label>
@@ -81,6 +166,43 @@ export async function handleHostToolsPage(req, res, notice) {
         </div>
       </div>
     </div>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Wheel of Fortune</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(WHEEL_TEMPLATES, `/host/${identifier}/tools/wheel-style`, wheelPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tools/wheel-style" style="margin-top:1.25rem">
+      <h2>Wheel of Fortune (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="whColorA">Warna 1</label>
+          <input id="whColorA" type="color" name="colorA" value="${escapeHtml(wheelStyle.colorA)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="whColorB">Warna 2</label>
+          <input id="whColorB" type="color" name="colorB" value="${escapeHtml(wheelStyle.colorB)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="whPointerColor">Warna penunjuk</label>
+          <input id="whPointerColor" type="color" name="pointerColor" value="${escapeHtml(wheelStyle.pointerColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="whResultBgColor">Warna latar hasil</label>
+          <input id="whResultBgColor" type="color" name="resultBgColor" value="${escapeHtml(wheelStyle.resultBgColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="whResultTextColor">Warna teks hasil</label>
+          <input id="whResultTextColor" type="color" name="resultTextColor" value="${escapeHtml(wheelStyle.resultTextColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="whFontFamily">Font</label>
+          ${fontSelect("whFontFamily", "fontFamily", wheelStyle.fontFamily)}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
 
     <form class="panel" method="post" action="/host/${identifier}/tools/likeathon" style="margin-top:1.25rem">
       <h2>Likeathon</h2>
@@ -116,6 +238,35 @@ export async function handleHostToolsPage(req, res, notice) {
         <button type="submit" class="btn btn-primary">Mulai Points Drop sekarang</button>
       </form>
     </div>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Points Drop</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(POINTS_DROP_TEMPLATES, `/host/${identifier}/tools/points-drop-style`, pointsDropPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tools/points-drop-style" style="margin-top:1.25rem">
+      <h2>Points Drop (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="pdBgColor">Warna latar</label>
+          <input id="pdBgColor" type="color" name="bgColor" value="${escapeHtml(pointsDropStyle.bgColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="pdTextColor">Warna teks</label>
+          <input id="pdTextColor" type="color" name="textColor" value="${escapeHtml(pointsDropStyle.textColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="pdFontFamily">Font</label>
+          ${fontSelect("pdFontFamily", "fontFamily", pointsDropStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="pdFontSize">Ukuran teks (px)</label>
+          <input id="pdFontSize" type="number" name="fontSize" min="10" max="24" value="${pointsDropStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
 
     <div class="panel" style="margin-top:1.25rem">
       <h2>Event API</h2>
@@ -191,6 +342,48 @@ export async function handleHostToolsPointsDropUpdate(req, res) {
 export async function handleHostToolsPointsDropTrigger(req, res) {
   const settings = req.donationSettings;
   startPointsDrop(settings.overlay_token, settings.points_drop_bonus, settings.points_drop_duration_seconds);
+  res.redirect(`/host/${req.params.identifier}/tools`);
+}
+
+export async function handleHostToolsWheelStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    wheel_style: {
+      colorA: HEX_RE.test(req.body.colorA || "") ? req.body.colorA : WHEEL_STYLE_DEFAULTS.colorA,
+      colorB: HEX_RE.test(req.body.colorB || "") ? req.body.colorB : WHEEL_STYLE_DEFAULTS.colorB,
+      pointerColor: HEX_RE.test(req.body.pointerColor || "") ? req.body.pointerColor : WHEEL_STYLE_DEFAULTS.pointerColor,
+      resultBgColor: HEX_RE.test(req.body.resultBgColor || "") ? req.body.resultBgColor : WHEEL_STYLE_DEFAULTS.resultBgColor,
+      resultTextColor: HEX_RE.test(req.body.resultTextColor || "") ? req.body.resultTextColor : WHEEL_STYLE_DEFAULTS.resultTextColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : WHEEL_STYLE_DEFAULTS.fontFamily,
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tools`);
+}
+
+export async function handleHostToolsCommandResponseStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    command_response_style: {
+      bgColor: HEX_RE.test(req.body.bgColor || "") ? req.body.bgColor : COMMAND_RESPONSE_STYLE_DEFAULTS.bgColor,
+      bgOpacity: Math.min(100, Math.max(0, Number(req.body.bgOpacity) || 0)),
+      textColor: HEX_RE.test(req.body.textColor || "") ? req.body.textColor : COMMAND_RESPONSE_STYLE_DEFAULTS.textColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : COMMAND_RESPONSE_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(24, Math.max(10, Number(req.body.fontSize) || COMMAND_RESPONSE_STYLE_DEFAULTS.fontSize)),
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tools`);
+}
+
+export async function handleHostToolsPointsDropStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    points_drop_style: {
+      bgColor: HEX_RE.test(req.body.bgColor || "") ? req.body.bgColor : POINTS_DROP_STYLE_DEFAULTS.bgColor,
+      textColor: HEX_RE.test(req.body.textColor || "") ? req.body.textColor : POINTS_DROP_STYLE_DEFAULTS.textColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : POINTS_DROP_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(24, Math.max(10, Number(req.body.fontSize) || POINTS_DROP_STYLE_DEFAULTS.fontSize)),
+    },
+  });
   res.redirect(`/host/${req.params.identifier}/tools`);
 }
 

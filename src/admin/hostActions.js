@@ -3,8 +3,26 @@ import { broadcast } from "../services/donationOverlay.js";
 import { evaluateEvent, invalidateGuildCache } from "../services/actionsEngine.js";
 import { resolveGiftIconUrl, listGiftIcons } from "../services/giftIcons.js";
 import { SOUND_LIBRARY } from "../services/soundLibrary.js";
+import { ACTIONS_TEMPLATES } from "../services/overlayTemplates.js";
+import { FONT_STACKS as FONT_OPTIONS } from "../services/overlayStyleShared.js";
+import { HEX_RE, fontSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
+
+const ACTIONS_STYLE_DEFAULTS = {
+  nameColor: "#ffffff",
+  descColor: "#e5e7eb",
+  fontFamily: "Open Sans",
+  nameSize: 22,
+  descSize: 15,
+};
+
+function actionsPreviewHTML(style) {
+  return `<div class="tpl-preview" style="background:#1a1a1a;flex-direction:column;gap:2px">
+    <div style="color:${escapeHtml(style.nameColor)};font-weight:800;font-size:.85rem;font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">Budi Santoso</div>
+    <div style="color:${escapeHtml(style.descColor)};font-size:.62rem;font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">Terima kasih ya!</div>
+  </div>`;
+}
 
 const TRIGGER_LABELS = {
   any_gift: "Gift apa aja",
@@ -27,6 +45,7 @@ export async function handleHostActionsPage(req, res, notice) {
   ]);
   const actionsById = new Map(actions.map((a) => [a.id, a]));
   const giftIcons = listGiftIcons();
+  const actionsStyle = { ...ACTIONS_STYLE_DEFAULTS, ...(settings.actions_style || {}) };
 
   const body = `
     <div class="topbar"><div><h1>Aksi &amp; Event</h1><p>Bikin alert kustom: siapin media (gambar/gif/video/ikon gift) sebagai Aksi, lalu hubungin ke trigger (gift, follow, share, milestone like, kata kunci chat) sebagai Event.</p></div></div>
@@ -224,9 +243,56 @@ export async function handleHostActionsPage(req, res, notice) {
         <div style="flex:1;min-width:12rem"><label for="simChat">Pesan chat</label><input id="simChat" type="text" name="value" placeholder="halo kak" /></div>
         <button type="submit" class="btn btn-sm">Simulasi Chat</button>
       </form>
-    </div>`;
+    </div>
+
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Tampilan Caption</h2>
+      <p class="hint">Warna nama &amp; deskripsi yang muncul di atas media widget layar. Klik salah satu buat langsung pakai.</p>
+      ${templateGallery(ACTIONS_TEMPLATES, `/host/${identifier}/aksi/style`, actionsPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/aksi/style" style="margin-top:1.25rem">
+      <h2>Tampilan Caption (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="acNameColor">Warna nama</label>
+          <input id="acNameColor" type="color" name="nameColor" value="${escapeHtml(actionsStyle.nameColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="acDescColor">Warna deskripsi</label>
+          <input id="acDescColor" type="color" name="descColor" value="${escapeHtml(actionsStyle.descColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="acFontFamily">Font</label>
+          ${fontSelect("acFontFamily", "fontFamily", actionsStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="acNameSize">Ukuran nama (px)</label>
+          <input id="acNameSize" type="number" name="nameSize" min="14" max="40" value="${actionsStyle.nameSize}" />
+        </div>
+        <div>
+          <label for="acDescSize">Ukuran deskripsi (px)</label>
+          <input id="acDescSize" type="number" name="descSize" min="10" max="28" value="${actionsStyle.descSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>`;
 
   res.send(hostLayout(body, { active: "aksi", identifier, settings }));
+}
+
+export async function handleHostActionsStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    actions_style: {
+      nameColor: HEX_RE.test(req.body.nameColor || "") ? req.body.nameColor : ACTIONS_STYLE_DEFAULTS.nameColor,
+      descColor: HEX_RE.test(req.body.descColor || "") ? req.body.descColor : ACTIONS_STYLE_DEFAULTS.descColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : ACTIONS_STYLE_DEFAULTS.fontFamily,
+      nameSize: Math.min(40, Math.max(14, Number(req.body.nameSize) || ACTIONS_STYLE_DEFAULTS.nameSize)),
+      descSize: Math.min(28, Math.max(10, Number(req.body.descSize) || ACTIONS_STYLE_DEFAULTS.descSize)),
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/aksi`);
 }
 
 export async function handleHostActionAdd(req, res) {

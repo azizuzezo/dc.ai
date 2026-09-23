@@ -86,7 +86,7 @@ import {
 } from "./hostDashboard.js";
 import { handleHostPointsPage, handleHostPointsSettingsUpdate, handleHostPointsAdjust, handleHostPointsHalving, handleHostPointsStyleUpdate } from "./hostPoints.js";
 import { handleHostSoundAlertsPage, handleHostSoundAlertsUpdate, handleHostVolumeUpdate } from "./hostSoundAlerts.js";
-import { handleHostModerationPage, handleHostModerationUpdate } from "./hostModeration.js";
+import { handleHostModerationPage, handleHostModerationUpdate, handleHostLinkPreviewStyleUpdate } from "./hostModeration.js";
 import { handleHostWidgetHubPage, handleHostPreviewPage } from "./hostWidgetHub.js";
 import {
   handleHostAlertAppearancePage,
@@ -96,6 +96,7 @@ import {
   handleHostLikeathonStyleUpdate,
   handleHostTagStyleUpdate,
   handleHostJarStyleUpdate,
+  handleHostVideoStyleUpdate,
   handleHostAlertTierAdd,
   handleHostAlertTierDelete,
   handleHostAlertTierSimulate,
@@ -118,6 +119,9 @@ import {
   handleHostToolsPointsDropUpdate,
   handleHostToolsPointsDropTrigger,
   handleHostToolsEventApiRegenerate,
+  handleHostToolsWheelStyleUpdate,
+  handleHostToolsCommandResponseStyleUpdate,
+  handleHostToolsPointsDropStyleUpdate,
 } from "./hostTools.js";
 import {
   handleHostActionsPage,
@@ -130,6 +134,7 @@ import {
   handleHostActionsSimulate,
   handleHostMediaUpload,
   handleHostMediaDelete,
+  handleHostActionsStyleUpdate,
 } from "./hostActions.js";
 import { handleEventApiTrigger } from "./eventApi.js";
 
@@ -315,6 +320,9 @@ export function startAdminServer() {
   app.get("/host/:identifier/tools", requireHostAuth, (req, res) => handleHostToolsPage(req, res));
   app.post("/host/:identifier/tools/perintah", requireHostAuth, handleHostToolsCommandsUpdate);
   app.post("/host/:identifier/tools/wheel", requireHostAuth, handleHostToolsWheelUpdate);
+  app.post("/host/:identifier/tools/wheel-style", requireHostAuth, handleHostToolsWheelStyleUpdate);
+  app.post("/host/:identifier/tools/command-response-style", requireHostAuth, handleHostToolsCommandResponseStyleUpdate);
+  app.post("/host/:identifier/tools/points-drop-style", requireHostAuth, handleHostToolsPointsDropStyleUpdate);
   app.post("/host/:identifier/tools/wheel/spin", requireHostAuth, handleHostToolsWheelSpin);
   app.post("/host/:identifier/tools/likeathon", requireHostAuth, handleHostToolsLikeathonUpdate);
   app.post("/host/:identifier/tools/likeathon/reset", requireHostAuth, handleHostToolsLikeathonReset);
@@ -332,9 +340,11 @@ export function startAdminServer() {
   app.post("/host/:identifier/aksi/simulate", requireHostAuth, handleHostActionsSimulate);
   app.post("/host/:identifier/aksi/media", requireHostAuth, mediaUpload.single("mediaFile"), handleHostMediaUpload);
   app.post("/host/:identifier/aksi/media/:id/delete", requireHostAuth, handleHostMediaDelete);
+  app.post("/host/:identifier/aksi/style", requireHostAuth, handleHostActionsStyleUpdate);
 
   app.get("/host/:identifier/moderasi", requireHostAuth, (req, res) => handleHostModerationPage(req, res));
   app.post("/host/:identifier/moderasi", requireHostAuth, handleHostModerationUpdate);
+  app.post("/host/:identifier/moderasi/link-preview-style", requireHostAuth, handleHostLinkPreviewStyleUpdate);
 
   app.get("/host/:identifier/tampilan-alert", requireHostAuth, (req, res) => handleHostAlertAppearancePage(req, res));
   app.post("/host/:identifier/tampilan-alert/chat-bubble", requireHostAuth, handleHostChatBubbleUpdate);
@@ -343,6 +353,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/tampilan-alert/likeathon", requireHostAuth, handleHostLikeathonStyleUpdate);
   app.post("/host/:identifier/tampilan-alert/tag", requireHostAuth, handleHostTagStyleUpdate);
   app.post("/host/:identifier/tampilan-alert/jar", requireHostAuth, handleHostJarStyleUpdate);
+  app.post("/host/:identifier/tampilan-alert/video", requireHostAuth, handleHostVideoStyleUpdate);
   app.post("/host/:identifier/tampilan-alert/tiers", requireHostAuth, mediaUpload.single("imageFile"), handleHostAlertTierAdd);
   app.post("/host/:identifier/tampilan-alert/tiers/:id/delete", requireHostAuth, handleHostAlertTierDelete);
   app.post("/host/:identifier/tampilan-alert/simulate-donation", requireHostAuth, handleHostAlertTierSimulate);
