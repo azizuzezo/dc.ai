@@ -824,6 +824,14 @@ export async function handleOverlayPage(req, res) {
       @keyframes fx-glow{0%,100%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 10px 2px rgba(255,215,0,.7)}
         50%{box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 46px 16px rgba(255,215,0,.9)}}
 
+      /* Only ever shown when a real autoplay-with-sound probe fails (a plain
+         browser tab being used to test, not OBS — see unlockAudio() below),
+         so the actual live overlay in OBS never shows this. */
+      #audio-hint{position:fixed;top:14px;left:50%;transform:translateX(-50%);
+        background:rgba(0,0,0,.72);color:#fff;font-size:12px;font-weight:700;padding:6px 14px;
+        border-radius:999px;display:none;z-index:10;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+      #audio-hint.show{display:block}
+
       #effect-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:4}
       .particle{position:absolute;top:-24px;animation:fx-fall linear forwards}
       @keyframes fx-fall{to{transform:translateY(110vh) rotate(720deg);opacity:.15}}
@@ -844,6 +852,7 @@ export async function handleOverlayPage(req, res) {
     </style></head><body>
     <div id="screen-flash"></div>
     <div id="effect-layer"></div>
+    <div id="audio-hint">🔈 Klik di mana aja buat aktifin suara (cuma perlu di tab browser biasa, gak di OBS)</div>
     <div id="stage" class="${alertStyle.layout === "banner" ? "layout-banner" : ""}">
       <div id="banner-wrap">
         <div id="banner-box">${escapeHtml(alertStyle.bannerHeadline || "HEY!")}</div>
@@ -973,21 +982,38 @@ export async function handleOverlayPage(req, res) {
       const avatarEl = document.getElementById("avatar");
       const defaultAvatarHTML = avatarEl.innerHTML; // streamer's own avatar (or the 🙏 fallback), restored once a tiered donation's card hides
       const bellSound = new Audio("/overlay/assets/bell.wav");
+      const audioHintEl = document.getElementById("audio-hint");
       let audioUnlocked = false;
 
       // OBS's Browser Source plays audio without a user gesture, but a plain
       // browser tab still blocks it until a real click happens — this quietly
-      // primes the audio element on the first click if one ever occurs,
-      // without showing any button for it.
+      // primes the audio element on the first click if one ever occurs.
       function unlockAudio() {
         if (audioUnlocked) return;
         audioUnlocked = true;
+        audioHintEl.classList.remove("show");
         try {
           bellSound.volume = 0;
           bellSound.play().then(() => { bellSound.pause(); bellSound.currentTime = 0; bellSound.volume = 1; }).catch(() => {});
         } catch {}
       }
       document.addEventListener("click", unlockAudio);
+
+      // Probes whether autoplay-with-sound is already allowed (true in OBS,
+      // and in a browser tab that's already had a click) — only shows the
+      // hint above when a real donation would otherwise play in total
+      // silence, so the actual live overlay in OBS never displays it.
+      (function probeAutoplay() {
+        bellSound.volume = 0;
+        bellSound.play().then(() => {
+          bellSound.pause();
+          bellSound.currentTime = 0;
+          bellSound.volume = 1;
+          audioUnlocked = true;
+        }).catch(() => {
+          audioHintEl.classList.add("show");
+        });
+      })();
 
       function chime() {
         bellSound.currentTime = 0;
