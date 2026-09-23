@@ -62,13 +62,42 @@ if (!env.richPresenceClientId) {
 
 const client = new Client({ clientId: env.richPresenceClientId });
 
+// Discord's local RPC socket has no built-in keepalive — the underlying pipe
+// can drop silently (sleep/wake, Discord restarting itself, a brief network
+// blip) with no clean error, and even without that, Discord can just forget
+// an RPC-set activity if it's never refreshed. Both show up the same way:
+// the presence you set once just vanishes after a few minutes. Re-sending it
+// on an interval papers over the "forgotten" case, and the "disconnected"
+// listener below handles the actual dropped-connection case by reconnecting.
+let refreshTimer = null;
+function startRefreshing() {
+  if (refreshTimer) return;
+  refreshTimer = setInterval(() => {
+    client.user?.setActivity(activity).catch((err) => console.error("Refresh failed:", err.message));
+  }, 15_000);
+}
+
 client.on("ready", async () => {
   await client.user?.setActivity(activity);
   console.log(`Presence set: ${activity.details}${activity.state ? " — " + activity.state : ""}`);
   console.log("Leave this running. Press Ctrl+C to clear the presence and exit.");
+  startRefreshing();
 });
 
+client.on("disconnected", () => {
+  console.log("Lost connection to Discord — reconnecting...");
+  reconnect();
+});
+
+function reconnect() {
+  client.login().catch((err) => {
+    console.error("Reconnect failed, retrying in 5s:", err.message);
+    setTimeout(reconnect, 5000);
+  });
+}
+
 async function shutdown() {
+  if (refreshTimer) clearInterval(refreshTimer);
   try {
     await client.user?.clearActivity();
   } catch {
