@@ -1642,21 +1642,32 @@ export async function handleSubathonPage(req, res) {
       #wrap{display:inline-block;text-align:center;padding:10px 22px;border-radius:16px;
         background:rgba(0,0,0,.55);box-shadow:0 10px 30px rgba(0,0,0,.35)}
       #label{color:rgba(255,255,255,.75);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+      #clock-wrap{position:relative;display:inline-block}
       #clock{color:#fff;font-size:52px;font-weight:800;letter-spacing:.02em;text-shadow:0 2px 10px rgba(0,0,0,.5);
         font-variant-numeric:tabular-nums;transition:transform .25s ease}
       #clock.bump{animation:bump .4s ease}
       #clock.ended{color:#f87171}
       @keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.12)}100%{transform:scale(1)}}
-      @media (prefers-reduced-motion: reduce){#clock.bump{animation:none}}
+      #added-badge{position:absolute;top:-6px;right:-14px;color:#4ade80;font-size:18px;font-weight:800;
+        text-shadow:0 2px 6px rgba(0,0,0,.6);opacity:0;pointer-events:none}
+      #added-badge.show{animation:added-pop 2.2s ease forwards}
+      @keyframes added-pop{0%{opacity:0;transform:translateY(4px) scale(.8)}
+        15%{opacity:1;transform:translateY(-6px) scale(1.15)}30%{transform:translateY(-6px) scale(1)}
+        75%{opacity:1;transform:translateY(-10px) scale(1)}100%{opacity:0;transform:translateY(-18px) scale(1)}}
+      @media (prefers-reduced-motion: reduce){#clock.bump{animation:none}#added-badge.show{animation:none;opacity:0}}
     </style></head><body>
     <div id="wrap">
       <div id="label">${escapeHtml(settings.subathon_label || "Waktu")}</div>
-      <div id="clock">--:--:--</div>
+      <div id="clock-wrap">
+        <div id="clock">--:--:--</div>
+        <div id="added-badge"></div>
+      </div>
     </div>
     <script>
       let endAt = ${settings.subathon_end_at ? `new Date(${JSON.stringify(settings.subathon_end_at)}).getTime()` : "null"};
       const clockEl = document.getElementById("clock");
       const labelEl = document.getElementById("label");
+      const addedBadgeEl = document.getElementById("added-badge");
 
       function render() {
         if (!endAt) { clockEl.textContent = "--:--:--"; clockEl.classList.remove("ended"); return; }
@@ -1684,6 +1695,13 @@ export async function handleSubathonPage(req, res) {
         clockEl.classList.remove("bump");
         void clockEl.offsetWidth;
         clockEl.classList.add("bump");
+        if (d.addedMinutes > 0) {
+          const rounded = Math.round(d.addedMinutes * 10) / 10;
+          addedBadgeEl.textContent = "+" + rounded + " menit";
+          addedBadgeEl.classList.remove("show");
+          void addedBadgeEl.offsetWidth;
+          addedBadgeEl.classList.add("show");
+        }
         render();
       });
       events.addEventListener("subathon-label", (e) => {

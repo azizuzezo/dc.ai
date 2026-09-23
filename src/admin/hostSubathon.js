@@ -45,6 +45,9 @@ export async function handleHostSubathonPage(req, res, notice) {
           <input id="rateMinutes" type="number" name="rateMinutes" min="0.1" step="0.1" value="${settings.subathon_rate_minutes}" required />
         </div>
       </div>
+      <label for="maxHours" style="margin-top:14px">Batas maksimal total durasi (jam, kosongkan buat tanpa batas)</label>
+      <input id="maxHours" type="number" name="maxHours" min="0.1" step="0.1" value="${settings.subathon_max_hours ?? ""}" placeholder="Tanpa batas" />
+      <p class="hint">Dihitung dari waktu Mulai/Restart terakhir — donasi gak akan nambah waktu lewat batas ini.</p>
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan Aturan</button>
     </form>`;
 
@@ -55,8 +58,12 @@ export async function handleHostSubathonStart(req, res) {
   const settings = req.donationSettings;
   const hours = Number(req.body.hours);
   if (hours > 0) {
-    const endAt = new Date(Date.now() + hours * 3600000);
-    await db.updateDonationSettings(settings.guild_id, { subathon_end_at: endAt.toISOString() });
+    const now = new Date();
+    const endAt = new Date(now.getTime() + hours * 3600000);
+    await db.updateDonationSettings(settings.guild_id, {
+      subathon_end_at: endAt.toISOString(),
+      subathon_started_at: now.toISOString(),
+    });
     broadcast(settings.overlay_token, "subathon", { endAt: endAt.toISOString() });
   }
   res.redirect(`/host/${req.params.identifier}/subathon`);
@@ -64,7 +71,7 @@ export async function handleHostSubathonStart(req, res) {
 
 export async function handleHostSubathonStop(req, res) {
   const settings = req.donationSettings;
-  await db.updateDonationSettings(settings.guild_id, { subathon_end_at: null });
+  await db.updateDonationSettings(settings.guild_id, { subathon_end_at: null, subathon_started_at: null });
   broadcast(settings.overlay_token, "subathon", { endAt: null });
   res.redirect(`/host/${req.params.identifier}/subathon`);
 }
@@ -74,10 +81,12 @@ export async function handleHostSubathonRateUpdate(req, res) {
   const rateAmount = Math.max(1, Number(req.body.rateAmount) || 10000);
   const rateMinutes = Math.max(0.1, Number(req.body.rateMinutes) || 5);
   const label = (req.body.label || "").trim().slice(0, 40) || "Waktu";
+  const maxHours = req.body.maxHours ? Math.max(0.1, Number(req.body.maxHours)) : null;
   await db.updateDonationSettings(settings.guild_id, {
     subathon_rate_amount: rateAmount,
     subathon_rate_minutes: rateMinutes,
     subathon_label: label,
+    subathon_max_hours: maxHours,
   });
   broadcast(settings.overlay_token, "subathon-label", { label });
   res.redirect(`/host/${req.params.identifier}/subathon`);

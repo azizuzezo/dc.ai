@@ -920,6 +920,8 @@ export async function ensureDonationSettings(guildId) {
     subathon_rate_amount: 10000,
     subathon_rate_minutes: 5,
     subathon_label: "Waktu",
+    subathon_started_at: null,
+    subathon_max_hours: null,
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);

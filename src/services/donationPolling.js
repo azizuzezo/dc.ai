@@ -109,9 +109,21 @@ export async function announceDonation(client, settings, donation, { toDiscord =
       const rateMinutes = Number(settings.subathon_rate_minutes) || 0;
       const addedMs = (Number(donation.amount) / rateAmount) * rateMinutes * 60000;
       const currentEndMs = new Date(settings.subathon_end_at).getTime();
-      const newEndAt = new Date(Math.max(currentEndMs, Date.now()) + addedMs);
+      let newEndAtMs = Math.max(currentEndMs, Date.now()) + addedMs;
+
+      // Optional host-set ceiling on the total run length, measured from the
+      // last Mulai/Restart — donations still count toward the leaderboard as
+      // normal, they just stop being able to push the clock past this cap.
+      const maxHours = Number(settings.subathon_max_hours);
+      if (maxHours > 0 && settings.subathon_started_at) {
+        const capMs = new Date(settings.subathon_started_at).getTime() + maxHours * 3600000;
+        newEndAtMs = Math.min(newEndAtMs, capMs);
+      }
+
+      const newEndAt = new Date(newEndAtMs);
+      const addedMinutes = Math.max(0, (newEndAtMs - currentEndMs) / 60000);
       await db.updateDonationSettings(donation.guild_id, { subathon_end_at: newEndAt.toISOString() });
-      broadcast(settings.overlay_token, "subathon", { endAt: newEndAt.toISOString() });
+      broadcast(settings.overlay_token, "subathon", { endAt: newEndAt.toISOString(), addedMinutes });
     } catch (err) {
       logError(`Failed to extend subathon timer for guild ${donation.guild_id}:`, err);
     }
