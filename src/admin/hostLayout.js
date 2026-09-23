@@ -226,6 +226,7 @@ function icon(name) {
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
     flag: '<path d="M4 22V4"/><path d="M4 4h13l-1.5 4.5L17 13H4"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   };
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
 }
@@ -235,6 +236,7 @@ const NAV = [
   { key: "widget", label: "Semua Widget", icon: "grid", href: (id) => `/host/${id}/widget` },
   { key: "wishlist", label: "Wishlist", icon: "target", href: (id) => `/host/${id}/wishlist` },
   { key: "pesan", label: "Pesan", icon: "message", href: (id) => `/host/${id}/pesan` },
+  { key: "parkiran-link", label: "Parkiran Link", icon: "link", href: (id) => `/host/${id}/parkiran-link` },
   { key: "poin", label: "Poin", icon: "coins", href: (id) => `/host/${id}/poin` },
   { key: "aksi", label: "Aksi & Event", icon: "zap", href: (id) => `/host/${id}/aksi` },
   { key: "subathon", label: "Waktu", icon: "clock", href: (id) => `/host/${id}/subathon` },

@@ -129,6 +129,21 @@ export async function announceDonation(client, settings, donation, { toDiscord =
     }
   }
 
+  // "Parkiran Link" — a donor-attached link/note for the host only. Written
+  // straight to the DB, never through broadcast()/donationOverlay.js, so it
+  // can never reach the public overlay.
+  if (donation.link_queue_content) {
+    try {
+      await db.addLinkQueueItem(donation.guild_id, {
+        donorName: donation.donor_name,
+        content: donation.link_queue_content,
+        amount: donation.amount,
+      });
+    } catch (err) {
+      logError(`Failed to add link queue item for guild ${donation.guild_id}:`, err);
+    }
+  }
+
   // Not awaited: letting this resolve on its own keeps the sweep loop (and
   // the admin dashboard's test/replay button) from sitting idle for ~5-7s.
   ttsPromise.then((audio) => {

@@ -342,6 +342,10 @@ export async function handleDonatePage(req, res) {
         <textarea name="message" id="message" maxlength="200" rows="3"></textarea>
         <div class="counter"><span id="msgCount">0</span>/200</div>
 
+        <label>Parkiran Link (opsional)</label>
+        <textarea name="linkQueueContent" id="linkQueueContent" maxlength="500" rows="2" placeholder="Link atau catatan khusus buat host"></textarea>
+        <p class="hint">Cuma host yang bisa liat ini — gak ditampilin ke layar/overlay.</p>
+
         <button type="button" class="yt-toggle" id="youtubeToggle">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="17" y="3.5" rx="5" fill="#FF0000"/><path d="M10 8.7l6 3.3-6 3.3z" fill="#fff"/></svg>
           <svg id="youtubeLockIcon" class="lock-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -570,6 +574,7 @@ export async function handleDonateCreate(req, res) {
     return res.status(400).send("Masukkan alamat email yang valid.");
   }
   const message = (req.body.message || "").trim().slice(0, 200) || null;
+  const linkQueueContent = (req.body.linkQueueContent || "").trim().slice(0, 500) || null;
   const rawWishlistItemId = req.body.wishlistItemId ? Number(req.body.wishlistItemId) : null;
   const wishlistItem = rawWishlistItemId ? await db.getWishlistItem(guildId, rawWishlistItemId) : null;
   const youtubeVideoId = extractYouTubeId(req.body.youtubeUrl);
@@ -601,6 +606,7 @@ export async function handleDonateCreate(req, res) {
       youtubeVideoId,
       youtubeStartSeconds,
       youtubeEndSeconds,
+      linkQueueContent,
     });
   } catch (err) {
     logError(`Failed to store donation for guild ${guildId}:`, err);

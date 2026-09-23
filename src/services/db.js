@@ -47,6 +47,7 @@ const memFlaggedChat = []; // [{ id, guild_id, tiktok_user, message, reason, cre
 const memDonationMedia = []; // [{ id, guild_id, filename, mime_type, data, size_bytes, created_at }]
 const memAlertTiers = []; // [{ id, guild_id, min_amount, image_url, effect, created_at }]
 const memMilestones = []; // [{ id, guild_id, metric, target, label, created_at }]
+const memLinkQueue = []; // [{ id, guild_id, donor_name, content, amount, done, created_at }]
 let memDonationIdSeq = 1;
 let memWishlistItemIdSeq = 1;
 let memDonationActionIdSeq = 1;
@@ -56,6 +57,7 @@ let memFlaggedChatIdSeq = 1;
 let memDonationMediaIdSeq = 1;
 let memAlertTierIdSeq = 1;
 let memMilestoneIdSeq = 1;
+let memLinkQueueIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -986,6 +988,7 @@ export async function createDonation({
   youtubeVideoId = null,
   youtubeStartSeconds = null,
   youtubeEndSeconds = null,
+  linkQueueContent = null,
 }) {
   if (supabase) {
     const { error } = await supabase.from("bot_donations").insert({
@@ -1001,6 +1004,7 @@ export async function createDonation({
       youtube_video_id: youtubeVideoId,
       youtube_start_seconds: youtubeStartSeconds,
       youtube_end_seconds: youtubeEndSeconds,
+      link_queue_content: linkQueueContent,
     });
     if (error) throw error;
     return;
@@ -1020,6 +1024,7 @@ export async function createDonation({
     youtube_end_seconds: youtubeEndSeconds,
     wishlist_item_id: wishlistItemId,
     youtube_video_id: youtubeVideoId,
+    link_queue_content: linkQueueContent,
   });
 }
 
@@ -1037,7 +1042,7 @@ export async function listPendingDonations() {
     const { data, error } = await supabase
       .from("bot_donations")
       .select(
-        "id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id, youtube_video_id, youtube_start_seconds, youtube_end_seconds"
+        "id, guild_id, trx_id, donor_name, message, amount, expires_at, wishlist_item_id, youtube_video_id, youtube_start_seconds, youtube_end_seconds, link_queue_content"
       )
       .eq("status", "pending");
     if (error) throw error;
@@ -1706,4 +1711,67 @@ export async function deleteMilestone(guildId, id) {
   }
   const idx = memMilestones.findIndex((m) => m.guild_id === guildId && m.id === Number(id));
   if (idx !== -1) memMilestones.splice(idx, 1);
+}
+
+/** "Parkiran Link" — a host-only holding area for custom data (typically a
+ * link) a donor attaches to their donation, e.g. a website to review live.
+ * Deliberately never touches donationOverlay.js's broadcast() — it must stay
+ * off the public overlay and only ever be read from the host dashboard. */
+export async function listLinkQueue(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_link_queue")
+      .select("id, donor_name, content, amount, done, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  return memLinkQueue
+    .filter((q) => q.guild_id === guildId)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+export async function getLinkQueueItem(guildId, id) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_link_queue")
+      .select("id, donor_name, content, amount, done, created_at")
+      .eq("guild_id", guildId)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return memLinkQueue.find((q) => q.guild_id === guildId && q.id === Number(id)) || null;
+}
+
+export async function addLinkQueueItem(guildId, { donorName, content, amount = null }) {
+  const row = { guild_id: guildId, donor_name: donorName || "Anonim", content, amount, done: false };
+  if (supabase) {
+    const { error } = await supabase.from("bot_link_queue").insert(row);
+    if (error) throw error;
+    return;
+  }
+  memLinkQueue.push({ id: memLinkQueueIdSeq++, ...row, created_at: new Date().toISOString() });
+}
+
+export async function setLinkQueueItemDone(guildId, id, done) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_link_queue").update({ done }).eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const item = memLinkQueue.find((q) => q.guild_id === guildId && q.id === Number(id));
+  if (item) item.done = done;
+}
+
+export async function deleteLinkQueueItem(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_link_queue").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memLinkQueue.findIndex((q) => q.guild_id === guildId && q.id === Number(id));
+  if (idx !== -1) memLinkQueue.splice(idx, 1);
 }
