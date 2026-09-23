@@ -1,6 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
+import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES } from "../services/overlayTemplates.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -98,6 +99,81 @@ function avatarPresetPicker(name, current) {
   </style>`;
 }
 
+/** "#rrggbb" + 0-100 opacity -> "rgba(r,g,b,a)", mirrors donatePublic.js's
+ * helper so template preview cards render the same way the real widget does. */
+function hexToRgba(hex, opacityPercent) {
+  const clean = /^#?[0-9a-f]{6}$/i.test(hex) ? hex.replace("#", "") : "ffffff";
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const a = Math.min(100, Math.max(0, Number(opacityPercent) || 0)) / 100;
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+const SHAPE_RADIUS = { rounded: "10px", pill: "999px", square: "4px" };
+
+function chatBubblePreviewHTML(style) {
+  return `<div class="tpl-preview tpl-preview-bubble" style="background:${hexToRgba(style.bubbleColor, style.bubbleOpacity)};
+    border-radius:${SHAPE_RADIUS[style.shape] || "10px"};border:${style.borderWidth}px solid ${escapeHtml(style.borderColor)};
+    font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]}">
+    <span style="color:${escapeHtml(style.usernameColor)};font-weight:700;font-size:${style.fontSize}px">Nama</span>
+    <span style="color:${escapeHtml(style.textColor)};font-size:${style.fontSize}px"> halo semua! 👋</span>
+  </div>`;
+}
+
+function alertPreviewHTML(style) {
+  if (style.layout === "banner") {
+    return `<div class="tpl-preview tpl-preview-alert-banner">
+      <span class="tpl-banner-box" style="background:${escapeHtml(style.bannerColor)}">${escapeHtml(style.bannerHeadline)}</span>
+      <span class="tpl-hl" style="background:${escapeHtml(style.highlightColor)}">Rp10.000 dari <b style="color:${escapeHtml(style.nameColor)}">Nama</b></span>
+    </div>`;
+  }
+  const preset = AVATAR_PRESETS[style.avatarPreset] || AVATAR_PRESETS.photo;
+  const bg = preset.gradient || "radial-gradient(circle at 35% 30%,#4ade80,#16a34a)";
+  return `<div class="tpl-preview tpl-preview-alert-classic">
+    <span class="tpl-avatar-badge" style="background:${bg}">${preset.emoji ? escapeHtml(preset.emoji) : "🙂"}</span>
+    <span class="tpl-alert-name" style="color:${escapeHtml(style.nameColor)}">Rp10.000 dari Nama</span>
+  </div>`;
+}
+
+/** Every template is its own tiny <form> posting straight to the real update
+ * route with hidden inputs for each field — picking one just IS a normal save,
+ * no separate "apply template" code path to keep in sync with manual edits. */
+function templateGallery(templates, action, previewFn) {
+  return `<div class="tpl-gallery">
+    ${templates
+      .map(
+        (t) => `<form method="post" action="${action}" class="tpl-card">
+          ${Object.entries(t.style)
+            .map(([field, value]) =>
+              typeof value === "boolean"
+                ? value
+                  ? `<input type="hidden" name="${field}" value="on" />`
+                  : ""
+                : `<input type="hidden" name="${field}" value="${escapeHtml(String(value))}" />`
+            )
+            .join("")}
+          ${previewFn(t.style)}
+          <button type="submit" class="btn btn-sm tpl-apply">Pakai "${escapeHtml(t.label)}"</button>
+        </form>`
+      )
+      .join("")}
+  </div>
+  <style>
+    .tpl-gallery{display:flex;flex-wrap:wrap;gap:.9rem;margin:.6rem 0 1.25rem}
+    .tpl-card{width:190px;padding:.7rem;border-radius:12px;background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.6rem;align-items:stretch}
+    .tpl-preview{border-radius:10px;padding:.6rem;min-height:60px;display:flex;align-items:center;justify-content:center;
+      flex-direction:column;gap:.3rem;text-align:center;overflow:hidden;background:#1a1a1a}
+    .tpl-preview-bubble{flex-direction:row;justify-content:flex-start;text-align:left;padding:.5rem .7rem}
+    .tpl-banner-box{font-weight:900;color:#fff;padding:4px 14px;border-radius:8px;border:2px solid rgba(255,255,255,.85);font-size:.85rem}
+    .tpl-hl{padding:1px 7px;border-radius:4px;font-size:.72rem;font-weight:700;color:#fff}
+    .tpl-avatar-badge{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .tpl-alert-name{font-size:.72rem;font-weight:700;color:#fff}
+    .tpl-apply{width:100%}
+  </style>`;
+}
+
 const EFFECT_LABELS = {
   none: "Tanpa efek",
   shake: "Goyang (shake)",
@@ -118,11 +194,18 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&family=Inter:wght@500;600;700;800&family=Poppins:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800&family=Bebas+Neue&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <div class="topbar"><div><h1>Tampilan Alert</h1><p>Kustomisasi bubble chat TikTok LIVE dan tampilan widget Alert donasi berdasarkan nominal.</p></div></div>
     ${notice ? `<p class="hint" style="color:var(--success)">${escapeHtml(notice)}</p>` : ""}
 
-    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/chat-bubble">
-      <h2>Bubble Chat</h2>
+    <div class="panel">
+      <h2>Template Bubble Chat</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(CHAT_BUBBLE_TEMPLATES, `/host/${identifier}/tampilan-alert/chat-bubble`, chatBubblePreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/chat-bubble" style="margin-top:1.25rem">
+      <h2>Bubble Chat (Manual)</h2>
       <p class="hint">Ngatur tampilan widget Chat Live (chat TikTok LIVE beneran).</p>
       <div class="grid grid-2">
         <div>
@@ -174,8 +257,14 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
     </form>
 
+    <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Alert</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(ALERT_TEMPLATES, `/host/${identifier}/tampilan-alert/appearance`, alertPreviewHTML)}
+    </div>
+
     <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/appearance" style="margin-top:1.25rem">
-      <h2>Tampilan Alert (Dasar)</h2>
+      <h2>Tampilan Alert (Dasar, Manual)</h2>
       <p class="hint">Warna, font, dan animasi widget Alert buat donasi biasa (di luar efek tingkatan nominal di bawah).</p>
 
       <label for="alertLayout">Gaya tampilan</label>
