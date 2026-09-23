@@ -1,7 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
-import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES, TAG_TEMPLATES } from "../services/overlayTemplates.js";
+import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES, TAG_TEMPLATES, JAR_TEMPLATES } from "../services/overlayTemplates.js";
 import { FONT_STACKS as FONT_OPTIONS, ANIMATION_OPTIONS } from "../services/overlayStyleShared.js";
 import { HEX_RE, hexToRgba, shadeHex, fontSelect, animationSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
@@ -65,6 +65,15 @@ const TAG_STYLE_DEFAULTS = {
   accentColor: "#76cc11",
   fontFamily: "Open Sans",
   fontSize: 20,
+};
+
+const JAR_STYLE_DEFAULTS = {
+  lidColor: "#5da80d",
+  fillColor: "#76cc11",
+  labelBgColor: "#ffffff",
+  labelBgOpacity: 97,
+  labelTextColor: "#122e1e",
+  fontFamily: "Open Sans",
 };
 
 function layoutSelect(id, name, current) {
@@ -163,6 +172,21 @@ function tagPreviewHTML(style) {
   </div>`;
 }
 
+function jarPreviewHTML(style) {
+  const lidDark = shadeHex(style.lidColor, -18);
+  return `<div class="tpl-preview" style="align-items:center;gap:.4rem">
+    <svg width="48" height="66" viewBox="0 0 90 140">
+      <rect x="30" y="4" width="30" height="10" rx="2" fill="${escapeHtml(style.lidColor)}"/>
+      <rect x="34" y="12" width="22" height="8" rx="1" fill="${lidDark}"/>
+      <path d="M20 30 Q20 22 30 20 L60 20 Q70 22 70 30 L70 118 Q70 128 60 128 L30 128 Q20 128 20 118 Z"
+            fill="rgba(255,255,255,.9)" stroke="${escapeHtml(style.lidColor)}" stroke-width="3"/>
+      <rect x="24" y="70" width="42" height="55" fill="${escapeHtml(style.fillColor)}"/>
+    </svg>
+    <span style="background:${hexToRgba(style.labelBgColor, style.labelBgOpacity)};color:${escapeHtml(style.labelTextColor)};
+      font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]};font-size:.68rem;font-weight:800;padding:3px 8px;border-radius:6px">Gift: 12</span>
+  </div>`;
+}
+
 const EFFECT_LABELS = {
   none: "Tanpa efek",
   shake: "Goyang (shake)",
@@ -183,6 +207,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const leaderboardStyle = { ...LEADERBOARD_STYLE_DEFAULTS, ...(settings.leaderboard_style || {}) };
   const likeathonStyle = { ...LIKEATHON_STYLE_DEFAULTS, ...(settings.likeathon_style || {}) };
   const tagStyle = { ...TAG_STYLE_DEFAULTS, ...(settings.tag_style || {}) };
+  const jarStyle = { ...JAR_STYLE_DEFAULTS, ...(settings.jar_style || {}) };
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
@@ -448,6 +473,43 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     </form>
 
     <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Toples Hadiah (Jar)</h2>
+      <p class="hint">Klik salah satu buat langsung pakai gaya siap-jadi ini — bisa diubah lagi manual di bawah kapan aja.</p>
+      ${templateGallery(JAR_TEMPLATES, `/host/${identifier}/tampilan-alert/jar`, jarPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/jar" style="margin-top:1.25rem">
+      <h2>Toples Hadiah / Jar (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="jrLidColor">Warna tutup</label>
+          <input id="jrLidColor" type="color" name="lidColor" value="${escapeHtml(jarStyle.lidColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="jrFillColor">Warna isi (naik tiap gift)</label>
+          <input id="jrFillColor" type="color" name="fillColor" value="${escapeHtml(jarStyle.fillColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="jrLabelBgColor">Warna latar label</label>
+          <input id="jrLabelBgColor" type="color" name="labelBgColor" value="${escapeHtml(jarStyle.labelBgColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="jrLabelBgOpacity">Transparansi latar label (%)</label>
+          <input id="jrLabelBgOpacity" type="number" name="labelBgOpacity" min="0" max="100" value="${jarStyle.labelBgOpacity}" />
+        </div>
+        <div>
+          <label for="jrLabelTextColor">Warna teks label</label>
+          <input id="jrLabelTextColor" type="color" name="labelTextColor" value="${escapeHtml(jarStyle.labelTextColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="jrFontFamily">Font</label>
+          ${fontSelect("jrFontFamily", "fontFamily", jarStyle.fontFamily)}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
       <h2>Alert Berdasarkan Nominal</h2>
       <p class="hint">Widget Alert (donasi) bisa nampilin gambar &amp; efek beda-beda tergantung nominal donasi — dipilih otomatis dari tingkatan tertinggi yang nominalnya kepenuhin.</p>
       ${
@@ -577,6 +639,21 @@ export async function handleHostTagStyleUpdate(req, res) {
       accentColor: HEX_RE.test(req.body.accentColor || "") ? req.body.accentColor : TAG_STYLE_DEFAULTS.accentColor,
       fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : TAG_STYLE_DEFAULTS.fontFamily,
       fontSize: Math.min(32, Math.max(12, Number(req.body.fontSize) || TAG_STYLE_DEFAULTS.fontSize)),
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostJarStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    jar_style: {
+      lidColor: HEX_RE.test(req.body.lidColor || "") ? req.body.lidColor : JAR_STYLE_DEFAULTS.lidColor,
+      fillColor: HEX_RE.test(req.body.fillColor || "") ? req.body.fillColor : JAR_STYLE_DEFAULTS.fillColor,
+      labelBgColor: HEX_RE.test(req.body.labelBgColor || "") ? req.body.labelBgColor : JAR_STYLE_DEFAULTS.labelBgColor,
+      labelBgOpacity: Math.min(100, Math.max(0, Number(req.body.labelBgOpacity) || 0)),
+      labelTextColor: HEX_RE.test(req.body.labelTextColor || "") ? req.body.labelTextColor : JAR_STYLE_DEFAULTS.labelTextColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : JAR_STYLE_DEFAULTS.fontFamily,
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);

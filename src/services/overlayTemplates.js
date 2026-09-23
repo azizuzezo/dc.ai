@@ -691,3 +691,36 @@ export const TAG_TEMPLATES = [
     style: { bgColor: "#0a0a12", bgOpacity: 90, textColor: "#e5e5ff", accentColor: "#39ff88", fontFamily: "Bebas Neue", fontSize: 22 },
   },
 ];
+
+export const JAR_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: { lidColor: "#5da80d", fillColor: "#76cc11", labelBgColor: "#ffffff", labelBgOpacity: 97, labelTextColor: "#122e1e", fontFamily: "Open Sans" },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: { lidColor: "#7c3aed", fillColor: "#00f5ff", labelBgColor: "#12122a", labelBgOpacity: 92, labelTextColor: "#f5f5ff", fontFamily: "Poppins" },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: { lidColor: "#db2777", fillColor: "#f9a8d4", labelBgColor: "#fdf2f8", labelBgOpacity: 96, labelTextColor: "#831843", fontFamily: "Comic Neue" },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: { lidColor: "#a16207", fillColor: "#facc15", labelBgColor: "#0f0f0f", labelBgOpacity: 94, labelTextColor: "#facc15", fontFamily: "Montserrat" },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: { lidColor: "#6b7280", fillColor: "#16a34a", labelBgColor: "#ffffff", labelBgOpacity: 100, labelTextColor: "#111827", fontFamily: "Inter" },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: { lidColor: "#7c3aed", fillColor: "#39ff88", labelBgColor: "#0a0a12", labelBgOpacity: 90, labelTextColor: "#e5e5ff", fontFamily: "Bebas Neue" },
+  },
+];

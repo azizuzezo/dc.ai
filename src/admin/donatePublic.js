@@ -1735,10 +1735,22 @@ export async function handleSharePage(req, res) {
   </body></html>`);
 }
 
+const JAR_STYLE_DEFAULTS = {
+  lidColor: "#5da80d",
+  fillColor: "#76cc11",
+  labelBgColor: "#ffffff",
+  labelBgOpacity: 97,
+  labelTextColor: "#122e1e",
+  fontFamily: "Open Sans",
+};
+
 export async function handleJarPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = { ...JAR_STYLE_DEFAULTS, ...(settings.jar_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
+  const lidColorDark = shadeHex(style.lidColor, -18);
 
   // Visual fill is relative, not a real currency total — every JAR_STEP-th gift
   // fills the jar and it resets, so it keeps animating all stream long instead
@@ -1746,24 +1758,24 @@ export async function handleJarPage(req, res) {
   // shoulders, glass highlight) instead of stacked rectangles.
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
       #wrap{display:inline-block;text-align:center}
       #fill{transition:height .4s ease,y .4s ease}
-      #label{margin-top:8px;text-align:center;color:#122e1e;background:rgba(255,255,255,.97);font-size:12px;
+      #label{margin-top:8px;text-align:center;color:${escapeHtml(style.labelTextColor)};background:${hexToRgba(style.labelBgColor, style.labelBgOpacity)};font-size:12px;
         font-weight:800;padding:4px 12px;display:inline-block;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
-      .drop{position:absolute;color:#76cc11;font-size:14px;font-weight:700;animation:drop .6s ease forwards}
+      .drop{position:absolute;color:${escapeHtml(style.fillColor)};font-size:14px;font-weight:700;animation:drop .6s ease forwards}
       @keyframes drop{to{transform:translateY(-30px);opacity:0}}
     </style></head><body>
     <div id="wrap">
       <svg width="90" height="140" viewBox="0 0 90 140">
-        <rect x="30" y="4" width="30" height="10" rx="2" fill="#5da80d"/>
-        <rect x="34" y="12" width="22" height="8" rx="1" fill="#4a8a0a"/>
+        <rect x="30" y="4" width="30" height="10" rx="2" fill="${escapeHtml(style.lidColor)}"/>
+        <rect x="34" y="12" width="22" height="8" rx="1" fill="${lidColorDark}"/>
         <path d="M20 30 Q20 22 30 20 L60 20 Q70 22 70 30 L70 118 Q70 128 60 128 L30 128 Q20 128 20 118 Z"
-              fill="rgba(255,255,255,.9)" stroke="#5da80d" stroke-width="3"/>
+              fill="rgba(255,255,255,.9)" stroke="${escapeHtml(style.lidColor)}" stroke-width="3"/>
         <clipPath id="jarClip"><path d="M21 31 Q21 23 30 21 L60 21 Q69 23 69 31 L69 118 Q69 127 60 127 L30 127 Q21 127 21 118 Z"/></clipPath>
-        <rect id="fill" x="21" y="128" width="48" height="0" fill="#76cc11" clip-path="url(#jarClip)"/>
+        <rect id="fill" x="21" y="128" width="48" height="0" fill="${escapeHtml(style.fillColor)}" clip-path="url(#jarClip)"/>
         <path d="M28 30 Q28 24 34 23" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
       <div id="label">Gift: <span id="count">0</span></div>
