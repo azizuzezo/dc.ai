@@ -64,7 +64,7 @@ export async function handleHostWidgetHubPage(req, res) {
 
   const body = `
     <div class="topbar"><div><h1>Semua Widget</h1><p>Satu tempat buat lihat &amp; copy semua link widget OBS kamu, lengkap sama ukuran yang disaranin.</p></div>
-      <a href="/host/${identifier}/widget/preview" class="btn btn-primary">Preview Semua Widget (Live)</a>
+      <a href="/host/${identifier}/widget/preview" target="_blank" rel="noopener" class="btn btn-primary">Preview Semua Widget (Live) ↗</a>
     </div>
     ${!settings.tiktok_url ? `<p class="hint" style="color:var(--warning)">Widget TikTok LIVE butuh username TikTok — isi dulu di halaman <a href="/host/${identifier}/tampilan" style="color:inherit">Tampilan</a>.</p>` : ""}
     <div class="panel" style="border-color:var(--brand);background:var(--brand-soft)">
@@ -160,38 +160,56 @@ export async function handleHostPreviewPage(req, res) {
     { name: "Sound Alert (audio doang, gak ada tampilan)", src: url("/sound-alerts"), w: 80, h: 80 },
   ]
     .map(
-      (w) => `<div class="panel" style="display:inline-block;margin:0 1rem 1rem 0;vertical-align:top">
-        <h3 style="margin-top:0">${escapeHtml(w.name)}</h3>
-        <iframe src="${escapeHtml(w.src)}" loading="lazy" style="width:${w.w}px;height:${w.h}px;border:1px solid var(--border);border-radius:8px;background:#111"></iframe>
+      (w) => `<div class="standalone-card">
+        <h3>${escapeHtml(w.name)}</h3>
+        <iframe src="${escapeHtml(w.src)}" loading="lazy" style="width:${w.w}px;height:${w.h}px"></iframe>
       </div>`
     )
     .join("");
 
-  const body = `
-    <div class="topbar"><div><h1>Preview Semua Widget</h1><p>Semua widget transparan digabung di satu "kanvas" buat dites bareng — posisinya cuma perkiraan, layout asli tetap kamu atur sendiri per-widget di OBS.</p></div>
-      <a href="/host/${identifier}/widget" class="btn">← Kembali ke Semua Widget</a>
-    </div>
-    <div style="overflow-x:auto;padding-bottom:1rem">
-      <div id="mock-canvas" style="position:relative;width:1280px;height:1550px;flex:none;
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+    <title>Preview Semua Widget — ${escapeHtml(settings.display_name || "Patungan")}</title>
+    <link rel="icon" type="image/png" href="/overlay/assets/patungan.png">
+    <style>
+      *{box-sizing:border-box}
+      html,body{margin:0;background:#1c1c1c;font-family:'Segoe UI',Arial,sans-serif;color:#fff}
+      #topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
+        gap:1rem;padding:10px 20px;background:#111;border-bottom:1px solid #333}
+      #topbar h1{font-size:15px;margin:0;font-weight:700}
+      #topbar p{font-size:12px;margin:2px 0 0;color:#999}
+      #topbar a{color:#fff;background:#333;border:1px solid #444;border-radius:8px;padding:8px 14px;
+        font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap}
+      #topbar a:hover{background:#444}
+      #canvas-wrap{overflow:auto;padding:24px}
+      #mock-canvas{position:relative;width:1280px;height:1550px;
         background-color:#2a2a2a;background-image:linear-gradient(45deg,#3a3a3a 25%,transparent 25%),linear-gradient(-45deg,#3a3a3a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#3a3a3a 75%),linear-gradient(-45deg,transparent 75%,#3a3a3a 75%);
         background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;
-        border-radius:12px;border:1px solid var(--border)">
-        ${canvasItems}
-      </div>
-    </div>
-
-    <div class="panel" style="margin-top:1.25rem">
-      <h2>Widget lain (bukan overlay transparan)</h2>
-      <p class="hint">Video, layar Aksi &amp; Event, dan Wheel of Fortune biasanya cuma aktif di momen tertentu (atau butuh ukuran gede sendiri), jadi ditampilin terpisah dari kanvas di atas.</p>
-      ${standaloneItems}
-    </div>
-
-    <style>
+        border-radius:12px;border:1px solid #444;margin:0 auto}
       .mock-item{position:absolute}
       .mock-item iframe{width:100%;height:100%;border:1px dashed rgba(255,255,255,.35);border-radius:6px;background:transparent}
       .mock-label{color:#fff;font-size:11px;font-weight:700;background:rgba(0,0,0,.6);display:inline-block;
         padding:2px 6px;border-radius:4px;margin-bottom:2px}
-    </style>`;
-
-  res.send(hostLayout(body, { active: "widget", identifier, settings }));
+      #standalone{padding:0 24px 32px}
+      #standalone h2{font-size:16px}
+      #standalone p{font-size:13px;color:#999}
+      .standalone-card{display:inline-block;margin:0 16px 16px 0;vertical-align:top;background:#242424;
+        border:1px solid #3a3a3a;border-radius:10px;padding:14px}
+      .standalone-card h3{margin:0 0 10px;font-size:13px}
+      .standalone-card iframe{border:1px solid #3a3a3a;border-radius:8px;background:#111}
+    </style></head><body>
+    <div id="topbar">
+      <div><h1>Preview Semua Widget</h1><p>Semua widget transparan digabung di satu "kanvas" — posisinya cuma perkiraan, layout asli tetap kamu atur sendiri per-widget di OBS.</p></div>
+      <a href="/host/${identifier}/widget">← Kembali ke Semua Widget</a>
+    </div>
+    <div id="canvas-wrap">
+      <div id="mock-canvas">
+        ${canvasItems}
+      </div>
+    </div>
+    <div id="standalone">
+      <h2>Widget lain (bukan overlay transparan)</h2>
+      <p>Video, layar Aksi &amp; Event, dan Wheel of Fortune biasanya cuma aktif di momen tertentu (atau butuh ukuran gede sendiri), jadi ditampilin terpisah dari kanvas di atas.</p>
+      ${standaloneItems}
+    </div>
+  </body></html>`);
 }
