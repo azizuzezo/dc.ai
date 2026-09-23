@@ -1,5 +1,6 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
+import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
 import { hostLayout } from "./hostLayout.js";
 import { escapeHtml } from "./htmlEscape.js";
 
@@ -23,6 +24,11 @@ const ALERT_APPEARANCE_DEFAULTS = {
   fontSize: 19,
   animation: "slide-up",
   showDecorations: true,
+  layout: "classic",
+  bannerColor: "#1d4ed8",
+  bannerHeadline: "HEY!",
+  highlightColor: "#fbbf24",
+  avatarPreset: "photo",
 };
 
 // Shared across Chat Bubble + Alert so both widgets draw from the same
@@ -55,6 +61,41 @@ function animationSelect(id, name, current) {
   return `<select id="${id}" name="${name}">
     ${Object.entries(ANIMATION_OPTIONS).map(([k, label]) => `<option value="${k}" ${k === current ? "selected" : ""}>${label}</option>`).join("")}
   </select>`;
+}
+
+function layoutSelect(id, name, current) {
+  return `<select id="${id}" name="${name}">
+    ${Object.entries(ALERT_LAYOUTS).map(([k, label]) => `<option value="${k}" ${k === current ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+  </select>`;
+}
+
+/** Radio-card gallery instead of a plain <select> so each avatar preset shows
+ * its actual gradient + emoji before picking it — "photo" is a face-shaped
+ * card (uses your uploaded avatar), the rest are themed badge alternatives. */
+function avatarPresetPicker(name, current) {
+  return `<div class="avatar-preset-grid">
+    ${Object.entries(AVATAR_PRESETS)
+      .map(([key, preset]) => {
+        const bg = preset.gradient || "radial-gradient(circle at 35% 30%,#4ade80,#16a34a)";
+        return `<label class="avatar-preset-card">
+          <input type="radio" name="${name}" value="${key}" ${key === current ? "checked" : ""} />
+          <span class="avatar-preset-swatch" style="background:${bg}">${preset.emoji ? escapeHtml(preset.emoji) : "🙂"}</span>
+          <span class="avatar-preset-label">${escapeHtml(preset.label)}</span>
+        </label>`;
+      })
+      .join("")}
+  </div>
+  <style>
+    .avatar-preset-grid{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0 1rem}
+    .avatar-preset-card{display:flex;flex-direction:column;align-items:center;gap:.35rem;width:84px;
+      padding:.5rem;border-radius:10px;border:2px solid transparent;cursor:pointer;text-align:center}
+    .avatar-preset-card:hover{border-color:rgba(255,255,255,.2)}
+    .avatar-preset-card:has(input:checked){border-color:var(--accent, #76cc11);background:rgba(118,204,17,.08)}
+    .avatar-preset-card input{position:absolute;opacity:0;pointer-events:none}
+    .avatar-preset-swatch{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    .avatar-preset-label{font-size:.72rem;opacity:.85}
+  </style>`;
 }
 
 const EFFECT_LABELS = {
@@ -136,7 +177,12 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/appearance" style="margin-top:1.25rem">
       <h2>Tampilan Alert (Dasar)</h2>
       <p class="hint">Warna, font, dan animasi widget Alert buat donasi biasa (di luar efek tingkatan nominal di bawah).</p>
-      <div class="grid grid-2">
+
+      <label for="alertLayout">Gaya tampilan</label>
+      <div style="max-width:22rem">${layoutSelect("alertLayout", "layout", alertStyle.layout)}</div>
+      <p class="hint" style="margin-top:.3rem">Klasik = lingkaran foto seperti sekarang. Banner = kotak judul besar + teks yang di-highlight, cocok buat tampilan yang lebih mencolok.</p>
+
+      <div class="grid grid-2" style="margin-top:1rem">
         <div>
           <label for="nameColor">Warna nama donatur</label>
           <input id="nameColor" type="color" name="nameColor" value="${escapeHtml(alertStyle.nameColor)}" style="height:2.6rem;padding:.3rem" />
@@ -154,7 +200,29 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
           ${animationSelect("alertAnimation", "animation", alertStyle.animation)}
         </div>
       </div>
-      <label class="checkbox-row"><input type="checkbox" name="showDecorations" ${alertStyle.showDecorations ? "checked" : ""} /> Tampilin ikon hati/kilau di sekitar foto profil</label>
+      <label class="checkbox-row"><input type="checkbox" name="showDecorations" ${alertStyle.showDecorations ? "checked" : ""} /> Tampilin ikon hati/kilau di sekitar foto profil (gaya Klasik)</label>
+
+      <h3 style="margin-top:1.5rem">Gaya Banner</h3>
+      <p class="hint">Dipakai kalau gaya tampilan di atas diset ke Banner.</p>
+      <div class="grid grid-2">
+        <div>
+          <label for="bannerColor">Warna kotak judul</label>
+          <input id="bannerColor" type="color" name="bannerColor" value="${escapeHtml(alertStyle.bannerColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="bannerHeadline">Teks judul</label>
+          <input id="bannerHeadline" type="text" name="bannerHeadline" maxlength="20" value="${escapeHtml(alertStyle.bannerHeadline)}" placeholder="HEY!" />
+        </div>
+        <div>
+          <label for="highlightColor">Warna highlight teks</label>
+          <input id="highlightColor" type="color" name="highlightColor" value="${escapeHtml(alertStyle.highlightColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+      </div>
+
+      <h3 style="margin-top:1.5rem">Avatar Default (gaya Klasik)</h3>
+      <p class="hint">Selain foto profil kamu, pilih salah satu badge tema kalau mau tampilan yang lebih menarik tanpa perlu foto wajah.</p>
+      ${avatarPresetPicker("avatarPreset", alertStyle.avatarPreset)}
+
       <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
     </form>
 
@@ -234,6 +302,11 @@ export async function handleHostAlertAppearanceUpdate(req, res) {
       fontSize: Math.min(32, Math.max(12, Number(req.body.fontSize) || ALERT_APPEARANCE_DEFAULTS.fontSize)),
       animation: Object.keys(ANIMATION_OPTIONS).includes(req.body.animation) ? req.body.animation : ALERT_APPEARANCE_DEFAULTS.animation,
       showDecorations: req.body.showDecorations === "on",
+      layout: Object.keys(ALERT_LAYOUTS).includes(req.body.layout) ? req.body.layout : ALERT_APPEARANCE_DEFAULTS.layout,
+      bannerColor: HEX_RE.test(req.body.bannerColor || "") ? req.body.bannerColor : ALERT_APPEARANCE_DEFAULTS.bannerColor,
+      bannerHeadline: String(req.body.bannerHeadline || "").trim().slice(0, 20) || ALERT_APPEARANCE_DEFAULTS.bannerHeadline,
+      highlightColor: HEX_RE.test(req.body.highlightColor || "") ? req.body.highlightColor : ALERT_APPEARANCE_DEFAULTS.highlightColor,
+      avatarPreset: Object.keys(AVATAR_PRESETS).includes(req.body.avatarPreset) ? req.body.avatarPreset : ALERT_APPEARANCE_DEFAULTS.avatarPreset,
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);

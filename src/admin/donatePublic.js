@@ -5,6 +5,7 @@ import { acquireLiveConnection, releaseLiveConnection } from "../services/tiktok
 import { getAudio } from "../services/ttsCache.js";
 import { extractYouTubeId, parseTimeToSeconds } from "../services/youtube.js";
 import { logError } from "../services/logger.js";
+import { AVATAR_PRESETS } from "../services/alertPresets.js";
 import { escapeHtml } from "./htmlEscape.js";
 
 /** "#rrggbb" + 0-100 opacity -> "rgba(r,g,b,a)", for customizable overlay widget colors. */
@@ -680,6 +681,11 @@ const ALERT_APPEARANCE_DEFAULTS = {
   fontSize: 19,
   animation: "slide-up",
   showDecorations: true,
+  layout: "classic",
+  bannerColor: "#1d4ed8",
+  bannerHeadline: "HEY!",
+  highlightColor: "#fbbf24",
+  avatarPreset: "photo",
 };
 
 /** Same shape as entranceKeyframes() above, but every transform keeps the
@@ -712,6 +718,13 @@ export async function handleOverlayPage(req, res) {
   const alertStyle = { ...ALERT_APPEARANCE_DEFAULTS, ...(settings.alert_appearance || {}) };
   const alertFontStack = FONT_STACKS[alertStyle.fontFamily] || FONT_STACKS.Inter;
   const alertAnim = centeredEntranceKeyframes(alertStyle.animation, 16);
+  const avatarPreset = AVATAR_PRESETS[alertStyle.avatarPreset] || AVATAR_PRESETS.photo;
+  const defaultAvatarInner = avatarPreset.emoji
+    ? avatarPreset.emoji
+    : settings.avatar_data
+      ? `<img src="/overlay/${token}/avatar" alt="" />`
+      : "🙏";
+  const avatarBgStyle = avatarPreset.gradient ? ` style="background:${avatarPreset.gradient}"` : "";
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -732,6 +745,17 @@ export async function handleOverlayPage(req, res) {
       #stage.fx-entrance.show{animation:fx-pop .55s cubic-bezier(.2,1.4,.4,1)}
       @keyframes fx-pop{0%{transform:translate(-50%,0) scale(.3);opacity:0}
         55%{transform:translate(-50%,0) scale(1.12);opacity:1}100%{transform:translate(-50%,0) scale(1)}}
+
+      /* Banner layout: a bold color-block headline instead of the circle avatar,
+         with the donation text drawn as highlighter-marker chips underneath. */
+      #banner-box{display:none}
+      #stage.layout-banner #banner-box{display:inline-block;background:${escapeHtml(alertStyle.bannerColor)};
+        color:#fff;font-weight:900;font-size:30px;padding:8px 30px;border-radius:14px;
+        border:3px solid rgba(255,255,255,.9);box-shadow:0 6px 20px rgba(0,0,0,.4);margin-bottom:12px;letter-spacing:1px}
+      #stage.layout-banner #avatar-wrap{display:none}
+      #stage.layout-banner .hl{background:${escapeHtml(alertStyle.highlightColor)};padding:1px 9px;
+        border-radius:5px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+      #stage.layout-banner #line2:empty{display:none}
 
       #avatar-wrap{position:relative;width:88px;height:88px;margin-bottom:14px}
       #avatar{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4ade80,#16a34a);
@@ -796,17 +820,18 @@ export async function handleOverlayPage(req, res) {
     </style></head><body>
     <div id="screen-flash"></div>
     <div id="effect-layer"></div>
-    <div id="stage">
+    <div id="stage" class="${alertStyle.layout === "banner" ? "layout-banner" : ""}">
+      <div id="banner-box">${escapeHtml(alertStyle.bannerHeadline || "HEY!")}</div>
       <div id="avatar-wrap">
-        <div id="avatar">${settings.avatar_data ? `<img src="/overlay/${token}/avatar" alt="" />` : "🙏"}</div>
+        <div id="avatar"${avatarBgStyle}>${defaultAvatarInner}</div>
         ${
           alertStyle.showDecorations
             ? `<span class="deco d1">💛</span><span class="deco d2">✨</span><span class="deco d3">💚</span>`
             : ""
         }
       </div>
-      <div id="line1"></div>
-      <p id="line2"></p>
+      <div id="line1" class="hl"></div>
+      <p id="line2" class="hl"></p>
     </div>
     <script src="/overlay/assets/overlay-relay.js"></script>
     <script>
