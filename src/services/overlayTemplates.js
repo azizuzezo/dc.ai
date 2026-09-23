@@ -476,3 +476,84 @@ export const WAKTU_TEMPLATES = [
     },
   },
 ];
+
+export const MILESTONE_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: {
+      panelColor: "#000000",
+      panelOpacity: 55,
+      labelColor: "#ffffff",
+      countColor: "#4ade80",
+      fillColor: "#4ade80",
+      reachedColor: "#facc15",
+      fontFamily: "Open Sans",
+    },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: {
+      panelColor: "#12122a",
+      panelOpacity: 90,
+      labelColor: "#f5f5ff",
+      countColor: "#00f5ff",
+      fillColor: "#00f5ff",
+      reachedColor: "#ff2fd0",
+      fontFamily: "Poppins",
+    },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: {
+      panelColor: "#fdf2f8",
+      panelOpacity: 95,
+      labelColor: "#831843",
+      countColor: "#db2777",
+      fillColor: "#db2777",
+      reachedColor: "#eab308",
+      fontFamily: "Comic Neue",
+    },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: {
+      panelColor: "#0f0f0f",
+      panelOpacity: 92,
+      labelColor: "#facc15",
+      countColor: "#facc15",
+      fillColor: "#facc15",
+      reachedColor: "#fef08a",
+      fontFamily: "Montserrat",
+    },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: {
+      panelColor: "#ffffff",
+      panelOpacity: 98,
+      labelColor: "#111827",
+      countColor: "#16a34a",
+      fillColor: "#16a34a",
+      reachedColor: "#d97706",
+      fontFamily: "Inter",
+    },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: {
+      panelColor: "#0a0a12",
+      panelOpacity: 90,
+      labelColor: "#e5e5ff",
+      countColor: "#39ff88",
+      fillColor: "#39ff88",
+      reachedColor: "#7c3aed",
+      fontFamily: "Bebas Neue",
+    },
+  },
+];

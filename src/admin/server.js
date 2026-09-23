@@ -104,7 +104,7 @@ import {
   handleHostSubathonRateUpdate,
   handleHostSubathonStyleUpdate,
 } from "./hostSubathon.js";
-import { handleHostMilestonesPage, handleHostMilestoneAdd, handleHostMilestoneDelete } from "./hostMilestones.js";
+import { handleHostMilestonesPage, handleHostMilestoneAdd, handleHostMilestoneDelete, handleHostMilestoneStyleUpdate } from "./hostMilestones.js";
 import {
   handleHostToolsPage,
   handleHostToolsCommandsUpdate,
@@ -349,6 +349,7 @@ export function startAdminServer() {
   app.get("/host/:identifier/milestone", requireHostAuth, (req, res) => handleHostMilestonesPage(req, res));
   app.post("/host/:identifier/milestone", requireHostAuth, handleHostMilestoneAdd);
   app.post("/host/:identifier/milestone/:id/delete", requireHostAuth, handleHostMilestoneDelete);
+  app.post("/host/:identifier/milestone/style", requireHostAuth, handleHostMilestoneStyleUpdate);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every

@@ -1848,6 +1848,16 @@ const MILESTONE_EVENT_BY_METRIC = {
   gifts: "gift-total",
 };
 
+const MILESTONE_STYLE_DEFAULTS = {
+  panelColor: "#000000",
+  panelOpacity: 55,
+  labelColor: "#ffffff",
+  countColor: "#4ade80",
+  fillColor: "#4ade80",
+  reachedColor: "#facc15",
+  fontFamily: "Open Sans",
+};
+
 export async function handleMilestonePage(req, res) {
   const { token, id } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
@@ -1855,20 +1865,22 @@ export async function handleMilestonePage(req, res) {
   const milestone = await db.getMilestone(settings.guild_id, id);
   if (!milestone) return res.status(404).send("Milestone not found.");
   const eventName = MILESTONE_EVENT_BY_METRIC[milestone.metric] || "likes";
+  const style = { ...MILESTONE_STYLE_DEFAULTS, ...(settings.milestone_style || {}) };
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
       #wrap{display:inline-block;min-width:260px;padding:14px 20px;border-radius:14px;
-        background:rgba(0,0,0,.55);box-shadow:0 10px 30px rgba(0,0,0,.35)}
-      #label{color:#fff;font-size:15px;font-weight:800;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px}
-      #count{color:#4ade80}
+        background:${hexToRgba(style.panelColor, style.panelOpacity)};box-shadow:0 10px 30px rgba(0,0,0,.35)}
+      #label{color:${escapeHtml(style.labelColor)};font-size:15px;font-weight:800;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px}
+      #count{color:${escapeHtml(style.countColor)}}
       #bar{height:14px;background:rgba(255,255,255,.25);border-radius:8px;overflow:hidden}
-      #fill{height:100%;background:#4ade80;width:0%;transition:width .5s ease}
-      #wrap.reached #fill{background:#facc15}
-      #wrap.reached #count{color:#facc15}
+      #fill{height:100%;background:${escapeHtml(style.fillColor)};width:0%;transition:width .5s ease}
+      #wrap.reached #fill{background:${escapeHtml(style.reachedColor)}}
+      #wrap.reached #count{color:${escapeHtml(style.reachedColor)}}
       @keyframes reached-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
       #wrap.reached{animation:reached-pulse 1s ease infinite}
       @media (prefers-reduced-motion: reduce){#wrap.reached{animation:none}#fill{transition:none}}

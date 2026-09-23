@@ -928,6 +928,7 @@ export async function ensureDonationSettings(guildId) {
     leaderboard_style: {},
     likeathon_style: {},
     waktu_style: {},
+    milestone_style: {},
   };
   if (supabase) {
     const { error } = await supabase.from("bot_donation_settings").insert(fresh);
