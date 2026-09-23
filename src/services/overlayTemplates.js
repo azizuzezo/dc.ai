@@ -656,3 +656,38 @@ export const WISHLIST_TEMPLATES = [
     },
   },
 ];
+
+// Shared "white card" look across Likes/Followers/Share/Gift — one template
+// picker instead of four near-identical ones.
+export const TAG_TEMPLATES = [
+  {
+    key: "klasik",
+    label: "Klasik Hijau",
+    style: { bgColor: "#ffffff", bgOpacity: 97, textColor: "#122e1e", accentColor: "#76cc11", fontFamily: "Open Sans", fontSize: 20 },
+  },
+  {
+    key: "neon",
+    label: "Neon Malam",
+    style: { bgColor: "#12122a", bgOpacity: 92, textColor: "#f5f5ff", accentColor: "#00f5ff", fontFamily: "Poppins", fontSize: 20 },
+  },
+  {
+    key: "pastel",
+    label: "Pastel Lembut",
+    style: { bgColor: "#fdf2f8", bgOpacity: 96, textColor: "#831843", accentColor: "#db2777", fontFamily: "Comic Neue", fontSize: 21 },
+  },
+  {
+    key: "emas",
+    label: "Emas Elegan",
+    style: { bgColor: "#0f0f0f", bgOpacity: 94, textColor: "#f5f5f5", accentColor: "#facc15", fontFamily: "Montserrat", fontSize: 20 },
+  },
+  {
+    key: "minimalis",
+    label: "Minimalis Putih",
+    style: { bgColor: "#ffffff", bgOpacity: 100, textColor: "#111827", accentColor: "#6b7280", fontFamily: "Inter", fontSize: 20 },
+  },
+  {
+    key: "gamer",
+    label: "Gamer RGB",
+    style: { bgColor: "#0a0a12", bgOpacity: 90, textColor: "#e5e5ff", accentColor: "#39ff88", fontFamily: "Bebas Neue", fontSize: 22 },
+  },
+];

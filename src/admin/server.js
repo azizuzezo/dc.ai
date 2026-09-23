@@ -94,6 +94,7 @@ import {
   handleHostAlertAppearanceUpdate,
   handleHostLeaderboardStyleUpdate,
   handleHostLikeathonStyleUpdate,
+  handleHostTagStyleUpdate,
   handleHostAlertTierAdd,
   handleHostAlertTierDelete,
   handleHostAlertTierSimulate,
@@ -338,6 +339,7 @@ export function startAdminServer() {
   app.post("/host/:identifier/tampilan-alert/appearance", requireHostAuth, handleHostAlertAppearanceUpdate);
   app.post("/host/:identifier/tampilan-alert/leaderboard", requireHostAuth, handleHostLeaderboardStyleUpdate);
   app.post("/host/:identifier/tampilan-alert/likeathon", requireHostAuth, handleHostLikeathonStyleUpdate);
+  app.post("/host/:identifier/tampilan-alert/tag", requireHostAuth, handleHostTagStyleUpdate);
   app.post("/host/:identifier/tampilan-alert/tiers", requireHostAuth, mediaUpload.single("imageFile"), handleHostAlertTierAdd);
   app.post("/host/:identifier/tampilan-alert/tiers/:id/delete", requireHostAuth, handleHostAlertTierDelete);
   app.post("/host/:identifier/tampilan-alert/simulate-donation", requireHostAuth, handleHostAlertTierSimulate);

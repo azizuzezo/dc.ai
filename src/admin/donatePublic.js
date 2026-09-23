@@ -1543,27 +1543,45 @@ export async function handleChatPage(req, res) {
   </body></html>`);
 }
 
+// Shared by Likes/Followers/Share/Gift — visually the same "white card" tag
+// family, so one style config controls the look across all four counters
+// instead of asking the host to configure four near-identical forms.
+const TAG_STYLE_DEFAULTS = {
+  bgColor: "#ffffff",
+  bgOpacity: 97,
+  textColor: "#122e1e",
+  accentColor: "#76cc11",
+  fontFamily: "Open Sans",
+  fontSize: 20,
+};
+
+function tagStyleFor(settings) {
+  return { ...TAG_STYLE_DEFAULTS, ...(settings.tag_style || {}) };
+}
+
 export async function handleGiftPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = tagStyleFor(settings);
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
       /* Same white-card/green language as the other overlays. */
-      html,body{margin:0;background:transparent;overflow:hidden;font-family:'Open Sans',sans-serif}
+      html,body{margin:0;background:transparent;overflow:hidden;font-family:${fontStack}}
       #stage{position:fixed;bottom:56px;left:50%;transform:translate(-50%,16px);
-        display:flex;align-items:stretch;background:rgba(255,255,255,.97);border-radius:14px;
+        display:flex;align-items:stretch;background:${hexToRgba(style.bgColor, style.bgOpacity)};border-radius:14px;
         box-shadow:0 4px 20px rgba(0,0,0,.15);overflow:hidden;
         opacity:0;transition:opacity .3s ease,transform .3s ease}
       #stage.show{opacity:1;transform:translate(-50%,0)}
       @media (prefers-reduced-motion: reduce){#stage{transition:opacity .2s linear}#stage.show{transform:translate(-50%,0)}}
       #giftImg{width:48px;height:48px;flex:none;object-fit:cover;background:#e5e5e5;display:none}
-      #giftText{font-size:15px;font-weight:700;color:#122e1e;padding:0 16px;display:flex;align-items:center;white-space:nowrap}
-      #giftText .user{color:#122e1e}
-      #giftText .name{color:#76cc11}
+      #giftText{font-size:${Math.max(12, style.fontSize - 5)}px;font-weight:700;color:${escapeHtml(style.textColor)};padding:0 16px;display:flex;align-items:center;white-space:nowrap}
+      #giftText .user{color:${escapeHtml(style.textColor)}}
+      #giftText .name{color:${escapeHtml(style.accentColor)}}
     </style></head><body>
     <div id="stage">
       <img id="giftImg" src="" alt="" onerror="this.style.display='none'" />
@@ -1613,17 +1631,19 @@ export async function handleLikesPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = tagStyleFor(settings);
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.97);color:#122e1e;
-        font-size:20px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #tag{display:inline-flex;align-items:center;gap:8px;background:${hexToRgba(style.bgColor, style.bgOpacity)};color:${escapeHtml(style.textColor)};
+        font-size:${style.fontSize}px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
     </style></head><body>
     <div id="tag">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="#76cc11"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.1c2.3-1.15 4.7-.3 5.9 1.3l1.5 2 1.5-2c1.2-1.6 3.6-2.45 5.9-1.3 3 1.5 3.6 5 1.9 7.8C18.7 16.65 12 21 12 21z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="${escapeHtml(style.accentColor)}"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.1c2.3-1.15 4.7-.3 5.9 1.3l1.5 2 1.5-2c1.2-1.6 3.6-2.45 5.9-1.3 3 1.5 3.6 5 1.9 7.8C18.7 16.65 12 21 12 21z"/></svg>
       <span id="count">0</span>
     </div>
     <script src="/overlay/assets/overlay-relay.js"></script>
@@ -1640,19 +1660,22 @@ export async function handleFollowersPage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = tagStyleFor(settings);
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
+  const flashColor = shadeHex(style.accentColor, 80);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.97);color:#122e1e;
-        font-size:20px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #tag{display:inline-flex;align-items:center;gap:8px;background:${hexToRgba(style.bgColor, style.bgOpacity)};color:${escapeHtml(style.textColor)};
+        font-size:${style.fontSize}px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
         transition:background .2s ease}
-      #tag.flash{background:#eaffd6}
+      #tag.flash{background:${flashColor}}
     </style></head><body>
     <div id="tag">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76cc11" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${escapeHtml(style.accentColor)}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>
       </svg>
       <span id="count">0</span><span>follower baru</span>
@@ -1676,19 +1699,22 @@ export async function handleSharePage(req, res) {
   const { token } = req.params;
   const settings = await db.getDonationSettingsByOverlayToken(token);
   if (!settings) return res.status(404).send("Overlay not found.");
+  const style = tagStyleFor(settings);
+  const fontStack = FONT_STACKS[style.fontFamily] || FONT_STACKS["Open Sans"];
+  const flashColor = shadeHex(style.accentColor, 80);
 
   res.send(`<!doctype html><html><head><meta charset="utf-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=${GOOGLE_FONT_QUERY}&display=swap" rel="stylesheet">
     <style>
-      html,body{margin:0;background:transparent;font-family:'Open Sans',sans-serif}
-      #tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.97);color:#122e1e;
-        font-size:20px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+      html,body{margin:0;background:transparent;font-family:${fontStack}}
+      #tag{display:inline-flex;align-items:center;gap:8px;background:${hexToRgba(style.bgColor, style.bgOpacity)};color:${escapeHtml(style.textColor)};
+        font-size:${style.fontSize}px;font-weight:800;padding:8px 18px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);
         transition:background .2s ease}
-      #tag.flash{background:#eaffd6}
+      #tag.flash{background:${flashColor}}
     </style></head><body>
     <div id="tag">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76cc11" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${escapeHtml(style.accentColor)}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
         <path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/>
       </svg>

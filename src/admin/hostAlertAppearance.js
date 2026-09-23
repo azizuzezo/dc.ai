@@ -1,7 +1,7 @@
 import * as db from "../services/db.js";
 import { announceDonation } from "../services/donationPolling.js";
 import { AVATAR_PRESETS, ALERT_LAYOUTS } from "../services/alertPresets.js";
-import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES } from "../services/overlayTemplates.js";
+import { CHAT_BUBBLE_TEMPLATES, ALERT_TEMPLATES, LEADERBOARD_TEMPLATES, LIKEATHON_TEMPLATES, TAG_TEMPLATES } from "../services/overlayTemplates.js";
 import { FONT_STACKS as FONT_OPTIONS, ANIMATION_OPTIONS } from "../services/overlayStyleShared.js";
 import { HEX_RE, hexToRgba, shadeHex, fontSelect, animationSelect, templateGallery } from "./overlayStyleUi.js";
 import { hostLayout } from "./hostLayout.js";
@@ -56,6 +56,15 @@ const LIKEATHON_STYLE_DEFAULTS = {
   valColor: "#122e1e",
   fontFamily: "Open Sans",
   fontSize: 13,
+};
+
+const TAG_STYLE_DEFAULTS = {
+  bgColor: "#ffffff",
+  bgOpacity: 97,
+  textColor: "#122e1e",
+  accentColor: "#76cc11",
+  fontFamily: "Open Sans",
+  fontSize: 20,
 };
 
 function layoutSelect(id, name, current) {
@@ -144,6 +153,16 @@ function likeathonPreviewHTML(style) {
   </div>`;
 }
 
+function tagPreviewHTML(style) {
+  return `<div class="tpl-preview" style="align-items:stretch">
+    <div style="display:inline-flex;align-items:center;gap:6px;background:${hexToRgba(style.bgColor, style.bgOpacity)};
+      color:${escapeHtml(style.textColor)};font-weight:800;padding:6px 12px;border-radius:8px;
+      font-family:${FONT_OPTIONS[style.fontFamily] || FONT_OPTIONS["Open Sans"]};margin:0 auto">
+      <span style="color:${escapeHtml(style.accentColor)}">❤</span><span>128</span>
+    </div>
+  </div>`;
+}
+
 const EFFECT_LABELS = {
   none: "Tanpa efek",
   shake: "Goyang (shake)",
@@ -163,6 +182,7 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
   const alertStyle = { ...ALERT_APPEARANCE_DEFAULTS, ...(settings.alert_appearance || {}) };
   const leaderboardStyle = { ...LEADERBOARD_STYLE_DEFAULTS, ...(settings.leaderboard_style || {}) };
   const likeathonStyle = { ...LIKEATHON_STYLE_DEFAULTS, ...(settings.likeathon_style || {}) };
+  const tagStyle = { ...TAG_STYLE_DEFAULTS, ...(settings.tag_style || {}) };
   const tiers = await db.listAlertTiers(settings.guild_id);
 
   const body = `
@@ -391,6 +411,43 @@ export async function handleHostAlertAppearancePage(req, res, notice) {
     </form>
 
     <div class="panel" style="margin-top:1.25rem">
+      <h2>Template Like / Follower / Share / Gift</h2>
+      <p class="hint">Satu gaya yang berlaku ke widget Like, Follower Baru, Share, dan Gift sekaligus — semuanya pakai tampilan "kartu putih" yang sama. Klik salah satu buat langsung pakai.</p>
+      ${templateGallery(TAG_TEMPLATES, `/host/${identifier}/tampilan-alert/tag`, tagPreviewHTML)}
+    </div>
+
+    <form class="panel" method="post" action="/host/${identifier}/tampilan-alert/tag" style="margin-top:1.25rem">
+      <h2>Like / Follower / Share / Gift (Manual)</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="tgBgColor">Warna latar kartu</label>
+          <input id="tgBgColor" type="color" name="bgColor" value="${escapeHtml(tagStyle.bgColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="tgBgOpacity">Transparansi latar (%)</label>
+          <input id="tgBgOpacity" type="number" name="bgOpacity" min="0" max="100" value="${tagStyle.bgOpacity}" />
+        </div>
+        <div>
+          <label for="tgTextColor">Warna teks</label>
+          <input id="tgTextColor" type="color" name="textColor" value="${escapeHtml(tagStyle.textColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="tgAccentColor">Warna ikon/aksen</label>
+          <input id="tgAccentColor" type="color" name="accentColor" value="${escapeHtml(tagStyle.accentColor)}" style="height:2.6rem;padding:.3rem" />
+        </div>
+        <div>
+          <label for="tgFontFamily">Font</label>
+          ${fontSelect("tgFontFamily", "fontFamily", tagStyle.fontFamily)}
+        </div>
+        <div>
+          <label for="tgFontSize">Ukuran teks (px)</label>
+          <input id="tgFontSize" type="number" name="fontSize" min="12" max="32" value="${tagStyle.fontSize}" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:16px">Simpan</button>
+    </form>
+
+    <div class="panel" style="margin-top:1.25rem">
       <h2>Alert Berdasarkan Nominal</h2>
       <p class="hint">Widget Alert (donasi) bisa nampilin gambar &amp; efek beda-beda tergantung nominal donasi — dipilih otomatis dari tingkatan tertinggi yang nominalnya kepenuhin.</p>
       ${
@@ -505,6 +562,21 @@ export async function handleHostLikeathonStyleUpdate(req, res) {
       valColor: HEX_RE.test(req.body.valColor || "") ? req.body.valColor : LIKEATHON_STYLE_DEFAULTS.valColor,
       fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : LIKEATHON_STYLE_DEFAULTS.fontFamily,
       fontSize: Math.min(20, Math.max(10, Number(req.body.fontSize) || LIKEATHON_STYLE_DEFAULTS.fontSize)),
+    },
+  });
+  res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
+}
+
+export async function handleHostTagStyleUpdate(req, res) {
+  const settings = req.donationSettings;
+  await db.updateDonationSettings(settings.guild_id, {
+    tag_style: {
+      bgColor: HEX_RE.test(req.body.bgColor || "") ? req.body.bgColor : TAG_STYLE_DEFAULTS.bgColor,
+      bgOpacity: Math.min(100, Math.max(0, Number(req.body.bgOpacity) || 0)),
+      textColor: HEX_RE.test(req.body.textColor || "") ? req.body.textColor : TAG_STYLE_DEFAULTS.textColor,
+      accentColor: HEX_RE.test(req.body.accentColor || "") ? req.body.accentColor : TAG_STYLE_DEFAULTS.accentColor,
+      fontFamily: Object.keys(FONT_OPTIONS).includes(req.body.fontFamily) ? req.body.fontFamily : TAG_STYLE_DEFAULTS.fontFamily,
+      fontSize: Math.min(32, Math.max(12, Number(req.body.fontSize) || TAG_STYLE_DEFAULTS.fontSize)),
     },
   });
   res.redirect(`/host/${req.params.identifier}/tampilan-alert`);
