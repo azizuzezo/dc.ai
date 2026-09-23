@@ -72,6 +72,8 @@ function attachListeners(connection, token, counts, guildId, settings) {
       diamonds,
     };
     broadcast(token, "gift", payload);
+    counts.diamonds += diamonds;
+    broadcast(token, "gift-total", { total: counts.diamonds });
     awardPointsIfEnabled(settings, guildId, user, settings.points_per_coin * diamonds);
     evaluateEvent(token, guildId, "gift", payload);
   });
@@ -124,7 +126,7 @@ export async function acquireLiveConnection(token, settings) {
   const connection = new TikTokLiveConnection(settings.tiktok_url, { enableExtendedGiftInfo: false });
   // Running totals for this session — TikTok's own counters reset per connection,
   // so Like Counter/Follower Count widgets show "since this overlay connected."
-  const counts = { likes: 0, follows: 0, shares: 0 };
+  const counts = { likes: 0, follows: 0, shares: 0, diamonds: 0 };
   active.set(token, { connection, refCount: 1, disconnectTimer: null, guildId });
   attachListeners(connection, token, counts, guildId, settings);
 

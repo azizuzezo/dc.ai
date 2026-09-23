@@ -46,6 +46,7 @@ const memDonationTimers = []; // [{ id, guild_id, action_id, interval_minutes, s
 const memFlaggedChat = []; // [{ id, guild_id, tiktok_user, message, reason, created_at }]
 const memDonationMedia = []; // [{ id, guild_id, filename, mime_type, data, size_bytes, created_at }]
 const memAlertTiers = []; // [{ id, guild_id, min_amount, image_url, effect, created_at }]
+const memMilestones = []; // [{ id, guild_id, metric, target, label, created_at }]
 let memDonationIdSeq = 1;
 let memWishlistItemIdSeq = 1;
 let memDonationActionIdSeq = 1;
@@ -54,6 +55,7 @@ let memDonationTimerIdSeq = 1;
 let memFlaggedChatIdSeq = 1;
 let memDonationMediaIdSeq = 1;
 let memAlertTierIdSeq = 1;
+let memMilestoneIdSeq = 1;
 let memReminderIdSeq = 1;
 let memNoteIdSeq = 1;
 let memKnowledgeIdSeq = 1;
@@ -1636,4 +1638,57 @@ export async function deleteAlertTier(guildId, id) {
   }
   const idx = memAlertTiers.findIndex((t) => t.guild_id === guildId && t.id === Number(id));
   if (idx !== -1) memAlertTiers.splice(idx, 1);
+}
+
+/** Custom TikTok LIVE goal widgets (like/follower/share/gift-coin goals) —
+ * progress itself is computed client-side from the same live-events stream
+ * the plain Like/Follower/Share counter widgets already use, this table
+ * only stores what the host configured (metric, target, label). */
+export async function listMilestones(guildId) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_milestones")
+      .select("id, metric, target, label, created_at")
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+  return memMilestones.filter((m) => m.guild_id === guildId);
+}
+
+export async function getMilestone(guildId, id) {
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("bot_donation_milestones")
+      .select("id, metric, target, label, created_at")
+      .eq("guild_id", guildId)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  return memMilestones.find((m) => m.guild_id === guildId && m.id === Number(id)) || null;
+}
+
+export async function addMilestone(guildId, { metric, target, label }) {
+  const row = { guild_id: guildId, metric: metric || "likes", target: Math.max(1, Number(target) || 0), label: label || "Goal" };
+  if (supabase) {
+    const { data, error } = await supabase.from("bot_donation_milestones").insert(row).select("id").single();
+    if (error) throw error;
+    return data.id;
+  }
+  const id = memMilestoneIdSeq++;
+  memMilestones.push({ id, ...row, created_at: new Date().toISOString() });
+  return id;
+}
+
+export async function deleteMilestone(guildId, id) {
+  if (supabase) {
+    const { error } = await supabase.from("bot_donation_milestones").delete().eq("guild_id", guildId).eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  const idx = memMilestones.findIndex((m) => m.guild_id === guildId && m.id === Number(id));
+  if (idx !== -1) memMilestones.splice(idx, 1);
 }

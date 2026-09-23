@@ -60,6 +60,7 @@ import {
   handleLinkPreviewPage,
   handleMediaServe,
   handleSubathonPage,
+  handleMilestonePage,
 } from "./donatePublic.js";
 import { requireHostAuth, handleHostLoginPage, handleHostLogin, handleHostLogout } from "./hostAuth.js";
 import {
@@ -99,6 +100,7 @@ import {
   handleHostSubathonStop,
   handleHostSubathonRateUpdate,
 } from "./hostSubathon.js";
+import { handleHostMilestonesPage, handleHostMilestoneAdd, handleHostMilestoneDelete } from "./hostMilestones.js";
 import {
   handleHostToolsPage,
   handleHostToolsCommandsUpdate,
@@ -246,6 +248,7 @@ export function startAdminServer() {
   app.get("/overlay/:token/share", handleSharePage);
   app.get("/overlay/:token/jar", handleJarPage);
   app.get("/overlay/:token/subathon", handleSubathonPage);
+  app.get("/overlay/:token/milestone/:id", handleMilestonePage);
   app.get("/overlay/:token/live-events", handleLiveEvents);
   // TikFinity-style feature widgets — Points, Sound Alerts, Actions & Events,
   // Wheel of Fortune, Likeathon, Command Response, Points Drop.
@@ -333,6 +336,10 @@ export function startAdminServer() {
   app.post("/host/:identifier/subathon/start", requireHostAuth, handleHostSubathonStart);
   app.post("/host/:identifier/subathon/stop", requireHostAuth, handleHostSubathonStop);
   app.post("/host/:identifier/subathon/rate", requireHostAuth, handleHostSubathonRateUpdate);
+
+  app.get("/host/:identifier/milestone", requireHostAuth, (req, res) => handleHostMilestonesPage(req, res));
+  app.post("/host/:identifier/milestone", requireHostAuth, handleHostMilestoneAdd);
+  app.post("/host/:identifier/milestone/:id/delete", requireHostAuth, handleHostMilestoneDelete);
 
   // Public — no auth. Donor-facing checkout, at the domain root (patungan.my.id/:identifier)
   // now that the domain itself carries the "patungan" name — registered last so every
