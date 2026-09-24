@@ -24,6 +24,23 @@ import { fetchLinkPreview } from "./linkPreview.js";
 const active = new Map(); // token -> { connection, refCount, disconnectTimer, guildId }
 const DISCONNECT_GRACE_MS = 30_000;
 
+/** The TikTok tiktok_url field is a raw user-typed URL or handle (whatever they
+ * pasted into the Tampilan settings page). tiktok-live-connector's own
+ * normalization only strips the exact "https://www.tiktok.com/" prefix, so a
+ * URL without "www." — including the format our own placeholder suggests,
+ * "https://tiktok.com/@kamu" — is passed through unstripped and fails to
+ * resolve. Normalize it ourselves to a bare unique ID before handing it off. */
+function extractTiktokUniqueId(raw) {
+  if (!raw) return raw;
+  return raw
+    .trim()
+    .replace(/^https?:\/\/(www\.)?tiktok\.com\//i, "")
+    .replace(/\/live\/?$/i, "")
+    .replace(/^@/, "")
+    .split(/[/?#]/)[0]
+    .toLowerCase();
+}
+
 function awardPointsIfEnabled(settings, guildId, user, amount) {
   if (!settings.points_enabled || !(Number(amount) > 0)) return;
   db.awardDonationPoints(guildId, user, Number(amount)).catch((err) =>
@@ -123,7 +140,7 @@ export async function acquireLiveConnection(token, settings) {
   }
 
   const guildId = settings.guild_id;
-  const connection = new TikTokLiveConnection(settings.tiktok_url, { enableExtendedGiftInfo: false });
+  const connection = new TikTokLiveConnection(extractTiktokUniqueId(settings.tiktok_url), { enableExtendedGiftInfo: false });
   // Running totals for this session — TikTok's own counters reset per connection,
   // so Like Counter/Follower Count widgets show "since this overlay connected."
   const counts = { likes: 0, follows: 0, shares: 0, diamonds: 0 };
@@ -149,7 +166,7 @@ export async function acquireLiveConnection(token, settings) {
  * Returns null if the account isn't currently live or the lookup fails. */
 export async function fetchTotalFollowers(tiktokUrl) {
   try {
-    const connection = new TikTokLiveConnection(tiktokUrl, {});
+    const connection = new TikTokLiveConnection(extractTiktokUniqueId(tiktokUrl), {});
     const info = await connection.fetchRoomInfo();
     const count = info?.data?.owner?.follow_info?.follower_count;
     return typeof count === "number" ? count : null;
